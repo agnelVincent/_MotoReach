@@ -3,21 +3,20 @@ import TextAreaField from "../../components/TextAreaField";
 import { useState, useEffect } from 'react';
 import { User, Building2, Wrench, Mail, Lock, Phone, MapPin, FileText, AlertCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { data, useNavigate } from 'react-router-dom';
-import { registerUser, clearError } from '../../redux/slices/authSlice'; // Adjust the path as necessary
+import { useNavigate } from 'react-router-dom';
+import { registerUser, clearError } from '../../redux/slices/authSlice'; 
 
 const Register = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  // --- Redux State ---
   const { loading, error, isRegistered, pendingEmail } = useSelector((state) => state.auth);
 
   const [selectedRole, setSelectedRole] = useState('user');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [workshopType, setWorkshopType] = useState('individual');
-  const [formError, setFormError] = useState(''); // For client-side validation errors
+  const [clientErrors, setClientErrors] = useState({});
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -40,25 +39,19 @@ const Register = () => {
     { id: 'mechanic', name: 'Mechanic', icon: Wrench }
   ];
 
-  // Effect to handle navigation after successful registration
+
   useEffect(() => {
     if (isRegistered && pendingEmail) {
-      // Navigate to the verification page
       navigate('/verify-otp');
     }
-    
-    // Clear the Redux error when the component mounts or role/form changes
+
     dispatch(clearError());
-    setFormError('');
   }, [isRegistered, pendingEmail, navigate, dispatch, selectedRole]);
 
-  // Handle role change (clear form data for irrelevant fields)
   const handleRoleChange = (roleId) => {
     setSelectedRole(roleId);
     setFormError('');
     dispatch(clearError());
-    // Optionally clear specific workshop/mechanic fields if switching away
-    // E.g., if switching to 'user', clear all workshop fields
     if (roleId === 'user') {
       setFormData(prev => ({
         ...prev,
@@ -74,49 +67,93 @@ const Register = () => {
     }
   };
 
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
-      ...prev,
-      [name]: value
+        ...prev,
+        [name]: value
     }));
-  };
+};
 
-  const validateForm = () => {
-    // 1. Check if passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setFormError("Passwords do not match.");
-      return false;
-    }
-    
-    // 2. Simple check for required fields (can be expanded)
-    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
-        setFormError("Please fill in all common required fields.");
-        return false;
+const validateForm = () => {
+
+    setClientErrors({});
+    let errors = {};
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+\-=[\]{}|;:'",.<>/?\\~`]{8,}$/;
+    const phoneRegex = /^\d{10,15}$/; 
+
+
+    if (!formData.fullName) errors.fullName = "Full Name is required.";
+    if (!formData.email) errors.email = "Email Address is required.";
+    if (!formData.password) errors.password = "Password is required.";
+    if (!formData.confirmPassword) errors.confirmPassword = "Confirm Password is required.";
+
+    if (formData.email && !emailRegex.test(formData.email)) {
+        errors.email = "Invalid email address format.";
     }
 
-    // 3. Workshop specific validation
+    if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = "Passwords do not match.";
+    }
+
+    if (formData.password && !passwordStrengthRegex.test(formData.password)) {
+        errors.password = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
+    }
+
     if (selectedRole === 'workshop') {
-        if (!formData.workshopName || !formData.workshopAddress || !formData.contactNumber) {
-            setFormError("Please fill in all required workshop details.");
-            return false;
+        const workshopFields = {
+            workshopName: "Workshop Name",
+            workshopAddress: "Workshop Address",
+            licenseNumber: "License Number",
+            state: "State",
+            city: "City",
+            pinCode: "Pin Code",
+            locality: "Locality",
+            contactNumber: "Contact Number",
+        };
+        
+        for (const field in workshopFields) {
+            if (!formData[field]) {
+                errors[field] = `${workshopFields[field]} is required for Workshop Admin registration.`;
+            }
+        }
+
+        if (formData.pinCode && !/^\d{6}$/.test(formData.pinCode)) {
+             errors.pinCode = "Pin Code must be 6 digits.";
+        }
+
+    }
+
+    if (selectedRole === 'mechanic' || selectedRole === 'workshop') {
+        if (!formData.contactNumber) {
+            errors.contactNumber = "Contact Number is required for this role.";
+        } 
+
+        else if (!phoneRegex.test(formData.contactNumber)) {
+            errors.contactNumber = "Contact number must be between 10 to 15 digits.";
         }
     }
-    
-    setFormError('');
+
+    if (Object.keys(errors).length > 0) {
+            
+        setClientErrors(errors);
+        
+        return false;
+    }
+    setClientErrors({});
     return true;
-  };
+};
 
   const handleSubmit = (e) => {
-    e.preventDefault(); // Prevent default form submission if wrapped in <form>
+    e.preventDefault(); 
 
-    dispatch(clearError()); // Clear previous server errors
+    dispatch(clearError());
     if (!validateForm()) {
       return;
     }
-    
-    // Prepare the data to send to the API
+
     const dataToSend = {
       full_name: formData.fullName,
       email: formData.email,
@@ -146,13 +183,26 @@ const Register = () => {
     dispatch(registerUser(dataToSend));
   };
 
-  return (
+  const allErrors = { 
+    ...clientErrors, 
+    ...(typeof error === 'object' && error !== null ? error : {}) 
+};
+
+const getError = (camelCaseKey, snakeCaseKey) => {
+    if (allErrors[camelCaseKey]) {
+        return allErrors[camelCaseKey];
+    }
+    if (Array.isArray(allErrors[snakeCaseKey]) && allErrors[snakeCaseKey].length > 0) {
+        return allErrors[snakeCaseKey][0];
+    }
+    return undefined;
+};
+
+return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
       <div className="flex-grow flex items-center justify-center px-4 py-12 mt-16">
         <div className="w-full max-w-2xl">
-          {/* Registration Card */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 lg:p-10">
-            {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
                 Create Account
@@ -162,7 +212,6 @@ const Register = () => {
               </p>
             </div>
 
-            {/* Role Selection */}
             <div className="flex gap-3 mb-8 p-2 bg-gray-100 rounded-xl">
               {roles.map((role) => {
                 const Icon = role.icon;
@@ -175,7 +224,7 @@ const Register = () => {
                         ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-transparent text-gray-600 hover:bg-gray-200'
                     }`}
-                    disabled={loading} // Disable role change during loading
+                    disabled={loading} 
                   >
                     <Icon className="w-5 h-5" />
                     <span className="hidden sm:inline">{role.name}</span>
@@ -183,21 +232,26 @@ const Register = () => {
                 );
               })}
             </div>
-
-            {/* Error Message Display */}
-            {(formError || error) && (
-              <div className="mb-6 p-4 rounded-lg flex items-start gap-3 bg-red-50 text-red-800 border border-red-200">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <p className="text-sm">
-                  {formError || (error?.message || error?.error || 'An unknown error occurred.')}
-                </p>
+            
+            {/* General Server Error Box (Only for Redux error. We handle client errors per-field now) */}
+            {/* This handles general errors or non-field-specific server errors */}
+            {error && (
+              <div className="mb-6 p-4 rounded-lg flex flex-col gap-2 bg-red-50 text-red-800 border border-red-200">
+                <div className="flex items-center gap-2 font-semibold">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    Registration Failed
+                </div>
+                {/* Display a single general error message if it exists */}
+                {typeof error === 'string' && <p className="text-sm">{error}</p>}
+                {/* Display the top-level 'error' field if the server sent it, or a generic message */}
+                {typeof error === 'object' && !Object.keys(error).filter(key => key !== 'error').length && (
+                    <p className="text-sm">{error?.error || 'An unknown server error occurred.'}</p>
+                )}
               </div>
             )}
 
 
-            {/* Registration Form (Using a form tag is generally better for accessibility) */}
             <form className="space-y-5" onSubmit={(e) => handleSubmit(e)}>
-              {/* Common Fields for All Roles */}
               <InputField
                 label="Full Name"
                 type="text"
@@ -207,17 +261,21 @@ const Register = () => {
                 placeholder="Enter your full name"
                 icon={User}
                 disabled={loading}
+                // --- ERROR PROP ADDED/MAPPED ---
+                error={getError('fullName', 'full_name')}
               />
 
               <InputField
                 label="Email Address"
-                type="email"
+                type="text"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="Enter your email"
                 icon={Mail}
                 disabled={loading}
+                // --- ERROR PROP ADDED/MAPPED ---
+                error={getError('email', 'email')}
               />
 
               <InputField
@@ -231,6 +289,8 @@ const Register = () => {
                 showPassword={showPassword}
                 onTogglePassword={() => setShowPassword(!showPassword)}
                 disabled={loading}
+                // --- ERROR PROP ADDED/MAPPED ---
+                error={getError('password', 'password')}
               />
 
               <InputField
@@ -244,9 +304,12 @@ const Register = () => {
                 showPassword={showConfirmPassword}
                 onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={loading}
+                // --- ERROR PROP ADDED/MAPPED ---
+                // Note: The backend error key for confirmPassword is often 'password' or 'confirm_password'.
+                // Assuming client-side validation is sufficient here as it's not sent to the server.
+                error={getError('confirmPassword', 'confirm_password')}
               />
 
-              {/* Workshop Specific Fields */}
               {selectedRole === 'workshop' && (
                 <>
                   <InputField
@@ -258,6 +321,8 @@ const Register = () => {
                     placeholder="Enter workshop name"
                     icon={Building2}
                     disabled={loading}
+                    // --- ERROR PROP ADDED/MAPPED ---
+                    error={getError('workshopName', 'workshop_name')}
                   />
 
                   <TextAreaField
@@ -269,6 +334,8 @@ const Register = () => {
                     icon={MapPin}
                     rows={3}
                     disabled={loading}
+                    // --- ERROR PROP ADDED/MAPPED ---
+                    error={getError('workshopAddress', 'address_line')}
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -280,6 +347,8 @@ const Register = () => {
                       onChange={handleInputChange}
                       placeholder="Enter state"
                       disabled={loading}
+                      // --- ERROR PROP ADDED/MAPPED ---
+                      error={getError('state', 'state')}
                     />
 
                     <InputField
@@ -290,6 +359,8 @@ const Register = () => {
                       onChange={handleInputChange}
                       placeholder="Enter city"
                       disabled={loading}
+                      // --- ERROR PROP ADDED/MAPPED ---
+                      error={getError('city', 'city')}
                     />
                   </div>
 
@@ -302,6 +373,8 @@ const Register = () => {
                       onChange={handleInputChange}
                       placeholder="Enter pin code"
                       disabled={loading}
+                      // --- ERROR PROP ADDED/MAPPED ---
+                      error={getError('pinCode', 'pincode')}
                     />
 
                     <InputField
@@ -312,6 +385,8 @@ const Register = () => {
                       onChange={handleInputChange}
                       placeholder="Enter locality"
                       disabled={loading}
+                      // --- ERROR PROP ADDED/MAPPED ---
+                      error={getError('locality', 'locality')}
                     />
                   </div>
 
@@ -324,6 +399,8 @@ const Register = () => {
                     placeholder="Enter license number"
                     icon={FileText}
                     disabled={loading}
+                    // --- ERROR PROP ADDED/MAPPED ---
+                    error={getError('licenseNumber', 'license_number')}
                   />
 
                   <div>
@@ -367,11 +444,12 @@ const Register = () => {
                     placeholder="Enter contact number"
                     icon={Phone}
                     disabled={loading}
+                    // --- ERROR PROP ADDED/MAPPED ---
+                    error={getError('contactNumber', 'contact_number')}
                   />
                 </>
               )}
 
-              {/* Mechanic Specific Fields */}
               {selectedRole === 'mechanic' && (
                 <InputField
                   label="Contact Number"
@@ -382,6 +460,8 @@ const Register = () => {
                   placeholder="Enter contact number"
                   icon={Phone}
                   disabled={loading}
+                  // --- ERROR PROP ADDED/MAPPED ---
+                  error={getError('contactNumber', 'contact_number')}
                 />
               )}
 

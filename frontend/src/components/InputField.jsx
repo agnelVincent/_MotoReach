@@ -1,5 +1,5 @@
 
-import {  Eye, EyeOff } from 'lucide-react';
+import {  Eye, EyeOff , AlertCircle} from 'lucide-react';
 
 const InputField = ({ 
   label, 
@@ -11,8 +11,16 @@ const InputField = ({
   icon: Icon,
   isPassword = false,
   showPassword,
-  onTogglePassword
+  onTogglePassword,
+  error
 }) => {
+
+  const baseClasses = 'w-full';
+    const paddingClasses = `${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3`;
+    const errorClasses = error 
+        ? 'border-red-500 ring-red-500 focus:ring-red-500' // Red if error exists
+        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'; // Blue otherwise
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -27,7 +35,7 @@ const InputField = ({
           name={name}
           value={value}
           onChange={onChange}
-          className={`w-full ${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300`}
+          className={`${baseClasses} ${paddingClasses} border ${errorClasses} rounded-lg focus:ring-2 transition-all duration-300`}
           placeholder={placeholder}
         />
         {isPassword && (
@@ -40,6 +48,14 @@ const InputField = ({
           </button>
         )}
       </div>
+
+      {error && (
+                <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {error}
+                </p>
+        )}
+
     </div>
   );
 };
