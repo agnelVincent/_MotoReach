@@ -1,19 +1,75 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Mail, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Mail, CheckCircle, AlertCircle, Clock, RotateCcw } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux'; 
+import { verifyOtp, resendOtp, clearError } from '../../redux/slices/authSlice'; 
+import { useNavigate } from 'react-router-dom'; 
 
 const VerifyOTP = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  
+  // --- Redux State ---
+  const { 
+    loading, 
+    error, 
+    otpVerified,
+    otpResendAttempts, 
+    otpResendSuccess,
+    pendingEmail, // Email of the user who registered
+    pendingRole,  // Role of the user who registered
+  } = useSelector((state) => state.auth);
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  
+  // Local state for API messages to display
+  const [localMessage, setLocalMessage] = useState({ type: '', text: '' });
+  
   const inputRefs = useRef([]);
+  const MAX_RESEND_ATTEMPTS = 3;
 
-  // Timer countdown
+  // Clear local message after an action
+  const clearLocalMessage = useCallback(() => {
+    setLocalMessage({ type: '', text: '' });
+    dispatch(clearError());
+  }, [dispatch]);
+  
+  // --- Effects ---
+
+  // 1. Handle Navigation/Verification Success
+  useEffect(() => {
+    if (otpVerified) {
+      // Clear all state and redirect to login page after successful verification
+      navigate('/login'); 
+      // Optional: Dispatch a resetAuth action if needed, though redirect usually handles clean up
+    }
+  }, [otpVerified, navigate]);
+  
+  // 2. Handle Redux Errors/Success Messages
+  useEffect(() => {
+    // Check if a Redux error exists
+    if (error) {
+        // If it's a field error (like invalid OTP format from server), it will be structured, e.g., error: { otp: ["Invalid OTP"] }
+        // We'll primarily rely on the general error payload from the thunks
+        const errorMessage = error.error || error.message || 'An unexpected error occurred.';
+        setLocalMessage({ type: 'error', text: errorMessage });
+    } else if (otpResendSuccess) {
+        setLocalMessage({ type: 'success', text: otpResendSuccess });
+    }
+    
+    // Clear the message after a few seconds
+    const timer = setTimeout(clearLocalMessage, 5000);
+    return () => clearTimeout(timer);
+    
+  }, [error, otpResendSuccess, clearLocalMessage]);
+
+
+  // 3. Timer countdown
   useEffect(() => {
     let interval;
-    if (timer > 0 && !canResend) {
+    // Only run timer if we have a pending user and haven't hit the resend limit
+    if (timer > 0 && !canResend && pendingEmail) { 
       interval = setInterval(() => {
         setTimer((prev) => prev - 1);
       }, 1000);
@@ -21,11 +77,14 @@ const VerifyOTP = () => {
       setCanResend(true);
     }
     return () => clearInterval(interval);
-  }, [timer, canResend]);
-
-  // Handle OTP input change
+  }, [timer, canResend, pendingEmail]);
+  
+  
+  // --- Handlers ---
+  
+  // Handle OTP input change (kept mostly as is)
   const handleChange = (index, value) => {
-    // Only allow numbers
+    // ... (Your existing handleChange logic)
     if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otp];
@@ -40,7 +99,6 @@ const VerifyOTP = () => {
       });
       setOtp(newOtp);
       
-      // Focus on the last filled input or the next empty one
       const nextIndex = Math.min(index + pastedData.length, 5);
       inputRefs.current[nextIndex]?.focus();
       return;
@@ -56,83 +114,112 @@ const VerifyOTP = () => {
     }
   };
 
-  // Handle backspace
+  // Handle backspace (kept as is)
   const handleKeyDown = (index, e) => {
+    // ... (Your existing handleKeyDown logic)
     if (e.key === 'Backspace') {
-      if (!otp[index] && index > 0) {
-        // If current box is empty, move to previous box
-        inputRefs.current[index - 1]?.focus();
-      } else {
-        // Clear current box
-        const newOtp = [...otp];
-        newOtp[index] = '';
-        setOtp(newOtp);
-      }
+        if (!otp[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        } else {
+            const newOtp = [...otp];
+            newOtp[index] = '';
+            setOtp(newOtp);
+        }
     } else if (e.key === 'ArrowLeft' && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+        inputRefs.current[index - 1]?.focus();
     } else if (e.key === 'ArrowRight' && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+        inputRefs.current[index + 1]?.focus();
     }
   };
 
-  // Handle OTP verification
-  const handleVerifyOTP = async () => {
-    setIsVerifying(true);
-    setMessage({ type: '', text: '' });
-
-    // Simulate API call
-    setTimeout(() => {
-      const otpValue = otp.join('');
-      
-      // Demo validation (replace with actual API call)
-      if (otpValue === '123456') {
-        setMessage({ 
-          type: 'success', 
-          text: 'OTP verified successfully! Redirecting...' 
-        });
-        // Redirect logic here
-      } else {
-        setMessage({ 
-          type: 'error', 
-          text: 'Invalid OTP. Please try again.' 
-        });
-      }
-      setIsVerifying(false);
-    }, 1500);
+  // 1. Handle OTP verification (Redux Integration)
+  const handleVerifyOTP = () => {
+    if (!pendingEmail || !pendingRole) {
+      setLocalMessage({ type: 'error', text: 'Registration session expired. Please register again.' });
+      return;
+    }
+    
+    const otpValue = otp.join('');
+    // Clear any previous messages first
+    clearLocalMessage(); 
+    
+    if (otpValue.length === 6) {
+      dispatch(verifyOtp({ 
+        email: pendingEmail, 
+        otp: otpValue, 
+        role: pendingRole 
+      }));
+    } else {
+      setLocalMessage({ type: 'error', text: 'Please enter a complete 6-digit OTP.' });
+    }
   };
 
-  // Handle resend OTP
+  // 2. Handle Resend OTP (Redux Integration with Rate Limiting)
   const handleResendOTP = () => {
+    if (!pendingEmail || !pendingRole) {
+      setLocalMessage({ type: 'error', text: 'Registration session expired. Please register again.' });
+      return;
+    }
+
+    // Client-side check for immediate feedback (Redux thunk handles final limit check)
+    if (otpResendAttempts >= MAX_RESEND_ATTEMPTS) {
+        setLocalMessage({ 
+            type: 'error', 
+            text: `Maximum resend limit (${MAX_RESEND_ATTEMPTS}) reached. Please wait or contact support.` 
+        });
+        return;
+    }
+    
+    // Clear inputs, reset timer, and dispatch resend thunk
     setOtp(['', '', '', '', '', '']);
     setTimer(60);
     setCanResend(false);
-    setMessage({ type: 'success', text: 'OTP sent successfully!' });
-    inputRefs.current[0]?.focus();
     
-    // Clear message after 3 seconds
-    setTimeout(() => {
-      setMessage({ type: '', text: '' });
-    }, 3000);
+    clearLocalMessage(); 
+
+    dispatch(resendOtp({ 
+        email: pendingEmail, 
+        role: pendingRole 
+    }));
+    
+    inputRefs.current[0]?.focus();
   };
 
-  // Check if all OTP fields are filled
   const isOTPComplete = otp.every(digit => digit !== '');
+  
+  // Show a message if there is no pending user data (e.g., accessed directly)
+  if (!pendingEmail) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+            <div className="text-center p-8 bg-white rounded-xl shadow-lg">
+                <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+                <p className="text-gray-600">No pending registration found. Please start the registration process first.</p>
+                <button 
+                  onClick={() => navigate('/register')} 
+                  className="mt-4 text-blue-600 hover:underline"
+                >
+                  Go to Register
+                </button>
+            </div>
+        </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
-      
       <div className="flex-grow flex items-center justify-center px-4 py-12 mt-16">
         <div className="w-full max-w-md">
           {/* OTP Verification Card */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 lg:p-10">
-            {/* Icon */}
+            
             <div className="flex justify-center mb-6">
-              <div className="bg-blue-50 p-4 rounded-full">
-                <Mail className="w-12 h-12 text-blue-600" />
-              </div>
-            </div>
+              <div className="bg-blue-50 p-4 rounded-full">
+                <Mail className="w-12 h-12 text-blue-600" />
+              </div>
+            </div>
 
-            {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
                 Verify OTP
@@ -141,7 +228,7 @@ const VerifyOTP = () => {
                 Enter the 6-digit code sent to your email
               </p>
               <p className="text-sm text-blue-600 font-medium mt-2">
-                example@email.com
+                {pendingEmail} 
               </p>
             </div>
 
@@ -159,51 +246,63 @@ const VerifyOTP = () => {
                     onChange={(e) => handleChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-12 md:w-14 md:h-14 text-center text-xl md:text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all duration-300"
-                    disabled={isVerifying}
+                    disabled={loading}
                   />
                 ))}
               </div>
 
-              {/* Timer */}
+              {/* Timer & Attempts */}
               <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
                 <Clock className="w-4 h-4" />
                 <span>
                   {canResend ? (
                     'OTP expired'
                   ) : (
-                    `Resend OTP in ${timer}s`
+                    `Resend in ${timer}s`
                   )}
+                </span>
+                <span className="ml-4 text-gray-500">
+                    | Attempts left: **{MAX_RESEND_ATTEMPTS - otpResendAttempts}**
                 </span>
               </div>
             </div>
 
             {/* Message Display */}
-            {message.text && (
+            {localMessage.text && (
               <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
-                message.type === 'success' 
+                localMessage.type === 'success' 
                   ? 'bg-green-50 text-green-800 border border-green-200' 
                   : 'bg-red-50 text-red-800 border border-red-200'
               }`}>
-                {message.type === 'success' ? (
+                {localMessage.type === 'success' ? (
                   <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 ) : (
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 )}
-                <p className="text-sm">{message.text}</p>
+                <p className="text-sm">{localMessage.text}</p>
               </div>
             )}
+            
+            {/* Server Error Message (Generic) */}
+            {error && !localMessage.text && (
+                <div className="mb-6 p-4 rounded-lg flex items-start gap-3 bg-red-50 text-red-800 border border-red-200">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm">Server Error: {error.message || error.error || 'Check network connection'}</p>
+                </div>
+            )}
+
 
             {/* Verify Button */}
             <button
               onClick={handleVerifyOTP}
-              disabled={!isOTPComplete || isVerifying}
+              disabled={!isOTPComplete || loading}
               className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${
-                isOTPComplete && !isVerifying
+                isOTPComplete && !loading
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-[1.02]'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {isVerifying ? (
+              {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Verifying...
@@ -217,36 +316,34 @@ const VerifyOTP = () => {
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Didn't receive the code?{' '}
-                {canResend ? (
+                {canResend && otpResendAttempts < MAX_RESEND_ATTEMPTS ? (
                   <button 
                     onClick={handleResendOTP}
-                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline"
+                    disabled={loading}
+                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline disabled:text-gray-400 disabled:no-underline"
                   >
                     Resend OTP
                   </button>
                 ) : (
-                  <span className="text-gray-400 font-medium">Resend OTP</span>
+                  <span className={`font-medium ${otpResendAttempts >= MAX_RESEND_ATTEMPTS ? 'text-red-500' : 'text-gray-400'}`}>
+                      {otpResendAttempts >= MAX_RESEND_ATTEMPTS ? 'Resend limit reached' : 'Resend OTP'}
+                  </span>
                 )}
               </p>
             </div>
 
             {/* Back to Login */}
             <div className="mt-4 text-center">
-              <button className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300">
+              <button 
+                onClick={() => navigate('/login')}
+                className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300"
+              >
                 ← Back to Login
               </button>
             </div>
           </div>
-
-          {/* Info Box */}
-          <div className="mt-6 bg-blue-50 rounded-xl p-4 border border-blue-200">
-            <p className="text-sm text-blue-800 text-center">
-              <span className="font-semibold">Demo:</span> Use OTP <span className="font-mono font-bold">123456</span> to verify
-            </p>
-          </div>
         </div>
       </div>
-
     </div>
   );
 };

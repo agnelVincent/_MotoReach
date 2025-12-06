@@ -1,13 +1,16 @@
+import { BrowserRouter } from 'react-router-dom';
 import './index.css';
-import UserNavbar from './components/navbars/UserNavbar';
-import Register from './pages/auth/Register';
+import AppRoute from './routes/AppRoute';
 
 
 
 function App() {
   return (
 
-      <Register />
+      <BrowserRouter>
+        <AppRoute />
+      </BrowserRouter>
+
   )
 }
 

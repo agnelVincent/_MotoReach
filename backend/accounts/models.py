@@ -116,6 +116,7 @@ class PendingUser(models.Model):
     locality = models.CharField(max_length=255, null = True, blank=True)
     city = models.CharField(max_length=50, null = True, blank = True)
     pincode = models.CharField(max_length=6, null = True, blank = True)
+    type = models.CharField(max_length=20,blank=True,null = True)
     contact_number = models.CharField(null = True, blank=True)
 
     

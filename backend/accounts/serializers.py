@@ -1,11 +1,12 @@
 from rest_framework import serializers
 from django.core.validators import RegexValidator
 from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
+from .utils import send_otp_mail
 
-contact_validators = RegexValidator(
-    regex='^d{10}$',
+contact_validators = [RegexValidator(
+    regex='^\d{10}$',
     message='Contact number must be exactly 10 digits'
-)
+)]
 
 class RegistrationSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length = 100)
@@ -71,8 +72,16 @@ class RegistrationSerializer(serializers.Serializer):
         return data
     
     def create(self, validated_data):
+        email = validated_data['email']
+
+        try:
+            existing_user = PendingUser.objects.get(email = email)
+            existing_user.delete()
+        except PendingUser.DoesNotExist:
+            pass
+        
         pending_user = PendingUser.objects.create(
-            email = validated_data['email'],
+            email = email,
             full_name = validated_data['full_name'],
             password = validated_data['password'],
             role = validated_data['role'],
@@ -89,8 +98,24 @@ class RegistrationSerializer(serializers.Serializer):
 
         pending_user.save()
 
+        otp_record , status, message = send_otp_mail(
+            email = validated_data['email'],
+            full_name=validated_data['full_name'],
+            role = validated_data['role']
+        )
+
+        print(f"OTP email result: {message}")
+
         return pending_user
             
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length = 6)
+    role = serializers.CharField(max_length = 20)
+
+class ResendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.CharField(max_length = 20)
         
 
 
