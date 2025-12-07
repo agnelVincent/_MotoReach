@@ -107,7 +107,7 @@ class PendingUser(models.Model):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=50)
     password = models.CharField(max_length=50)
-    role = models.CharField(max_length=10)
+    role = models.CharField(max_length=20)
 
     workshop_name = models.CharField(max_length=255,null = True, blank=True)
     address_line = models.CharField(max_length=255,null = True, blank=True)

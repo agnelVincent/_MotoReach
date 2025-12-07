@@ -57,18 +57,54 @@ export const resendOtp = createAsyncThunk(
     }
 )
 
-const initialState = {
-    isRegistered : false,
-    pendingEmail : null,
-    pendingRole : null,
+const loadInitialState = () => {
+    try {
+        const stored = sessionStorage.getItem('otpSession');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            const now = Date.now();
+            const otpCreatedAt = parsed.otpCreatedAt;
+            const OTP_EXPIRY_MS = 60 * 1000;
+            
+            if (otpCreatedAt && (now - otpCreatedAt) < OTP_EXPIRY_MS) {
+                return {
+                    isRegistered: true,
+                    pendingEmail: parsed.pendingEmail,
+                    pendingRole: parsed.pendingRole,
+                    loading: false,
+                    isVerifying: false,
+                    isResending: false,
+                    error: null,
+                    otpVerified: false,
+                    otpResendAttempts: parsed.otpResendAttempts || 0,
+                    otpResendSuccess: null,
+                    otpCreatedAt: parsed.otpCreatedAt
+                };
+            } else {
+                sessionStorage.removeItem('otpSession');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading OTP session from sessionStorage:', error);
+        sessionStorage.removeItem('otpSession');
+    }
+    
+    return {
+        isRegistered: false,
+        pendingEmail: null,
+        pendingRole: null,
+        loading: false,
+        isVerifying: false,
+        isResending: false,
+        error: null,
+        otpVerified: false,
+        otpResendAttempts: 0,
+        otpResendSuccess: null,
+        otpCreatedAt: null
+    };
+};
 
-    loading : false,
-    error : null,
-
-    otpVerified : false,
-    otpResendAttempts : 0,
-    otpResendSuccess : null
-}
+const initialState = loadInitialState();
 
 
 const authSlice = createSlice({
@@ -80,10 +116,14 @@ const authSlice = createSlice({
             state.pendingEmail = null
             state.pendingRole = null
             state.loading = false
+            state.isVerifying = false
+            state.isResending = false
             state.error = null
             state.otpVerified = false
             state.otpResendAttempts = 0
             state.otpResendSuccess = null
+            state.otpCreatedAt = null
+            sessionStorage.removeItem('otpSession')
         },
         clearError : (state) => {
             state.error = null
@@ -103,6 +143,18 @@ const authSlice = createSlice({
             state.pendingRole = action.payload.role
             state.error = null
             state.otpResendAttempts = 0
+            state.otpCreatedAt = Date.now()
+            
+            try {
+                sessionStorage.setItem('otpSession', JSON.stringify({
+                    pendingEmail: action.payload.email,
+                    pendingRole: action.payload.role,
+                    otpResendAttempts: 0,
+                    otpCreatedAt: state.otpCreatedAt
+                }))
+            } catch (error) {
+                console.error('Error saving OTP session to sessionStorage:', error)
+            }
         })
         .addCase(registerUser.rejected, (state,action) => {
             state.error = action.payload
@@ -112,15 +164,19 @@ const authSlice = createSlice({
 
 
         .addCase(verifyOtp.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+            state.isVerifying = true;
+            state.loading = true;
+            state.error = null;
         })
         .addCase(verifyOtp.fulfilled, (state, action) => {
+            state.isVerifying = false;
             state.loading = false;
             state.otpVerified = true;
             state.error = null;
+            sessionStorage.removeItem('otpSession');
         })
         .addCase(verifyOtp.rejected, (state, action) => {
+            state.isVerifying = false;
             state.loading = false;
             state.error = action.payload; 
             state.otpVerified = false;
@@ -128,17 +184,33 @@ const authSlice = createSlice({
         
 
         .addCase(resendOtp.pending, (state) => {
+            state.isResending = true;
             state.loading = true;
             state.otpResendSuccess = null;
             state.error = null;
         })
         .addCase(resendOtp.fulfilled, (state, action) => {
+            state.isResending = false;
             state.loading = false;
             state.otpResendAttempts += 1;
             state.otpResendSuccess = action.payload.message || 'OTP resent successfully.';
             state.error = null;
+            state.otpCreatedAt = Date.now(); 
+            
+            try {
+                const stored = sessionStorage.getItem('otpSession');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    parsed.otpCreatedAt = state.otpCreatedAt;
+                    parsed.otpResendAttempts = state.otpResendAttempts;
+                    sessionStorage.setItem('otpSession', JSON.stringify(parsed));
+                }
+            } catch (error) {
+                console.error('Error updating OTP session in sessionStorage:', error);
+            }
         })
         .addCase(resendOtp.rejected, (state, action) => {
+            state.isResending = false;
             state.loading = false;
             state.error = action.payload; 
             state.otpResendSuccess = null;

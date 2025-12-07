@@ -24,6 +24,7 @@ class RegistrationSerializer(serializers.Serializer):
     pincode = serializers.CharField(max_length = 6, allow_blank = True, required = False)
     workshop_type = serializers.CharField(max_length = 20, required = False, allow_blank = True)
     contact_number = serializers.CharField( allow_blank = True, required = False, validators = contact_validators)
+    type = serializers.CharField(max_length = 20, allow_blank = True,required = False)
 
     def validate_role(self, value):
         allowed_roles = ['user','mechanic','workshop_admin']
@@ -79,7 +80,7 @@ class RegistrationSerializer(serializers.Serializer):
             existing_user.delete()
         except PendingUser.DoesNotExist:
             pass
-        
+
         pending_user = PendingUser.objects.create(
             email = email,
             full_name = validated_data['full_name'],
@@ -93,7 +94,8 @@ class RegistrationSerializer(serializers.Serializer):
             city = validated_data.get('city'),
             pincode = validated_data.get('pincode'),
             locality = validated_data.get('locality'),
-            contact_number = validated_data.get('contact_number')
+            contact_number = validated_data.get('contact_number'),
+            type = validated_data.get('workshop_type')
         )
 
         pending_user.save()

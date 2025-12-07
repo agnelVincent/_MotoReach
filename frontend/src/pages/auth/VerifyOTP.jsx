@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Mail, CheckCircle, AlertCircle, Clock, RotateCcw } from 'lucide-react';
+import { Mail, CheckCircle, AlertCircle, Clock,  } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux'; 
 import { verifyOtp, resendOtp, clearError } from '../../redux/slices/authSlice'; 
 import { useNavigate } from 'react-router-dom'; 
@@ -8,88 +8,106 @@ const VerifyOTP = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  // --- Redux State ---
   const { 
     loading, 
+    isVerifying,
+    isResending,
     error, 
     otpVerified,
     otpResendAttempts, 
     otpResendSuccess,
-    pendingEmail, // Email of the user who registered
-    pendingRole,  // Role of the user who registered
+    pendingEmail, 
+    pendingRole,
+    otpCreatedAt
   } = useSelector((state) => state.auth);
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(60);
   const [canResend, setCanResend] = useState(false);
   
-  // Local state for API messages to display
   const [localMessage, setLocalMessage] = useState({ type: '', text: '' });
   
   const inputRefs = useRef([]);
   const MAX_RESEND_ATTEMPTS = 3;
+  const OTP_EXPIRY_MS = 60 * 1000; // 1 minute in milliseconds
 
-  // Clear local message after an action
+  // Calculate remaining time based on OTP creation timestamp
+  const calculateRemainingTime = useCallback(() => {
+    if (!otpCreatedAt) return 60;
+    
+    const now = Date.now();
+    const elapsed = now - otpCreatedAt;
+    const remaining = Math.max(0, Math.floor((OTP_EXPIRY_MS - elapsed) / 1000));
+    
+    return remaining;
+  }, [otpCreatedAt]);
+
   const clearLocalMessage = useCallback(() => {
     setLocalMessage({ type: '', text: '' });
     dispatch(clearError());
   }, [dispatch]);
   
-  // --- Effects ---
-
-  // 1. Handle Navigation/Verification Success
   useEffect(() => {
     if (otpVerified) {
-      // Clear all state and redirect to login page after successful verification
       navigate('/login'); 
-      // Optional: Dispatch a resetAuth action if needed, though redirect usually handles clean up
     }
   }, [otpVerified, navigate]);
   
-  // 2. Handle Redux Errors/Success Messages
   useEffect(() => {
-    // Check if a Redux error exists
     if (error) {
-        // If it's a field error (like invalid OTP format from server), it will be structured, e.g., error: { otp: ["Invalid OTP"] }
-        // We'll primarily rely on the general error payload from the thunks
         const errorMessage = error.error || error.message || 'An unexpected error occurred.';
         setLocalMessage({ type: 'error', text: errorMessage });
     } else if (otpResendSuccess) {
         setLocalMessage({ type: 'success', text: otpResendSuccess });
     }
     
-    // Clear the message after a few seconds
     const timer = setTimeout(clearLocalMessage, 5000);
     return () => clearTimeout(timer);
     
   }, [error, otpResendSuccess, clearLocalMessage]);
 
-
-  // 3. Timer countdown
+  // Timer countdown effect - handles both initial load and resend
   useEffect(() => {
-    let interval;
-    // Only run timer if we have a pending user and haven't hit the resend limit
-    if (timer > 0 && !canResend && pendingEmail) { 
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
-    } else if (timer === 0) {
+    if (!pendingEmail) return;
+    
+    // If no otpCreatedAt but pendingEmail exists, OTP might be expired
+    if (!otpCreatedAt) {
+      setTimer(0);
       setCanResend(true);
+      return;
     }
-    return () => clearInterval(interval);
-  }, [timer, canResend, pendingEmail]);
+    
+    let interval;
+    
+    const updateTimer = () => {
+      const remaining = calculateRemainingTime();
+      setTimer(remaining);
+      
+      if (remaining <= 0) {
+        setCanResend(true);
+      } else {
+        setCanResend(false);
+      }
+    };
+    
+    // Update immediately to set correct initial value
+    updateTimer();
+    
+    // Update every second
+    interval = setInterval(updateTimer, 1000);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [otpCreatedAt, pendingEmail, calculateRemainingTime]);
   
   
-  // --- Handlers ---
-  
-  // Handle OTP input change (kept mostly as is)
+
   const handleChange = (index, value) => {
-    // ... (Your existing handleChange logic)
     if (!/^\d*$/.test(value)) return;
 
     const newOtp = [...otp];
     
-    // Handle paste
     if (value.length > 1) {
       const pastedData = value.slice(0, 6).split('');
       pastedData.forEach((char, i) => {
@@ -104,19 +122,15 @@ const VerifyOTP = () => {
       return;
     }
 
-    // Handle single character input
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Move to next input if value entered
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
-  // Handle backspace (kept as is)
   const handleKeyDown = (index, e) => {
-    // ... (Your existing handleKeyDown logic)
     if (e.key === 'Backspace') {
         if (!otp[index] && index > 0) {
             inputRefs.current[index - 1]?.focus();
@@ -132,7 +146,6 @@ const VerifyOTP = () => {
     }
   };
 
-  // 1. Handle OTP verification (Redux Integration)
   const handleVerifyOTP = () => {
     if (!pendingEmail || !pendingRole) {
       setLocalMessage({ type: 'error', text: 'Registration session expired. Please register again.' });
@@ -140,7 +153,7 @@ const VerifyOTP = () => {
     }
     
     const otpValue = otp.join('');
-    // Clear any previous messages first
+
     clearLocalMessage(); 
     
     if (otpValue.length === 6) {
@@ -154,14 +167,12 @@ const VerifyOTP = () => {
     }
   };
 
-  // 2. Handle Resend OTP (Redux Integration with Rate Limiting)
   const handleResendOTP = () => {
     if (!pendingEmail || !pendingRole) {
       setLocalMessage({ type: 'error', text: 'Registration session expired. Please register again.' });
       return;
     }
 
-    // Client-side check for immediate feedback (Redux thunk handles final limit check)
     if (otpResendAttempts >= MAX_RESEND_ATTEMPTS) {
         setLocalMessage({ 
             type: 'error', 
@@ -169,13 +180,11 @@ const VerifyOTP = () => {
         });
         return;
     }
-    
-    // Clear inputs, reset timer, and dispatch resend thunk
+
     setOtp(['', '', '', '', '', '']);
-    setTimer(60);
-    setCanResend(false);
+    clearLocalMessage();
     
-    clearLocalMessage(); 
+    // Timer will be updated automatically when otpCreatedAt changes in Redux 
 
     dispatch(resendOtp({ 
         email: pendingEmail, 
@@ -187,7 +196,6 @@ const VerifyOTP = () => {
 
   const isOTPComplete = otp.every(digit => digit !== '');
   
-  // Show a message if there is no pending user data (e.g., accessed directly)
   if (!pendingEmail) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
@@ -211,7 +219,6 @@ const VerifyOTP = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
       <div className="flex-grow flex items-center justify-center px-4 py-12 mt-16">
         <div className="w-full max-w-md">
-          {/* OTP Verification Card */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 lg:p-10">
             
             <div className="flex justify-center mb-6">
@@ -232,7 +239,6 @@ const VerifyOTP = () => {
               </p>
             </div>
 
-            {/* OTP Input Boxes */}
             <div className="mb-6">
               <div className="flex gap-2 md:gap-3 justify-center mb-4">
                 {otp.map((digit, index) => (
@@ -246,12 +252,12 @@ const VerifyOTP = () => {
                     onChange={(e) => handleChange(index, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(index, e)}
                     className="w-12 h-12 md:w-14 md:h-14 text-center text-xl md:text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all duration-300"
-                    disabled={loading}
+                    disabled={isVerifying || isResending}
                   />
                 ))}
               </div>
 
-              {/* Timer & Attempts */}
+
               <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
                 <Clock className="w-4 h-4" />
                 <span>
@@ -267,7 +273,6 @@ const VerifyOTP = () => {
               </div>
             </div>
 
-            {/* Message Display */}
             {localMessage.text && (
               <div className={`mb-6 p-4 rounded-lg flex items-start gap-3 ${
                 localMessage.type === 'success' 
@@ -283,7 +288,6 @@ const VerifyOTP = () => {
               </div>
             )}
             
-            {/* Server Error Message (Generic) */}
             {error && !localMessage.text && (
                 <div className="mb-6 p-4 rounded-lg flex items-start gap-3 bg-red-50 text-red-800 border border-red-200">
                     <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -292,17 +296,16 @@ const VerifyOTP = () => {
             )}
 
 
-            {/* Verify Button */}
             <button
               onClick={handleVerifyOTP}
-              disabled={!isOTPComplete || loading}
+              disabled={!isOTPComplete || isVerifying || isResending}
               className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${
-                isOTPComplete && !loading
+                isOTPComplete && !isVerifying && !isResending
                   ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-[1.02]'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {loading ? (
+              {isVerifying ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Verifying...
@@ -312,17 +315,17 @@ const VerifyOTP = () => {
               )}
             </button>
 
-            {/* Resend OTP */}
+
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Didn't receive the code?{' '}
                 {canResend && otpResendAttempts < MAX_RESEND_ATTEMPTS ? (
                   <button 
                     onClick={handleResendOTP}
-                    disabled={loading}
+                    disabled={isResending || isVerifying}
                     className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline disabled:text-gray-400 disabled:no-underline"
                   >
-                    Resend OTP
+                    {isResending ? 'Sending...' : 'Resend OTP'}
                   </button>
                 ) : (
                   <span className={`font-medium ${otpResendAttempts >= MAX_RESEND_ATTEMPTS ? 'text-red-500' : 'text-gray-400'}`}>
@@ -332,7 +335,6 @@ const VerifyOTP = () => {
               </p>
             </div>
 
-            {/* Back to Login */}
             <div className="mt-4 text-center">
               <button 
                 onClick={() => navigate('/login')}
