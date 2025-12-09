@@ -7,7 +7,7 @@ export const getRolePath = (role) => {
             return "/admin";
         case "mechanic":
             return "/mechanic";
-        case "workshop":
+        case "workshop_admin":
             return "/workshop";
         case "user":
         default:

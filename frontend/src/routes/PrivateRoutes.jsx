@@ -12,7 +12,7 @@ export default function PrivateRoutes() {
                 {UserRoute()}
             </Route>
 
-            <Route element={<AuthGuard allowedRoles={["workshop"]} />}>
+            <Route element={<AuthGuard allowedRoles={["workshop_admin"]} />}>
                 {WorkshopRoute()}
             </Route>
 

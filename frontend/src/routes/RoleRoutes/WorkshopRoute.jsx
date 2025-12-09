@@ -4,8 +4,8 @@ import WorkshopDashboard from "../../pages/workshop/WorkshopDashboard";
 
 function WorkshopRoute() {
     return (
-        <Route element={<WorkshopLayout />}>
-            <Route path="/workshop" element={<WorkshopDashboard />} />
+        <Route path="workshop" element={<WorkshopLayout />}>
+            <Route index element={<WorkshopDashboard />} />
         </Route>
     );
 }
