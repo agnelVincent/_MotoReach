@@ -1,6 +1,28 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosInstance from '../../api/axiosInstance';
 
+const ACCESS_TOKEN_KEY = 'accessToken';
+const USER_KEY = 'user';
+const OTP_SESSION_KEY = 'otpSession';
+const OTP_EXPIRY_MS = 60 * 1000; 
+
+export const loginUser = createAsyncThunk(
+    'auth/loginUser',
+    async (userData,{rejectWithValue}) => {
+        try{
+            const response = await axiosInstance.post('accounts/login/',userData)
+            return response.data
+        }
+        catch (error){
+            if(error.response && error.response.data){
+                console.log(error.response, error.response.data)
+                return rejectWithValue(error.response.data)
+            }
+            return rejectWithValue({'error' : error.message})
+        }
+    }
+)
+
 export const registerUser = createAsyncThunk(
     'auth/registerUser',
     async (userData, {rejectWithValue}) => {
@@ -57,28 +79,55 @@ export const resendOtp = createAsyncThunk(
     }
 )
 
+
+
 const loadInitialState = () => {
+
+    let authState = {isAuthenticated : false, accessToken : null, user : null}
+    try{
+        const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
+        const user = localStorage.getItem(USER_KEY)
+        if(accessToken && user){
+            return{
+                isAuthenticated : true,
+                accessToken : accessToken,
+                user : JSON.parse(user)
+            }
+        }
+    }
+    catch (error){
+        console.log(error)
+        localStorage.removeItem(ACCESS_TOKEN_KEY)
+        localStorage.removeItem(USER_KEY)
+    }
+
+    let otpState = {
+        isRegistered : false,
+        pendingEmail : null,
+        pendingRole : null,
+        isVerifying : false,
+        isResending : false,
+        otpVerified : false,
+        otpResendAttempts : 0,
+        otpResendSuccess : null,
+        otpCreatedAt : null
+    }
+    
     try {
-        const stored = sessionStorage.getItem('otpSession');
+        const stored = sessionStorage.getItem(OTP_SESSION_KEY);
         if (stored) {
             const parsed = JSON.parse(stored);
             const now = Date.now();
             const otpCreatedAt = parsed.otpCreatedAt;
-            const OTP_EXPIRY_MS = 60 * 1000;
             
             if (otpCreatedAt && (now - otpCreatedAt) < OTP_EXPIRY_MS) {
                 return {
-                    isRegistered: true,
-                    pendingEmail: parsed.pendingEmail,
-                    pendingRole: parsed.pendingRole,
-                    loading: false,
-                    isVerifying: false,
-                    isResending: false,
-                    error: null,
-                    otpVerified: false,
-                    otpResendAttempts: parsed.otpResendAttempts || 0,
-                    otpResendSuccess: null,
-                    otpCreatedAt: parsed.otpCreatedAt
+                    ...otpState,
+                    isRegistered : true,
+                    pendingEmail : parsed.pendingEmail,
+                    pendingRole : parsed.pendingRole,
+                    otpResendAttempts : parsed.otpResendAttempts || 0,
+                    otpCreatedAt : parsed.otpCreatedAt
                 };
             } else {
                 sessionStorage.removeItem('otpSession');
@@ -90,17 +139,10 @@ const loadInitialState = () => {
     }
     
     return {
-        isRegistered: false,
-        pendingEmail: null,
-        pendingRole: null,
-        loading: false,
-        isVerifying: false,
-        isResending: false,
-        error: null,
-        otpVerified: false,
-        otpResendAttempts: 0,
-        otpResendSuccess: null,
-        otpCreatedAt: null
+        ...authState,
+        ...otpState,
+        loading : false,
+        error : null
     };
 };
 
@@ -111,6 +153,20 @@ const authSlice = createSlice({
     name : 'auth',
     initialState,
     reducers : {
+        setAccessToken : (state,action) => {
+            state.accessToken = action.payload,
+            localStorage.setItem(ACCESS_TOKEN_KEY, action.payload)
+        },
+        logout : (state) => {
+            state.isAuthenticated = false,
+            state.accessToken = null,
+            state.user = null,
+            state.loading = false,
+            state.error = null,
+            localStorage.removeItem(ACCESS_TOKEN_KEY),
+            localStorage.removeItem(USER_KEY)
+            sessionStorage.removeItem(OTP_SESSION_KEY)
+        },
         resetAuth : (state) => {
             state.isRegistered = false
             state.pendingEmail = null
@@ -123,7 +179,7 @@ const authSlice = createSlice({
             state.otpResendAttempts = 0
             state.otpResendSuccess = null
             state.otpCreatedAt = null
-            sessionStorage.removeItem('otpSession')
+            sessionStorage.removeItem(OTP_SESSION_KEY)
         },
         clearError : (state) => {
             state.error = null
@@ -131,6 +187,38 @@ const authSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder 
+        .addCase(loginUser.pending, (state) => {
+            state.loading = true
+            state.error = null
+        })
+        .addCase(loginUser.fulfilled, (state,action) => {
+            state.loading = false
+            state.error = null
+            state.isAuthenticated = true
+            state.accessToken = action.payload.access
+            localStorage.setItem(ACCESS_TOKEN_KEY,action.payload.access)
+            const userData = {
+                id : action.payload.user_id,
+                full_name : action.payload.full_name,
+                email: action.payload.email,
+                role : action.payload.role
+            }
+            state.user = userData
+            localStorage.setItem(USER_KEY, JSON.stringify(userData))
+            state.isRegistered = false
+            state.otpVerified = false
+            sessionStorage.removeItem(OTP_SESSION_KEY)
+        })
+        .addCase(loginUser.rejected, (state) => {
+            state.loading = false
+            state.isAuthenicated = false
+            state.accessToken = null
+            state.user = null
+            state.error = action.payload.detail || action.payload.error || 'login failed'
+            localStorage.removeItem(ACCESS_TOKEN_KEY)
+            localStorage.removeItem(USER_KEY)
+        })
+
         .addCase(registerUser.pending, (state) => {
             state.loading = true
             state.error = false

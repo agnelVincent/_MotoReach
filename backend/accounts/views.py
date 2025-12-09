@@ -1,10 +1,12 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer
+from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
 from .utils import send_otp_mail
+from rest_framework_simplejwt.views import TokenObtainPairView
+from django.conf import settings
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -121,3 +123,32 @@ class ResendOTPView(APIView):
             return Response({"message":message},status=status.HTTP_200_OK)
         else:
             return Response({'error' : message}, status=status.HTTP_400_BAD_REQUEST)
+        
+class LoginView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data = request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            print(e)
+            return Response({'error':'Invalid credentials'},status=status.HTTP_401_UNAUTHORIZED)
+        
+        data = serializer.validated_data
+
+        refresh_token = request.COOKIES.get('refreshtoken')
+        refresh_token = str(self.serializer_class.get_token(serializer.user))
+
+        response = Response(data,status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key = settings.SIMPLE_JWT['AUTH_COOKIE'],
+            value = refresh_token,
+            expires=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
+            secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+            httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+        )
+
+        return response

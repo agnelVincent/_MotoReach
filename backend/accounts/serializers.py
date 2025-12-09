@@ -1,7 +1,12 @@
 from rest_framework import serializers
 from django.core.validators import RegexValidator
-from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
+from .models import PendingUser,User,Workshop
 from .utils import send_otp_mail
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+
+User = get_user_model()
 
 contact_validators = [RegexValidator(
     regex='^\d{10}$',
@@ -118,6 +123,46 @@ class VerifyOTPSerializer(serializers.Serializer):
 class ResendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.CharField(max_length = 20)
-        
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['email'] = user.email
+        token['role'] = user.role
+        return token
+    
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        refresh = self.get_token(self.user)
+
+        data['refresh'] = str(refresh)
+        data['access'] = str(refresh.access_token)
+        data['role'] = self.user.role
+        data['full_name'] = self.user.full_name
+        data['email'] = self.user.email
+
+        del data['refresh']
+
+        return data
+    
+class UserRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id','email','full_name','role']
+
+class LoginResponseSerializer(serializers.Serializer):
+    user = UserRoleSerializer()
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.CharField()
+    password = serializers.CharField(write_only = True)
+
+
+
+
 
 
