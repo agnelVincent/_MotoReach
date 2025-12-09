@@ -1,6 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import  { useState, useRef, useEffect } from 'react';
 import { Bell, Menu, X, Car, User, LogOut, Settings } from 'lucide-react';
 import { useAuthStatus } from '../../hooks/useAuthStatus'; 
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { logoutUser } from '../../redux/slices/authSlice';
 
 const UserNavbar = () => {
   const { isAuthenticated } = useAuthStatus(); // Use the authentication hook
@@ -8,7 +11,8 @@ const UserNavbar = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false); // New state for profile dropdown
   const [activeLink, setActiveLink] = useState('/');
   const profileMenuRef = useRef(null);
-
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Subscription', path: '/subscription' },
@@ -32,6 +36,18 @@ const UserNavbar = () => {
   const toggleProfileMenu = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
     setIsMobileMenuOpen(false); 
+  };
+
+  const handleLogout = () => {
+    dispatch(logoutUser())
+        .unwrap() 
+        .then(() => {
+            navigate('/login', { replace: true });
+        })
+        .catch((error) => {
+            console.error("Logout failed:", error);
+            navigate('/login', { replace: true });
+        });
   };
 
   useEffect(() => {
@@ -68,7 +84,7 @@ const UserNavbar = () => {
               Profile Page
             </button>
             <button
-              onClick={() => onNavClick('/logout')} // You'll handle the actual logout logic here
+              onClick={()=>handleLogout()} 
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
             >
               <LogOut className="w-4 h-4 mr-3" />
@@ -109,7 +125,7 @@ const UserNavbar = () => {
             Profile Page
           </button>
           <button
-            onClick={() => onNavClick('/logout')}
+            onClick={() => handleLogout()}
             className="w-full text-left flex items-center px-5 py-2.5 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 shadow-md transition-all duration-300"
           >
             <LogOut className="w-4 h-4 mr-2" />

@@ -7,6 +7,8 @@ from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
 from .utils import send_otp_mail
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -152,3 +154,34 @@ class LoginView(TokenObtainPairView):
         )
 
         return response
+    
+class LogoutView(APIView):
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+
+        response = Response({'detail' : 'successfully logged out'}, status=status.HTTP_200_OK)
+
+        response.delete_cookie('refreshtoken')
+
+        refresh_token = request.COOKIES.get('refreshtoken')
+
+        if not refresh_token:
+            return Response({'detail': 'No refresh token cookie was present. Logged out locally.'},status=status.HTTP_200_OK)
+        
+        try:
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return response
+        
+        except TokenError:
+            response = Response({'Invalid token or token expired'},status=status.HTTP_400_BAD_REQUEST)
+            return response
+        
+        except Exception as e:
+            print(e)
+            response.data = {'error': 'An unexpected server error occurred during logout.'}
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return response
+            

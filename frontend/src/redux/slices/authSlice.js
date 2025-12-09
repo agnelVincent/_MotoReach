@@ -23,6 +23,25 @@ export const loginUser = createAsyncThunk(
     }
 )
 
+export const logoutUser = createAsyncThunk(
+    'auth/logoutUser',
+    async(_,{dispatch,rejectWithValue}) => {
+        try{
+            const response = await axiosInstance.post('accounts/logout/')
+            dispatch(authSlice.actions.logout())
+            return {success : true}
+        }
+        catch (error){
+            console.log(error)
+            dispatch(authSlice.actions.logout())
+            if (error.message && error.response.data){
+                return rejectWithValue(error.response.data)
+            }
+            return rejectWithValue({ 'error': error.message})
+        }
+    }
+)
+
 export const registerUser = createAsyncThunk(
     'auth/registerUser',
     async (userData, {rejectWithValue}) => {
