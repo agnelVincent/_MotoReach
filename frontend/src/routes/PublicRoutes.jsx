@@ -4,16 +4,21 @@ import VerifyOTP from "../pages/auth/VerifyOTP";
 import Login from "../pages/auth/Login";
 import LandingPage from "../pages/landing_page/LandingPage";
 import AuthRedirect from "./AuthRedirect";
+import PublicLayout from "../layouts/PublicLayout";
 
 function PublicRoutes() {
     return (
         <>
             <Route element={<AuthRedirect />}>
-                <Route path="/register" element={<Register />} />
-                <Route path="/verify-otp" element={<VerifyOTP />} />
-                <Route path="/login" element={<Login />} />
+                <Route element={<PublicLayout />}>
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/verify-otp" element={<VerifyOTP />} />
+                    <Route path="/login" element={<Login />} />
+                </Route>
             </Route>
-            <Route path="/" element={<LandingPage />} />
+            <Route element={<PublicLayout />}>
+                <Route path="/" element={<LandingPage />} />
+            </Route>
         </>
     );
 }

@@ -1,28 +1,27 @@
 import { Route } from "react-router-dom";
 import AuthGuard from "./AuthGuard";
-import UserHome from "../pages/user/UserHome";
-import WorkshopDashboard from "../pages/workshop/WorkshopDashboard";
-import MechanicDashboard from "../pages/mechanic/MechanicDashboard";
-import AdminDashboard from "../pages/admin/AdminDashboard";
+import UserRoute from "./RoleRoutes/UserRoute";
+import WorkshopRoute from "./RoleRoutes/WorkshopRoute";
+import MechanicRoute from "./RoleRoutes/MechanicRoute";
+import AdminRoute from "./RoleRoutes/AdminRoute";
 
 export default function PrivateRoutes() {
     return (
         <>
             <Route element={<AuthGuard allowedRoles={["user"]} />}>
-                <Route path="/user" element={<UserHome />} />
-                <Route path="/user/home" element={<UserHome />} />
+                {UserRoute()}
             </Route>
 
             <Route element={<AuthGuard allowedRoles={["workshop"]} />}>
-                <Route path="/workshop" element={<WorkshopDashboard />} />
+                {WorkshopRoute()}
             </Route>
 
             <Route element={<AuthGuard allowedRoles={["mechanic"]} />}>
-                <Route path="/mechanic" element={<MechanicDashboard />} />
+                {MechanicRoute()}
             </Route>
 
             <Route element={<AuthGuard allowedRoles={["admin"]} />}>
-                <Route path="/admin" element={<AdminDashboard />} />
+                {AdminRoute()}
             </Route>
         </>
     );

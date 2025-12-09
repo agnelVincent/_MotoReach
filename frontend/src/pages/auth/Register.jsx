@@ -200,7 +200,7 @@ const getError = (camelCaseKey, snakeCaseKey) => {
 
 return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
-      <div className="flex-grow flex items-center justify-center px-4 py-12 mt-16">
+      <div className="flex-grow flex items-center justify-center px-4 py-12 ">
         <div className="w-full max-w-2xl">
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 lg:p-10">
             <div className="text-center mb-8">
