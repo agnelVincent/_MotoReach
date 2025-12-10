@@ -197,7 +197,6 @@ class GoogleAuthView(APIView):
             return Response({"error": "ID token missing"}, status=400)
 
         try:
-            # Verify Google token
             idinfo = id_token.verify_oauth2_token(
                 id_token_str,
                 requests.Request(),
@@ -210,7 +209,6 @@ class GoogleAuthView(APIView):
             if not email:
                 return Response({"error": "Email not returned by Google"}, status=400)
 
-            # Create or get user
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={"full_name": full_name, "role": "user"}
