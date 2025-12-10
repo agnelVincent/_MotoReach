@@ -19,6 +19,7 @@ import {
   Target,
   ChevronRight
 } from 'lucide-react';
+import { useSelector } from 'react-redux';
 
 const UserHome = () => {
   const quickActions = [
@@ -150,6 +151,9 @@ const UserHome = () => {
     }
   ];
 
+  const userData = localStorage.getItem('user')
+  const user = JSON.parse(userData)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Animated Background Elements */}
@@ -169,10 +173,10 @@ const UserHome = () => {
             <div className="text-center">
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-white mb-6 border border-white/30">
                 <Sparkles className="w-4 h-4" />
-                <span className="text-sm font-medium">Welcome to your dashboard</span>
+                <span className="text-sm font-medium">Welcome to Home page</span>
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                Hello, <span className="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">User</span>!
+                Hello, <span className="bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent">{user.full_name}</span>!
               </h1>
               <p className="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto">
                 Your journey to hassle-free vehicle maintenance starts here
