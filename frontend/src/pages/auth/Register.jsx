@@ -233,17 +233,13 @@ return (
               })}
             </div>
             
-            {/* General Server Error Box (Only for Redux error. We handle client errors per-field now) */}
-            {/* This handles general errors or non-field-specific server errors */}
             {error && (
               <div className="mb-6 p-4 rounded-lg flex flex-col gap-2 bg-red-50 text-red-800 border border-red-200">
                 <div className="flex items-center gap-2 font-semibold">
                     <AlertCircle className="w-5 h-5 flex-shrink-0" />
                     Registration Failed
                 </div>
-                {/* Display a single general error message if it exists */}
                 {typeof error === 'string' && <p className="text-sm">{error}</p>}
-                {/* Display the top-level 'error' field if the server sent it, or a generic message */}
                 {typeof error === 'object' && !Object.keys(error).filter(key => key !== 'error').length && (
                     <p className="text-sm">{error?.error || 'An unknown server error occurred.'}</p>
                 )}
@@ -261,7 +257,6 @@ return (
                 placeholder="Enter your full name"
                 icon={User}
                 disabled={loading}
-                // --- ERROR PROP ADDED/MAPPED ---
                 error={getError('fullName', 'full_name')}
               />
 
@@ -304,9 +299,6 @@ return (
                 showPassword={showConfirmPassword}
                 onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
                 disabled={loading}
-                // --- ERROR PROP ADDED/MAPPED ---
-                // Note: The backend error key for confirmPassword is often 'password' or 'confirm_password'.
-                // Assuming client-side validation is sufficient here as it's not sent to the server.
                 error={getError('confirmPassword', 'confirm_password')}
               />
 
@@ -321,7 +313,6 @@ return (
                     placeholder="Enter workshop name"
                     icon={Building2}
                     disabled={loading}
-                    // --- ERROR PROP ADDED/MAPPED ---
                     error={getError('workshopName', 'workshop_name')}
                   />
 
@@ -334,7 +325,6 @@ return (
                     icon={MapPin}
                     rows={3}
                     disabled={loading}
-                    // --- ERROR PROP ADDED/MAPPED ---
                     error={getError('workshopAddress', 'address_line')}
                   />
 
@@ -347,7 +337,6 @@ return (
                       onChange={handleInputChange}
                       placeholder="Enter state"
                       disabled={loading}
-                      // --- ERROR PROP ADDED/MAPPED ---
                       error={getError('state', 'state')}
                     />
 
@@ -359,7 +348,6 @@ return (
                       onChange={handleInputChange}
                       placeholder="Enter city"
                       disabled={loading}
-                      // --- ERROR PROP ADDED/MAPPED ---
                       error={getError('city', 'city')}
                     />
                   </div>
@@ -373,7 +361,6 @@ return (
                       onChange={handleInputChange}
                       placeholder="Enter pin code"
                       disabled={loading}
-                      // --- ERROR PROP ADDED/MAPPED ---
                       error={getError('pinCode', 'pincode')}
                     />
 
@@ -385,7 +372,6 @@ return (
                       onChange={handleInputChange}
                       placeholder="Enter locality"
                       disabled={loading}
-                      // --- ERROR PROP ADDED/MAPPED ---
                       error={getError('locality', 'locality')}
                     />
                   </div>
@@ -399,7 +385,6 @@ return (
                     placeholder="Enter license number"
                     icon={FileText}
                     disabled={loading}
-                    // --- ERROR PROP ADDED/MAPPED ---
                     error={getError('licenseNumber', 'license_number')}
                   />
 
@@ -444,7 +429,6 @@ return (
                     placeholder="Enter contact number"
                     icon={Phone}
                     disabled={loading}
-                    // --- ERROR PROP ADDED/MAPPED ---
                     error={getError('contactNumber', 'contact_number')}
                   />
                 </>
@@ -460,12 +444,10 @@ return (
                   placeholder="Enter contact number"
                   icon={Phone}
                   disabled={loading}
-                  // --- ERROR PROP ADDED/MAPPED ---
                   error={getError('contactNumber', 'contact_number')}
                 />
               )}
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
@@ -486,7 +468,6 @@ return (
               </button>
             </form>
 
-            {/* Login Link */}
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}

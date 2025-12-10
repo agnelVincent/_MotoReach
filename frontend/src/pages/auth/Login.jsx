@@ -91,12 +91,10 @@ const Login = () => {
               </p>
             </div>
 
-            {/* Error Message: Displays Redux Error or Local Validation Error */}
             {displayError && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-800">
-                  {/* Check if error is an object (from RTK rejectWithValue) or string */}
                   {typeof displayError === 'object' && 'detail' in displayError ? displayError.detail : 
                    typeof displayError === 'object' && 'error' in displayError ? displayError.error : 
                    displayError}
@@ -104,7 +102,6 @@ const Login = () => {
               </div>
             )}
 
-            {/* Login Form (Wrapped in form tag for better submission handling) */}
             <form onSubmit={handleSubmit} className="space-y-5">
               <InputField
                 label="Email Address"
@@ -128,19 +125,17 @@ const Login = () => {
                 onTogglePassword={() => setShowPassword(!showPassword)}
               />
 
-              {/* Forgot Password Link */}
               <div className="flex justify-end">
                 <button 
-                  type="button" // Use type="button" to prevent form submission
+                  type="button" 
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline"
                 >
                   Forgot password?
                 </button>
               </div>
 
-              {/* Login Button */}
               <button
-                type="submit" // Set type="submit" to trigger form submission
+                type="submit" 
                 disabled={!isFormValid || isLoading}
                 className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${
                   isFormValid && !isLoading
@@ -159,7 +154,6 @@ const Login = () => {
               </button>
             </form>
 
-            {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-300"></div>
@@ -178,7 +172,6 @@ const Login = () => {
                 }}
             />
 
-            {/* Register Link */}
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Don't have an account?{' '}
