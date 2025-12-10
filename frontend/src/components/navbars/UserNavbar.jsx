@@ -77,7 +77,7 @@ const UserNavbar = () => {
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 origin-top-right animate-fade-in-down">
           <div className="py-1">
             <button
-              onClick={() => onNavClick('/profile')}
+              onClick={() => navigate('/user/profile')}
               className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors duration-200"
             >
               <Settings className="w-4 h-4 mr-3" />
@@ -99,13 +99,13 @@ const UserNavbar = () => {
   const AuthButtons = ({ onNavClick }) => (
     <>
       <button
-        onClick={() => onNavClick('/login')}
+        onClick={() => navigate('/login')}
         className="px-5 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
       >
         Login
       </button>
       <button
-        onClick={() => onNavClick('/register')}
+        onClick={() => navigate('/register')}
         className="px-5 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-300"
       >
         Register
@@ -118,7 +118,7 @@ const UserNavbar = () => {
       {isAuthenticated ? (
         <>
           <button
-            onClick={() => onNavClick('/profile')}
+            onClick={() => navigate('/user/profile')}
             className="w-full text-left flex items-center px-5 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
           >
             <User className="w-4 h-4 mr-2" />

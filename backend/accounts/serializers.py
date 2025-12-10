@@ -4,6 +4,8 @@ from .models import PendingUser,User,Workshop
 from .utils import send_otp_mail
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from django.contrib.auth.password_validation import validate_password
+
 
 
 User = get_user_model()
@@ -181,6 +183,55 @@ class ForgotPasswordResetSerializer(serializers.Serializer):
             raise serializers.ValidationError("Password must contain at least one digit.")
         return value
 
+class ProfileUpdateSerializer(serializers.Serializer):
+    full_name = serializers.CharField(required=False, max_length=100)
+    profile_picture = serializers.ImageField(required=False)
+    contact_number = serializers.CharField(required=False, allow_blank=True)
 
+    def validate_full_name(self, value):
+        if len(value.strip()) < 3:
+            raise serializers.ValidationError("Full name must have at least 3 characters.")
+        return value
 
+    def validate_contact_number(self, value):
+        if value and (not value.isdigit() or len(value) != 10):
+            raise serializers.ValidationError("Contact number must be digits and 10characters long.")
+        return value
 
+    def update(self, user, validated_data):
+        user.full_name = validated_data.get("full_name", user.full_name)
+
+        if "profile_picture" in validated_data:
+            user.profile_picture = validated_data["profile_picture"]
+
+        user.save()
+
+        role = user.role  
+
+        if role == "mechanic":
+            mechanic = user.mechanic
+            if "contact_number" in validated_data:
+                mechanic.contact_number = validated_data["contact_number"]
+                mechanic.save()
+
+        elif role == "workshop_admin":
+            workshop = user.workshop
+            if "contact_number" in validated_data:
+                workshop.contact_number = validated_data["contact_number"]
+                workshop.save()
+
+        return user
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    confirm_new_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data["new_password"] != data["confirm_new_password"]:
+            raise serializers.ValidationError("New passwords do not match.")
+        return data
+
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value

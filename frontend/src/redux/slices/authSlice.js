@@ -244,12 +244,15 @@ const authSlice = createSlice({
             state.otpVerified = false
             sessionStorage.removeItem(OTP_SESSION_KEY)
         })
-        .addCase(loginUser.rejected, (state) => {
+        .addCase(loginUser.rejected, (state, action) => {
             state.loading = false
-            state.isAuthenicated = false
+            state.isAuthenticated = false
             state.accessToken = null
             state.user = null
-            state.error = action.payload.detail || action.payload.error || 'login failed'
+            const errorPayload = action.payload || {};
+            state.error = errorPayload.detail 
+                    || errorPayload.error 
+                    || 'Login failed. Please check your credentials and try again.';
             localStorage.removeItem(ACCESS_TOKEN_KEY)
             localStorage.removeItem(USER_KEY)
         })

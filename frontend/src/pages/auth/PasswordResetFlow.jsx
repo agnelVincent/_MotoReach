@@ -378,13 +378,14 @@ export const CreateNewPasswordPage = () => {
   const handleSubmit = useCallback(async () => {
     if (!isValidPassword) return; 
     
-    const resultAction = await dispatch(forgotPasswordReset({
+    const resultAction = dispatch(forgotPasswordReset({
       email,
       new_password: newPassword,
     }));
     
     if (forgotPasswordReset.fulfilled.match(resultAction)) {
-        setIsSuccess(true);
+        setIsSuccess(true)
+        navigate('/login')
     }
     
 

@@ -1,8 +1,8 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer 
+from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer, ProfileUpdateSerializer, ChangePasswordSerializer 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
 from .utils import send_otp_mail, send_password_reset_otp
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -311,3 +311,61 @@ class ForgotPasswordResetView(APIView):
         otp_record.delete() 
 
         return Response({"detail": "Password reset successfully. Please log in with your new password."}, status=status.HTTP_200_OK)
+    
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        role_data = None
+
+        if user.role == "mechanic":
+            role_data = {
+                "contact_number": user.mechanic.contact_number
+            }
+        elif user.role == "workshop_admin":
+            role_data = {
+                "contact_number": user.workshop.contact_number
+            }
+
+        data = {
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+            "profile_picture": request.build_absolute_uri(user.profile_picture.url) if user.profile_picture else None,
+            "role_details": role_data,
+        }
+
+        return Response(data)
+
+    def put(self, request):
+        user = request.user
+        serializer = ProfileUpdateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.update(user, serializer.validated_data)
+            return Response({"detail": "Profile updated successfully."})
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        user = request.user
+
+        if not user.check_password(serializer.validated_data["old_password"]):
+            return Response({"detail": "Old password is incorrect."}, status=400)
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+
+        return Response({"detail": "Password updated successfully."}, status=200)

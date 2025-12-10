@@ -31,13 +31,10 @@ const Login = () => {
   }, [isAuthenticated. user, navigate, getRolePath]);
 
   useEffect(() => {
-      if (authError) {
-          dispatch(clearError());
-      }
+      
       return () => {
-          if (authError) {
              dispatch(clearError());
-          }
+
       };
   }, [dispatch]); 
 
@@ -128,6 +125,7 @@ const Login = () => {
               <div className="flex justify-end">
                 <button 
                   type="button" 
+                  onClick={() => navigate('/forgot-password')}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline"
                 >
                   Forgot password?
@@ -177,6 +175,7 @@ const Login = () => {
                 Don't have an account?{' '}
                 <button 
                   type="button" 
+                  onClick={() => navigate('/register')}
                   className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300 hover:underline"
                 >
                   Register
