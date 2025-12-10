@@ -132,6 +132,7 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST')         

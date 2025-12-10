@@ -1,4 +1,4 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer
+from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,6 +9,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -185,3 +187,44 @@ class LogoutView(APIView):
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return response
             
+class GoogleAuthView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token_str = request.data.get("id_token")
+
+        if not id_token_str:
+            return Response({"error": "ID token missing"}, status=400)
+
+        try:
+            # Verify Google token
+            idinfo = id_token.verify_oauth2_token(
+                id_token_str,
+                requests.Request(),
+                settings.GOOGLE_CLIENT_ID
+            )
+
+            email = idinfo.get("email")
+            full_name = idinfo.get("name")
+
+            if not email:
+                return Response({"error": "Email not returned by Google"}, status=400)
+
+            # Create or get user
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={"full_name": full_name, "role": "user"}
+            )
+
+            refresh = RefreshToken.for_user(user)
+
+            data = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserRoleSerializer(user).data
+            }
+
+            return Response(data, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)

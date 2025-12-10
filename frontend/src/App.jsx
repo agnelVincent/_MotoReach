@@ -5,6 +5,7 @@ import AppRoute from './routes/AppRoute';
 
 
 function App() {
+       console.log("CLIENT ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID); 
   return (
 
       <BrowserRouter>
