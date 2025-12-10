@@ -1,16 +1,18 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer
+from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from .models import EmailOTP,PendingUser,User,Workshop,Mechanic
-from .utils import send_otp_mail
+from .utils import send_otp_mail, send_password_reset_otp
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -50,7 +52,7 @@ class VerifyOTPView(APIView):
         role = serializer.validated_data['role']
 
         try:
-            otp_record = EmailOTP.objects.get(email = email, is_verified = False)
+            otp_record = EmailOTP.objects.get(email = email, is_verified = False, purpose = 'registration')
             pending_user = PendingUser.objects.get(email = email, role = role)
 
             if otp_record.is_expired():
@@ -226,3 +228,86 @@ class GoogleAuthView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+        
+
+class ForgotPasswordSendOtpView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = ForgotPasswordSendOtpSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+
+        otp_record, success, message = send_password_reset_otp(email)
+
+        if success:
+            return Response({"detail": message}, status=status.HTTP_200_OK)
+        else:
+            if message.startswith("User with this email"):
+                 return Response({"detail": "If the email is registered, an OTP has been sent."}, status=status.HTTP_200_OK)
+            print(message)
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ForgotPasswordVerifyOtpView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = ForgotPasswordVerifyOtpSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        otp = serializer.validated_data['otp']
+
+        try:
+            otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+        except EmailOTP.DoesNotExist:
+            return Response({"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if otp_record.is_expired():
+            return Response({"detail": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if otp_record.otp != otp:
+            return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_record.is_verified = True
+        otp_record.save()
+
+        return Response({"detail": "OTP verified successfully. You can now reset your password."}, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordResetView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = ForgotPasswordResetSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data['email']
+        new_password = serializer.validated_data['new_password']
+
+        try:
+            otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+        except EmailOTP.DoesNotExist:
+            return Response({"detail": "Password reset flow not initiated or token expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not otp_record.is_verified:
+            return Response({"detail": "OTP must be verified before resetting the password."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            validate_password(new_password, user=user)
+        except DjangoValidationError as e:
+            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        otp_record.delete() 
+
+        return Response({"detail": "Password reset successfully. Please log in with your new password."}, status=status.HTTP_200_OK)

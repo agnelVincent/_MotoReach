@@ -122,12 +122,17 @@ class PendingUser(models.Model):
     
 
 class EmailOTP(models.Model):
+    PURPOSE_CHOICES = (
+    ('registration', 'Registration'),
+    ('forgot_password', 'Forgot Password'),
+    )
+    purpose = models.CharField(max_length=30, choices=PURPOSE_CHOICES, default='registration')
     email = models.EmailField()
     otp = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
     resend_count = models.IntegerField(default=0)
-    last_sent = models.DateTimeField(auto_now_add=True)
+    last_sent = models.DateTimeField(default=timezone.now)
 
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes = 1)
