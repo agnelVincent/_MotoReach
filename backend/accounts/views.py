@@ -109,7 +109,7 @@ class ResendOTPView(APIView):
 
         email = serializer.validated_data['email']
         role = serializer.validated_data['role']
-
+    
         try:
             pending_user = PendingUser.objects.get(email = email, role = role)
         except PendingUser.DoesNotExist:
