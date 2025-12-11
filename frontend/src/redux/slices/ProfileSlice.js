@@ -39,6 +39,21 @@ export const changePassword = createAsyncThunk(
   }
 );
 
+export const updateAvailability = createAsyncThunk(
+  "profile/updateAvailability",
+  async (newStatus, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put("/accounts/profile/", {
+        availability: newStatus,
+      });
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || "Update failed");
+    }
+  }
+);
+
+
 const profileSlice = createSlice({
   name: "profile",
   initialState: {

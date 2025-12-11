@@ -187,6 +187,7 @@ class ProfileUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(required=False, max_length=100)
     profile_picture = serializers.ImageField(required=False)
     contact_number = serializers.CharField(required=False, allow_blank=True)
+    availability = serializers.CharField(required=False)
 
     def validate_full_name(self, value):
         if len(value.strip()) < 3:
@@ -196,6 +197,12 @@ class ProfileUpdateSerializer(serializers.Serializer):
     def validate_contact_number(self, value):
         if value and (not value.isdigit() or len(value) != 10):
             raise serializers.ValidationError("Contact number must be digits and 10characters long.")
+        return value
+    
+    def validate_availability(self, value):
+        allowed = ['AVAILABLE', 'BUSY']
+        if value not in allowed:
+            raise serializers.ValidationError("Availability must be AVAILABLE or BUSY.")
         return value
 
     def update(self, user, validated_data):
@@ -212,7 +219,11 @@ class ProfileUpdateSerializer(serializers.Serializer):
             mechanic = user.mechanic
             if "contact_number" in validated_data:
                 mechanic.contact_number = validated_data["contact_number"]
-                mechanic.save()
+
+            if "availability" in validated_data:
+                mechanic.availability = validated_data["availability"]
+
+            mechanic.save()
 
         elif role == "workshop_admin":
             workshop = user.workshop

@@ -323,7 +323,8 @@ class ProfileView(APIView):
 
         if user.role == "mechanic":
             role_data = {
-                "contact_number": user.mechanic.contact_number
+                "contact_number": user.mechanic.contact_number,
+                "availability": user.mechanic.availability
             }
         elif user.role == "workshop_admin":
             role_data = {
