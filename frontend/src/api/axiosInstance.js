@@ -76,8 +76,6 @@ axiosInstance.interceptors.response.use(
 
         localStorage.removeItem(ACCESS_TOKEN_KEY);
 
-        window.location.href = "/login";
-
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -1,31 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Wallet, Users, CreditCard, LogOut, ChevronDown } from 'lucide-react';
-import { useLogout } from '../../hooks/useLogout';
+import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLogout } from '../../hooks/useLogout';
 
-const WorkshopNavbar = () => {
+const MechanicNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('/dashboard');
   const profileRef = useRef(null);
-  const navigate = useNavigate()
 
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Requests', path: '/requests', icon: FileText },
-    { name: 'Wallet', path: '/wallet', icon: Wallet },
-    { name: 'Mechanics', path: '/mechanics', icon: Users },
-    { name: 'Payment', path: '/payment', icon: CreditCard },
+    { name: 'Workshop', path: '/workshop', icon: Building2 },
   ];
 
   const profileMenuItems = [
     { name: 'Profile', icon: User, action: 'profile' },
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
+  const navigate = useNavigate();
 
   const {logout} = useLogout()
-
-  // Close profile dropdown when clicking outside
+ 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -42,19 +39,18 @@ const WorkshopNavbar = () => {
     setIsMobileMenuOpen(false);
   };
 
-const handleProfileMenuClick = (action) => {
-  console.log('Profile action:', action);
-  setIsProfileOpen(false);
+    const handleProfileMenuClick = (action) => {
+    setIsProfileOpen(false);
 
-  if (action === 'profile') {
-    console.log("Navigate to profile here");
-    navigate('/workshop/profile');
-  }
+    if (action === 'profile') {
+        navigate('/mechanic/profile');
+    }
 
-  if (action === 'logout') {
-    logout();
-  }
-};
+    if (action === 'logout') {
+        logout();
+    }
+    };
+
 
   const isActive = (path) => activeLink === path;
 
@@ -67,14 +63,14 @@ const handleProfileMenuClick = (action) => {
             onClick={() => handleNavClick('/dashboard')}
             className="flex items-center space-x-2 group"
           >
-            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-2 rounded-lg group-hover:from-indigo-700 group-hover:to-purple-800 transition-all duration-300">
+            <div className="bg-gradient-to-br from-orange-600 to-red-700 p-2 rounded-lg group-hover:from-orange-700 group-hover:to-red-800 transition-all duration-300">
               <Car className="w-6 h-6 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors duration-300">
+              <span className="text-xl font-bold text-gray-800 group-hover:text-orange-600 transition-colors duration-300">
                 MotoReach
               </span>
-              <span className="text-xs text-gray-500 -mt-1">Workshop</span>
+              <span className="text-xs text-gray-500 -mt-1">Mechanic</span>
             </div>
           </button>
 
@@ -88,8 +84,8 @@ const handleProfileMenuClick = (action) => {
                   onClick={() => handleNavClick(link.path)}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${
                     isActive(link.path)
-                      ? 'text-indigo-600 bg-indigo-50'
-                      : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                      ? 'text-orange-600 bg-orange-50'
+                      : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -102,7 +98,7 @@ const handleProfileMenuClick = (action) => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
             {/* Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
+            <button className="relative p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
@@ -111,9 +107,9 @@ const handleProfileMenuClick = (action) => {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-2 p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-300"
+                className="flex items-center gap-2 p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-300"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center">
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} />
@@ -123,8 +119,8 @@ const handleProfileMenuClick = (action) => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 animate-fadeIn">
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">Workshop Name</p>
-                    <p className="text-xs text-gray-500">workshop@example.com</p>
+                    <p className="text-sm font-semibold text-gray-800">Mechanic Name</p>
+                    <p className="text-xs text-gray-500">mechanic@example.com</p>
                   </div>
                   {profileMenuItems.map((item) => {
                     const Icon = item.icon;
@@ -151,14 +147,14 @@ const handleProfileMenuClick = (action) => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-3">
             {/* Mobile Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
+            <button className="relative p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-300"
+              className="p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-300"
             >
               {isMobileMenuOpen ? (
                 <X className="w-6 h-6" />
@@ -182,8 +178,8 @@ const handleProfileMenuClick = (action) => {
                   onClick={() => handleNavClick(link.path)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
                     isActive(link.path)
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
+                      ? 'bg-orange-50 text-orange-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -194,8 +190,8 @@ const handleProfileMenuClick = (action) => {
 
             <div className="pt-3 border-t border-gray-200 space-y-2">
               <div className="px-4 py-2">
-                <p className="text-sm font-semibold text-gray-800">Workshop Name</p>
-                <p className="text-xs text-gray-500">workshop@example.com</p>
+                <p className="text-sm font-semibold text-gray-800">Mechanic Name</p>
+                <p className="text-xs text-gray-500">mechanic@example.com</p>
               </div>
               {profileMenuItems.map((item) => {
                 const Icon = item.icon;
@@ -222,4 +218,4 @@ const handleProfileMenuClick = (action) => {
   );
 };
 
-export default WorkshopNavbar;
+export default MechanicNavbar;
