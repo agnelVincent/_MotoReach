@@ -327,8 +327,18 @@ class ProfileView(APIView):
                 "availability": user.mechanic.availability
             }
         elif user.role == "workshop_admin":
+            workshop = user.workshop
             role_data = {
-                "contact_number": user.workshop.contact_number
+                "contact_number": workshop.contact_number,
+                "workshop_name" : workshop.workshop_name,
+                "city" : workshop.city,
+                "locality" : workshop.locality,
+                "pincode" : workshop.pincode,
+                "address_line" : workshop.address_line,
+                "state" : workshop.state,
+                "type" : workshop.type,
+                "verification_status" : workshop.verification_status,
+                "license_number" : workshop.license_number
             }
 
         data = {

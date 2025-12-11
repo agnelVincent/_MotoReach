@@ -12,7 +12,7 @@ import {
   CheckCircle,
   Activity,
   AlertTriangle,
-  RotateCw, // For loading state
+  RotateCw, 
 } from 'lucide-react';
 
 
@@ -28,7 +28,6 @@ import ProfileInput from '../../components/ProfileInput';
 const MechanicProfile = () => {
   const dispatch = useDispatch();
   
-  // Select state from Redux store
   const { 
     profile, 
     loading, 
@@ -36,90 +35,73 @@ const MechanicProfile = () => {
     success 
   } = useSelector((state) => state.profile);
 
-  // --- Local Component State ---
   const [isEditMode, setIsEditMode] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // State for editable profile fields (initializes from profile state or mocks)
   const [editedMechanicData, setEditedMechanicData] = useState({
     fullName: '',
     email: '',
     phoneNumber: '',
-    profilePicture: null, // Use null for file or URL string
-    // Add other fields as necessary, e.g., 'availability'
+    profilePicture: null, 
   });
   
-  // State for file input
   const [profilePictureFile, setProfilePictureFile] = useState(null);
 
-  // Password visibility states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Password data
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  
-  // --- Effects and Initial Load ---
-  
-  // 1. Initial Profile Fetch on component mount
+
   useEffect(() => {
     dispatch(getProfile());
   }, [dispatch]);
   
-  // 2. Initialize/Update local state when Redux profile state changes
   useEffect(() => {
     if (profile) {
       setEditedMechanicData({
         fullName: profile.full_name || '',
-        email: profile.email || '', // Email is typically read-only
-        phoneNumber: profile.phone_number || '',
-        profilePicture: profile.profile_picture || null, // Assuming this is the URL
+        email: profile.email || '', 
+        phoneNumber: profile.role_details.contact_number || '',
+        profilePicture: profile.profile_picture || null, 
       });
     }
   }, [profile]);
 
-  // 3. Handle Redux success/error messages
   useEffect(() => {
     if (success) {
       showNotification(success, 'success');
     }
     if (error) {
-      // Assuming error is an object from the slice
-      // For simplicity, we just display the main error string if it's not a password form error
       if (typeof error === 'string' && !error.includes('password')) { 
         showNotification(error, 'error');
       } else if (error && error.detail) {
         showNotification(error.detail, 'error');
       }
     }
-    
-    // Clear the status in Redux after displaying the message
+
     const timer = setTimeout(() => {
       dispatch(clearStatus());
-    }, 50); // Small delay to ensure state is set before clearing
+    }, 50); 
     
     return () => clearTimeout(timer);
   }, [success, error, dispatch]);
   
-  // --- Handlers ---
-
   const handleEditToggle = () => {
     if (isEditMode) {
-      // Revert changes on Cancel: re-initialize from the Redux profile data
       if (profile) {
         setEditedMechanicData({
           fullName: profile.full_name || '',
           email: profile.email || '',
-          phoneNumber: profile.phone_number || '',
+          phoneNumber: profile.role_details.contact_number || '',
           profilePicture: profile.profile_picture || null,
         });
-        setProfilePictureFile(null); // Clear any pending file
+        setProfilePictureFile(null); 
       }
     }
     setIsEditMode(!isEditMode);
@@ -151,7 +133,6 @@ const MechanicProfile = () => {
     const file = e.target.files[0];
     if (file) {
       setProfilePictureFile(file);
-      // Create a temporary URL for preview
       setEditedMechanicData(prev => ({
         ...prev,
         profilePicture: URL.createObjectURL(file) 
@@ -162,38 +143,29 @@ const MechanicProfile = () => {
   const handleSaveProfile = () => {
     if (!profile) return;
     
-    // Create FormData for multipart/form-data request
     const formData = new FormData();
     
-    // Check if fields were actually changed before appending
+
     if (editedMechanicData.fullName !== profile.full_name) {
       formData.append('full_name', editedMechanicData.fullName);
     }
-    if (editedMechanicData.phoneNumber !== profile.phone_number) {
-      formData.append('phone_number', editedMechanicData.phoneNumber);
+    if (editedMechanicData.phoneNumber !== profile.role_details.contact_number) {
+      formData.append('contact_number', editedMechanicData.phoneNumber);
     }
 
-    // Handle profile picture: if a new file is selected, append it
+
     if (profilePictureFile) {
         formData.append('profile_picture', profilePictureFile);
     } 
-    // If the URL is blanked out and no file is present, assume deletion if supported by API
-    // Note: The API must be set up to handle picture removal if a blank string is sent.
-    // For this example, we assume we only send a new file or don't send anything.
-    // else if (editedMechanicData.profilePicture === '' && profile.profile_picture) {
-    //     formData.append('profile_picture', ''); // Send empty string to remove
-    // }
 
-    // Dispatch the updateProfile thunk
     dispatch(updateProfile(formData))
       .unwrap()
       .then(() => {
-        // Only turn off edit mode if update was successful
+
         setIsEditMode(false);
-        setProfilePictureFile(null); // Clear file input
+        setProfilePictureFile(null);
       })
       .catch((err) => {
-        // Error handling is managed by the useEffect listening to the `error` state
         console.error('Profile update failed:', err);
       });
   };
@@ -205,7 +177,6 @@ const MechanicProfile = () => {
     dispatch(updateAvailability(newStatus))
       .unwrap()
       .catch((err) => {
-        // Error already handled by useEffect, but logging here is good practice
         console.error('Availability update failed:', err);
       });
   };
@@ -228,7 +199,6 @@ const MechanicProfile = () => {
     }))
       .unwrap()
       .then(() => {
-        // Clear password fields on success
         setPasswordData({
           currentPassword: '',
           newPassword: '',
@@ -236,17 +206,13 @@ const MechanicProfile = () => {
         });
       })
       .catch((err) => {
-         // Check for specific error message structure from changePassword rejectWithValue
-         // This is a common pattern for displaying form-specific errors.
          if (err && (err.old_password || err.new_password || err.non_field_errors)) {
-            // Display specific error for password section, using global notification for simplicity
             const errorMsg = err.old_password?.[0] || err.new_password?.[0] || err.non_field_errors?.[0] || "Password update failed.";
             showNotification(errorMsg, 'error');
          }
       });
   };
 
-  // --- Derived State and Validation ---
 
   const passwordMatchError = 
     passwordData.confirmPassword && 
@@ -260,9 +226,8 @@ const MechanicProfile = () => {
     passwordData.confirmPassword &&
     !passwordMatchError;
 
-  const currentAvailability = profile?.availability ?? false; // Use Redux state
+  const currentAvailability = profile?.availability ?? false; 
 
-  // Show a loading indicator if profile data is still being fetched
   if (loading && !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -271,8 +236,7 @@ const MechanicProfile = () => {
       </div>
     );
   }
-  
-  // Show error if initial fetch failed
+
   if (!profile && error) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
@@ -423,7 +387,7 @@ const MechanicProfile = () => {
                 <div className="md:col-span-2">
                   <ProfileInput
                     label="Phone Number"
-                    value={isEditMode ? editedMechanicData.phoneNumber : profile?.phone_number || ''}
+                    value={isEditMode ? editedMechanicData.phoneNumber : profile?.role_details?.contact_number || ''}
                     Icon={Phone}
                     isEditMode={isEditMode}
                     type="tel"

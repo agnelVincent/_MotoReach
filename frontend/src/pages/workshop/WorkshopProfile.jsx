@@ -18,7 +18,6 @@ import {
   RotateCw, 
 } from 'lucide-react';
 
-// Import Redux actions and clearStatus action creator
 import { 
   getProfile, 
   updateProfile, 
@@ -31,7 +30,6 @@ import ProfileInput from '../../components/ProfileInput';
 const WorkshopProfile = () => {
   const dispatch = useDispatch();
   
-  // Select state from Redux store
   const { 
     profile, 
     loading, 
@@ -39,63 +37,52 @@ const WorkshopProfile = () => {
     success 
   } = useSelector((state) => state.profile);
 
-  // --- Local Component State ---
   const [isEditMode, setIsEditMode] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   
-  // State for editable profile fields (initializes from profile state)
   const [editedOwnerData, setEditedOwnerData] = useState({
     fullName: '',
     contactNumber: '',
     profilePicture: null, 
   });
   
-  // State for file input
   const [profilePictureFile, setProfilePictureFile] = useState(null);
 
-  // Password visibility states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Password data
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
   
-  // --- Effects and Initial Load ---
-  
-  // 1. Initial Profile Fetch on component mount
   useEffect(() => {
     dispatch(getProfile());
   }, [dispatch]);
   
-  // 2. Initialize/Update local state when Redux profile state changes
+
   useEffect(() => {
     if (profile) {
       setEditedOwnerData({
         fullName: profile.full_name || '',
-        contactNumber: profile.phone_number || '',
-        profilePicture: profile.profile_picture || null, // URL from backend
+        contactNumber: profile.role_details.contact_number || '',
+        profilePicture: profile.profile_picture || null,
       });
     }
   }, [profile]);
 
-  // 3. Handle Redux success/error messages
   useEffect(() => {
     if (success) {
       showNotification(success, 'success');
     }
     if (error) {
-      // Check if error is an object (common for validation errors) or a string
       const errorMsg = typeof error === 'string' ? error : error.detail || 'An unknown error occurred.';
       showNotification(errorMsg, 'error');
     }
     
-    // Clear the status in Redux after displaying the message
     const timer = setTimeout(() => {
       dispatch(clearStatus());
     }, 50); 
@@ -103,7 +90,6 @@ const WorkshopProfile = () => {
     return () => clearTimeout(timer);
   }, [success, error, dispatch]);
   
-  // --- Handlers ---
 
   const showNotification = (message, type) => {
     if (type === 'success') {
@@ -122,14 +108,13 @@ const WorkshopProfile = () => {
 
   const handleEditToggle = () => {
     if (isEditMode) {
-      // Revert changes on Cancel: re-initialize from the Redux profile data
       if (profile) {
         setEditedOwnerData({
           fullName: profile.full_name || '',
-          contactNumber: profile.phone_number || '',
+          contactNumber: profile.role_details.contact_number || '',
           profilePicture: profile.profile_picture || null,
         });
-        setProfilePictureFile(null); // Clear any pending file
+        setProfilePictureFile(null);
       }
     }
     setIsEditMode(!isEditMode);
@@ -163,20 +148,14 @@ const WorkshopProfile = () => {
     if (editedOwnerData.fullName !== profile.full_name) {
       formData.append('full_name', editedOwnerData.fullName);
     }
-    if (editedOwnerData.contactNumber !== profile.phone_number) {
-      formData.append('phone_number', editedOwnerData.contactNumber);
+    if (editedOwnerData.contactNumber !== profile.role_details.contact_number) {
+      formData.append('contact_number', editedOwnerData.contactNumber);
     }
 
-    // Handle profile picture file upload
     if (profilePictureFile) {
         formData.append('profile_picture', profilePictureFile);
     } 
-    // If you also want to update the workshop's editable fields:
-    // This requires knowing the exact names of the fields in your backend profile model.
-    // Example (assuming workshop fields are nested or flattened on the profile model):
-    // if (editedWorkshopData.workshopName !== profile.workshop_name) {
-    //     formData.append('workshop_name', editedWorkshopData.workshopName);
-    // }
+
   
     dispatch(updateProfile(formData))
       .unwrap()
@@ -239,28 +218,25 @@ const WorkshopProfile = () => {
     !passwordMatchError;
 
 
-  // --- Component structure relies heavily on data from 'profile' ---
-  // Map backend profile fields to UI display (assuming structure is flat)
+
   const displayData = {
     fullName: profile?.full_name || 'N/A',
     email: profile?.email || 'N/A',
-    contactNumber: profile?.phone_number || 'N/A',
+    contactNumber: profile?.role_details?.contact_number || 'N/A',
     profilePicture: profile?.profile_picture || null,
     
-    // Workshop Details (Assuming these keys exist directly on the 'profile' object)
-    // NOTE: Replace the fallback string 'N/A' with your desired default value.
-    workshopName: profile?.workshop_name || 'N/A',
-    licenseNumber: profile?.license_number || 'N/A',
-    addressLine: profile?.address_line || 'N/A',
-    locality: profile?.locality || 'N/A',
-    city: profile?.city || 'N/A',
-    state: profile?.state || 'N/A',
-    pincode: profile?.pincode || 'N/A',
-    workshopType: profile?.workshop_type || 'N/A',
-    verificationStatus: profile?.verification_status || 'Unverified',
+
+    workshopName: profile?.role_details?.workshop_name || 'N/A',
+    licenseNumber: profile?.role_details?.license_number || 'N/A',
+    addressLine: profile?.role_details?.address_line || 'N/A',
+    locality: profile?.role_details?.locality || 'N/A',
+    city: profile?.role_details?.city || 'N/A',
+    state: profile?.role_details?.state || 'N/A',
+    pincode: profile?.role_details?.pincode || 'N/A',
+    workshopType: profile?.role_details?.type || 'N/A',
+    verificationStatus: profile?.role_details?.verification_status || 'Unverified',
   };
   
-  // Show a loading indicator if profile data is still being fetched
   if (loading && !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">

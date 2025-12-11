@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useLogout } from '../../hooks/useLogout';
+// 👇 1. Import useNavigate for routing
+import { useNavigate } from 'react-router-dom'; 
+// 👇 2. Import your custom hook for logout
+import { useLogout } from '../../hooks/useLogout'; 
 
 const MechanicNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState('/dashboard');
+  // Setting a default, but remember to use useLocation for proper highlighting on refresh
+  const [activeLink, setActiveLink] = useState('/dashboard'); 
   const profileRef = useRef(null);
 
   const navLinks = [
@@ -19,10 +22,12 @@ const MechanicNavbar = () => {
     { name: 'Profile', icon: User, action: 'profile' },
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
-  const navigate = useNavigate();
 
-  const {logout} = useLogout()
+  // 👇 Get the navigation and logout functions
+  const navigate = useNavigate();
+  const { logout } = useLogout();
  
+  // Close profile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -36,21 +41,25 @@ const MechanicNavbar = () => {
 
   const handleNavClick = (path) => {
     setActiveLink(path);
+    // 👇 Navigate to the path for main nav links
+    navigate(path); 
     setIsMobileMenuOpen(false);
   };
 
-    const handleProfileMenuClick = (action) => {
+  const handleProfileMenuClick = (action) => {
     setIsProfileOpen(false);
 
     if (action === 'profile') {
-        navigate('/mechanic/profile');
+      setActiveLink('/mechanic/profile');
+      // 👇 Navigate to the ABSOLUTE route for profile
+      navigate('/mechanic/profile'); 
     }
 
     if (action === 'logout') {
-        logout();
+      // 👇 Execute the logout function from your hook
+      logout();
     }
-    };
-
+  };
 
   const isActive = (path) => activeLink === path;
 
