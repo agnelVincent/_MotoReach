@@ -166,18 +166,14 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only = True)
 
 class CookieTokenRefreshSerializer(TokenRefreshSerializer):
+    refresh = serializers.CharField(required=False, allow_blank=True)
     def validate(self, attrs):
-
-        print("🔍 ALL COOKIES:", self.context['request'].COOKIES)
-        print("🔍 AUTH_COOKIE NAME:", settings.SIMPLE_JWT['AUTH_COOKIE'])
-
+        
         refresh = self.context['request'].COOKIES.get(
             settings.SIMPLE_JWT['AUTH_COOKIE']
         )
 
-        print("🔍 REFRESH COOKIE VALUE:", refresh)
         if not refresh:
-            print("❌ REFRESH COOKIE MISSING")
             raise InvalidToken('No refresh token in cookie')
         
         attrs['refresh'] = refresh

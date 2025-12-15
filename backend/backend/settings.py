@@ -90,14 +90,14 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME' : timedelta(minutes=1),
+    'ACCESS_TOKEN_LIFETIME' : timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME' : timedelta(days=1),
 
     'AUTH_COOKIE' : 'refreshtoken',
     'AUTH_COOKIE_DOMAIN' : None,
     'AUTH_COOKIE_SECURE' : False,
     'AUTH_COOKIE_HTTP_ONLY' : True,
-    'AUTH_COOKIE_SAMESITE' : 'None'
+    'AUTH_COOKIE_SAMESITE' : 'Lax'
 }
 
 # CORS Configuration

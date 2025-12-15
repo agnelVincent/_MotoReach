@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://127.0.0.1:8000/api'; 
+const BASE_URL = '/api';
 const ACCESS_TOKEN_KEY = 'accessToken'
 
 const axiosInstance = axios.create({
@@ -8,7 +8,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials : true
+  withCredentials: true
 });
 
 const refreshClient = axios.create({
@@ -70,7 +70,7 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshResponse = await refreshClient.post("/accounts/auth/token/refresh/");
+        const refreshResponse = await refreshClient.post("accounts/auth/token/refresh/");
 
         const newAccessToken = refreshResponse.data.access;
         localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
