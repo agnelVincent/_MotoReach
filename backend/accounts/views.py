@@ -1,4 +1,4 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer, ProfileUpdateSerializer, ChangePasswordSerializer 
+from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer, ProfileUpdateSerializer, ChangePasswordSerializer, CookieTokenRefreshSerializer 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -13,6 +13,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework_simplejwt.views import TokenRefreshView
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -143,18 +144,19 @@ class LoginView(TokenObtainPairView):
         
         data = serializer.validated_data
 
-        refresh_token = request.COOKIES.get('refreshtoken')
-        refresh_token = str(self.serializer_class.get_token(serializer.user))
-
-        response = Response(data,status=status.HTTP_200_OK)
+        response = Response(
+            {'access' : data['access']},
+            status=status.HTTP_200_OK
+        )
 
         response.set_cookie(
             key = settings.SIMPLE_JWT['AUTH_COOKIE'],
-            value = refresh_token,
+            value = data['refresh'],
             expires=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
             secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
             httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+            samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+            path = '/'
         )
 
         return response
@@ -188,6 +190,11 @@ class LogoutView(APIView):
             response.data = {'error': 'An unexpected server error occurred during logout.'}
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return response
+        
+class CookieTokenRefeshView(TokenRefreshView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    serializer_class = CookieTokenRefreshSerializer
             
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
@@ -218,16 +225,38 @@ class GoogleAuthView(APIView):
 
             refresh = RefreshToken.for_user(user)
 
-            data = {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserRoleSerializer(user).data
-            }
+            response = Response(
+                {
+                    "access": str(refresh.access_token),
+                    "user": UserRoleSerializer(user).data
+                },
+                status=200
+            )
 
-            return Response(data, status=200)
+            response.set_cookie(
+                key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                value=str(refresh),
+                expires=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
+                secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                path='/'
+            )
+
+            print("🧠 SETTING REFRESH COOKIE")
+            print("REFRESH VALUE:", str(refresh))
+            print("COOKIE SETTINGS:", {
+                "key": settings.SIMPLE_JWT['AUTH_COOKIE'],
+                "samesite": settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
+                "secure": settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+            })
+
+
+            return response
 
         except Exception as e:
             return Response({"error": str(e)}, status=400)
+
         
 
 class ForgotPasswordSendOtpView(APIView):

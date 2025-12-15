@@ -5,8 +5,10 @@ from .utils import send_otp_mail
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
-
-
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.exceptions import InvalidToken
+from django.conf import settings
+from rest_framework_simplejwt.exceptions import TokenError
 
 User = get_user_model()
 
@@ -162,6 +164,31 @@ class LoginResponseSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.CharField()
     password = serializers.CharField(write_only = True)
+
+class CookieTokenRefreshSerializer(TokenRefreshSerializer):
+    def validate(self, attrs):
+
+        print("🔍 ALL COOKIES:", self.context['request'].COOKIES)
+        print("🔍 AUTH_COOKIE NAME:", settings.SIMPLE_JWT['AUTH_COOKIE'])
+
+        refresh = self.context['request'].COOKIES.get(
+            settings.SIMPLE_JWT['AUTH_COOKIE']
+        )
+
+        print("🔍 REFRESH COOKIE VALUE:", refresh)
+        if not refresh:
+            print("❌ REFRESH COOKIE MISSING")
+            raise InvalidToken('No refresh token in cookie')
+        
+        attrs['refresh'] = refresh
+        
+        try:
+            data = super().validate(attrs)
+            return data
+        except TokenError as e:
+            print('token error',str(e))
+        except Exception as e:
+            print(str(e))
 
 class ForgotPasswordSendOtpSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

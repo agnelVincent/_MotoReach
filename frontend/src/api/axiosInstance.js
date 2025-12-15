@@ -11,6 +11,12 @@ const axiosInstance = axios.create({
   withCredentials : true
 });
 
+const refreshClient = axios.create({
+  baseURL: BASE_URL,
+  withCredentials: true
+});
+
+
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -43,6 +49,8 @@ axiosInstance.interceptors.response.use(
   (response) => response,
 
   async (error) => {
+    console.log(error)
+    console.log(error.config)
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -62,7 +70,7 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshResponse = await axiosInstance.post("/auth/token/refresh/");
+        const refreshResponse = await refreshClient.post("/accounts/auth/token/refresh/");
 
         const newAccessToken = refreshResponse.data.access;
         localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);

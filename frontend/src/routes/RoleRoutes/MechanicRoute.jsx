@@ -5,7 +5,7 @@ import MechanicProfile from "../../pages/mechanic/MechanicProfile";
 
 function MechanicRoute() {
     return (
-        <Route path="/mechanic" element={<MechanicLayout />}>
+        <Route path="mechanic" element={<MechanicLayout />}>
             <Route index element={<MechanicDashboard />} />
             <Route path="profile" element={<MechanicProfile/>}/>
         </Route>

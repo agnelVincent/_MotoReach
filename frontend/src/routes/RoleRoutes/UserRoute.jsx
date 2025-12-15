@@ -5,10 +5,10 @@ import UserProfile from "../../pages/user/UserProfile";
 
 function UserRoute() {
     return (
-        <Route element={<UserLayout />}>
-            <Route path="/user" element={<UserHome />} />
-            <Route path="/user/home" element={<UserHome />} />
-            <Route path='user/profile' element={<UserProfile />} />
+        <Route path="user" element={<UserLayout />}>
+            <Route index element={<UserHome />} />
+            <Route path="home" element={<UserHome />} />
+            <Route path='profile' element={<UserProfile />} />
         </Route>
     );
 }

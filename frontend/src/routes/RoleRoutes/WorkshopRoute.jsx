@@ -7,7 +7,7 @@ function WorkshopRoute() {
     return (
         <Route path="workshop" element={<WorkshopLayout />}>
             <Route index element={<WorkshopDashboard />} />
-            <Route path="/workshop/profile" element={<WorkshopProfile/>}/>
+            <Route path="profile" element={<WorkshopProfile/>}/>
         </Route>
     );
 }
