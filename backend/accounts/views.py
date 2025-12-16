@@ -405,11 +405,12 @@ class ProfileView(APIView):
     def put(self, request):
         user = request.user
         serializer = ProfileUpdateSerializer(data=request.data)
-
+        
         if serializer.is_valid():
             serializer.update(user, serializer.validated_data)
             return Response({"detail": "Profile updated successfully."})
 
+        print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class ChangePasswordView(APIView):
@@ -419,6 +420,7 @@ class ChangePasswordView(APIView):
         serializer = ChangePasswordSerializer(data=request.data)
 
         if not serializer.is_valid():
+            print(serializer.errors)
             return Response(serializer.errors, status=400)
 
         user = request.user
