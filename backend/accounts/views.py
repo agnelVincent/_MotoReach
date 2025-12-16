@@ -14,6 +14,9 @@ from google.auth.transport import requests
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework import serializers
+from django.db import transaction
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -44,8 +47,8 @@ class RegisterView(APIView):
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self,request):
-        serializer = VerifyOTPSerializer(data = request.data)
+    def post(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data['email']
@@ -53,56 +56,67 @@ class VerifyOTPView(APIView):
         role = serializer.validated_data['role']
 
         try:
-            otp_record = EmailOTP.objects.get(email = email, is_verified = False, purpose = 'registration')
-            pending_user = PendingUser.objects.get(email = email, role = role)
+            with transaction.atomic():
 
-            if otp_record.is_expired():
+                otp_record = EmailOTP.objects.get(
+                    email=email,
+                    is_verified=False,
+                    purpose='registration'
+                )
+
+                pending_user = PendingUser.objects.get(email=email)
+
+                if otp_record.is_expired():
+                    raise serializers.ValidationError("OTP expired")
+
+                if otp_record.otp != otp:
+                    raise serializers.ValidationError("Invalid OTP")
+
+                otp_record.is_verified = True
+                otp_record.save()
+
+                user = User.objects.create_user(
+                    email=pending_user.email,
+                    full_name=pending_user.full_name,
+                    role=pending_user.role,
+                    password=pending_user.password,
+                    is_active=True
+                )
+
+                if user.role == 'workshop_admin':
+                    Workshop.objects.create(
+                        user=user,
+                        workshop_name=pending_user.workshop_name,
+                        license_number=pending_user.license_number,
+                        address_line=pending_user.address_line,
+                        locality=pending_user.locality,
+                        city=pending_user.city,
+                        state=pending_user.state,
+                        pincode=pending_user.pincode,
+                        contact_number=pending_user.contact_number,
+                        type=pending_user.type
+                    )
+
+                elif user.role == 'mechanic':
+                    Mechanic.objects.create(
+                        user=user,
+                        contact_number=pending_user.contact_number
+                    )
+
+                pending_user.delete()
                 otp_record.delete()
-                return Response({'error' : 'OTP has expired. Please try for a new one'}, status = status.HTTP_400_BAD_REQUEST)
-            
-            if otp_record.otp != otp:
-                return Response({"error" : "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            otp_record.is_verified = True
-            otp_record.save()
 
-            user = User.objects.create_user(
-                email = pending_user.email,
-                full_name = pending_user.full_name,
-                role = pending_user.role,
-                password = pending_user.password,
-                is_active = True
-            )
-
-            if user.role == 'workshop_admin':
-                Workshop.objects.create(
-                    user = user,
-                    workshop_name = pending_user.workshop_name,
-                    address_line = pending_user.address_line,
-                    locality = pending_user.locality,
-                    city = pending_user.city,
-                    contact_number = pending_user.contact_number,
-                    state = pending_user.state,
-                    pincode = pending_user.pincode,
-                    type = pending_user.type
+                return Response(
+                    {'message': 'Account created successfully. Please login'},
+                    status=status.HTTP_201_CREATED
                 )
-            elif user.role == 'mechanic':
-                Mechanic.objects.create(
-                    user = user,
-                    contact_number = pending_user.contact_number
-                )
-            
-            pending_user.delete()
 
-            return Response({'message' : 'Account created successfully. Please login'}, status = status.HTTP_201_CREATED)
-            
-        except EmailOTP.DoesNotExist:
-            return Response({'error' : 'OTP not found'},status=status.HTTP_404_NOT_FOUND)
-        except PendingUser.DoesNotExist:
-            return Response({'error' : 'Registration not found'},status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             print(e)
-            return Response({'error' :"An internal error occured while registering"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {'error': 'Registration failed. Please retry.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
 
 class ResendOTPView(APIView):

@@ -15,6 +15,9 @@ def send_otp_mail(email, full_name, role):
     try:
         otp_record = EmailOTP.objects.get(email = email, purpose = 'registration')
 
+        if (timezone.now() - otp_record.last_sent) >= otp_record.RESEND_DECAY_PERIOD:
+            otp_record.resend_count = 0
+
         if not otp_record.can_resend():
             return otp_record,False,"Resend limit reached or cooldown period active"
         
@@ -66,6 +69,9 @@ def send_password_reset_otp(email):
     try:
         otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
         
+        if (timezone.now() - otp_record.last_sent) >= otp_record.RESEND_DECAY_PERIOD:
+            otp_record.resend_count = 0
+
         if not otp_record.can_resend():
             return otp_record, False, "Resend limit reached or cooldown period (60s) active."
 
@@ -74,15 +80,13 @@ def send_password_reset_otp(email):
         otp_record.is_verified = False 
         
     except EmailOTP.DoesNotExist:
-        otp_record = EmailOTP(email=email, resend_count = 0, last_sent = timezone.now(), purpose = 'forgot_password')
-        otp_record.resend_count = 0
-        otp_record.last_sent = timezone.now()
-        otp_record.save()
-
+        otp_record = EmailOTP(email=email, resend_count = 0, purpose = 'forgot_password')
 
     otp_code = generate_otp_code()
     otp_record.otp = otp_code
     otp_record.created_at = timezone.now() 
+    if otp_record.resend_count == 0:
+        otp_record.last_sent = timezone.now()
     otp_record.save()
     
     try:

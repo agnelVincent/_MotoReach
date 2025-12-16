@@ -62,7 +62,7 @@ class Workshop(models.Model):
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='workshop')
     workshop_name = models.CharField(max_length=255)
-    license_number = models.CharField(max_length=255, unique= True)
+    license_number = models.CharField(max_length=255, unique= True, null=True, blank=True)
     address_line = models.TextField()
     locality = models.CharField(max_length=255, blank=True, null=True)
     city = models.CharField(max_length=100)
@@ -122,7 +122,7 @@ class PendingUser(models.Model):
 
     workshop_name = models.CharField(max_length=255,null = True, blank=True)
     address_line = models.CharField(max_length=255,null = True, blank=True)
-    license_number = models.CharField(max_length=255, null = True, blank = True)
+    license_number = models.CharField(max_length=255, null = True, blank = True, unique=True,)
     state = models.CharField(max_length=30, null = True, blank = True)
     locality = models.CharField(max_length=255, null = True, blank=True)
     city = models.CharField(max_length=50, null = True, blank = True)
@@ -144,10 +144,23 @@ class EmailOTP(models.Model):
     is_verified = models.BooleanField(default=False)
     resend_count = models.IntegerField(default=0)
     last_sent = models.DateTimeField(default=timezone.now)
+    RESEND_DECAY_PERIOD = timedelta(hours=1)
+    RESEND_LIMIT = 3
+    RESEND_COOLDOWN = timedelta(seconds=60)
 
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes = 1)
     
     def can_resend(self):
-        print(self.resend_count, (timezone.now() - self.last_sent).total_seconds())
-        return self.resend_count < 3 and (timezone.now() - self.last_sent).total_seconds() > 60
+        if (timezone.now() - self.last_sent) < self.RESEND_COOLDOWN:
+            print(f"Cooldown active: {self.RESEND_COOLDOWN.total_seconds() - (timezone.now() - self.last_sent).total_seconds():.0f}s left")
+            return False
+        
+        if (timezone.now() - self.last_sent) >= self.RESEND_DECAY_PERIOD:
+            return True
+        
+        if self.resend_count >= self.RESEND_LIMIT:
+            print(f"Resend limit reached: {self.resend_count} / {self.RESEND_LIMIT}")
+            return False
+        
+        return True

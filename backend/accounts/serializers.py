@@ -91,22 +91,26 @@ class RegistrationSerializer(serializers.Serializer):
         except PendingUser.DoesNotExist:
             pass
         hashed_password = make_password(validated_data['password'])
-        pending_user = PendingUser.objects.create(
-            email = email,
-            full_name = validated_data['full_name'],
-            password = hashed_password,
-            role = validated_data['role'],
+        def clean_optional(value):
+            return value if value else None
 
-            workshop_name = validated_data.get('workshop_name'),
-            license_number = validated_data.get('license_number'),
-            address_line = validated_data.get('address_line'),
-            state = validated_data.get('state'),
-            city = validated_data.get('city'),
-            pincode = validated_data.get('pincode'),
-            locality = validated_data.get('locality'),
-            contact_number = validated_data.get('contact_number'),
-            type = validated_data.get('workshop_type')
+        pending_user = PendingUser.objects.create(
+            email=email,
+            full_name=validated_data['full_name'],
+            password=hashed_password,
+            role=validated_data['role'],
+
+            workshop_name=clean_optional(validated_data.get('workshop_name')),
+            license_number=clean_optional(validated_data.get('license_number')),
+            address_line=clean_optional(validated_data.get('address_line')),
+            state=clean_optional(validated_data.get('state')),
+            city=clean_optional(validated_data.get('city')),
+            pincode=clean_optional(validated_data.get('pincode')),
+            locality=clean_optional(validated_data.get('locality')),
+            contact_number=clean_optional(validated_data.get('contact_number')),
+            type=clean_optional(validated_data.get('workshop_type')),
         )
+
 
         pending_user.save()
 
