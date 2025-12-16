@@ -31,7 +31,7 @@ def send_otp_mail(email, full_name, role):
     otp_record.save()
 
     subject = f"Your Verification code for {settings.DEFAULT_FROM_EMAIL}"
-
+    print(f'otp is {otp_code}')
     message = (
         f"Hello {full_name}, \n\n"
         f'Thank you for registering as a {role}. '
@@ -92,7 +92,7 @@ def send_password_reset_otp(email):
         full_name = email
     
     subject = f"Password Reset Verification Code for {settings.DEFAULT_FROM_EMAIL}"
-
+    print(f'otp is {otp_code}')
     message = (
         f"Hello {full_name}, \n\n"
         f'You requested a password reset. Your One-Time-Password is: \n \n'

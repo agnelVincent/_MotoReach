@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.hashers import is_password_usable
 
 
 class CustomUserManager(BaseUserManager):
@@ -10,7 +11,11 @@ class CustomUserManager(BaseUserManager):
             raise ValueError('Email is required')
         email = self.normalize_email(email)
         user = self.model(email = email, full_name = full_name, role = role, **extra_fields)
-        user.set_password(password)
+
+        if is_password_usable(password):
+            user.password = password
+        else:
+            user.set_password(password)
         user.save(using = self._db)
         return user
     
@@ -112,7 +117,7 @@ class Mechanic(models.Model):
 class PendingUser(models.Model):
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=50)
-    password = models.CharField(max_length=50)
+    password = models.CharField(max_length=128)
     role = models.CharField(max_length=20)
 
     workshop_name = models.CharField(max_length=255,null = True, blank=True)

@@ -132,6 +132,8 @@ class ResendOTPView(APIView):
             return Response({'error' : message}, status=status.HTTP_400_BAD_REQUEST)
         
 class LoginView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
     serializer_class = CustomTokenObtainPairSerializer
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data = request.data)
@@ -145,7 +147,11 @@ class LoginView(TokenObtainPairView):
         data = serializer.validated_data
 
         response = Response(
-            {'access' : data['access']},
+            {'access' : data['access'],
+             'full_name' : data['full_name'],
+             'role' : data['role'],
+             'email' : data['email']
+             },
             status=status.HTTP_200_OK
         )
 

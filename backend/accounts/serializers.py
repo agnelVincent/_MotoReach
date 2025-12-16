@@ -9,6 +9,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.exceptions import InvalidToken
 from django.conf import settings
 from rest_framework_simplejwt.exceptions import TokenError
+from django.contrib.auth.hashers import make_password
 
 User = get_user_model()
 
@@ -89,11 +90,11 @@ class RegistrationSerializer(serializers.Serializer):
             existing_user.delete()
         except PendingUser.DoesNotExist:
             pass
-
+        hashed_password = make_password(validated_data['password'])
         pending_user = PendingUser.objects.create(
             email = email,
             full_name = validated_data['full_name'],
-            password = validated_data['password'],
+            password = hashed_password,
             role = validated_data['role'],
 
             workshop_name = validated_data.get('workshop_name'),
@@ -147,7 +148,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['full_name'] = self.user.full_name
         data['email'] = self.user.email
 
-        del data['refresh']
 
         return data
     
@@ -168,7 +168,7 @@ class LoginSerializer(serializers.Serializer):
 class CookieTokenRefreshSerializer(TokenRefreshSerializer):
     refresh = serializers.CharField(required=False, allow_blank=True)
     def validate(self, attrs):
-        
+
         refresh = self.context['request'].COOKIES.get(
             settings.SIMPLE_JWT['AUTH_COOKIE']
         )
