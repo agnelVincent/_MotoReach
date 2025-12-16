@@ -71,7 +71,6 @@ def send_password_reset_otp(email):
         
         if (timezone.now() - otp_record.last_sent) >= otp_record.RESEND_DECAY_PERIOD:
             otp_record.resend_count = 0
-
         if not otp_record.can_resend():
             return otp_record, False, "Resend limit reached or cooldown period (60s) active."
 

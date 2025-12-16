@@ -117,6 +117,10 @@ export const ForgotPasswordPage = () => {
                   onChange={(e) => {
                     setEmail(e.target.value);
                     setLocalError('');
+                    // Clear Redux error on input change
+                    if (reduxError) {
+                      dispatch(clearForgot());
+                    }
                   }}
                   error={currentError}
                 />
@@ -227,6 +231,9 @@ export const OTPVerificationPage = ({ onBack }) => {
     setResendLoading(true);
     setLocalError('');
     
+    // Clear global Redux error before resending
+    dispatch(clearForgot());
+
     const resultAction = await dispatch(forgotPasswordSendOtp(email));
 
     setResendLoading(false);
@@ -246,7 +253,7 @@ export const OTPVerificationPage = ({ onBack }) => {
       <div className="w-full max-w-md">
         <button 
           onClick={onBack}
-          disabled={isLoading}
+          disabled={isLoading || resendLoading} 
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 mb-6 transition-colors disabled:opacity-50"
         >
           <ArrowLeft size={16} />
@@ -284,6 +291,10 @@ export const OTPVerificationPage = ({ onBack }) => {
                     const value = e.target.value.replace(/\D/g, '');
                     setOtp(value);
                     setLocalError('');
+                    // Clear Redux error on input change
+                    if (reduxError) {
+                      dispatch(clearForgot());
+                    }
                   }}
                   error={currentError}
                 />
@@ -301,6 +312,7 @@ export const OTPVerificationPage = ({ onBack }) => {
 
             <button
               onClick={handleVerify}
+              // Disabled if OTP is incomplete, if any action is loading, or if expired.
               disabled={otp.length !== 6 || isLoading || timer === 0}
               className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 mb-4 ${
                 otp.length !== 6 || isLoading || timer === 0
@@ -311,7 +323,8 @@ export const OTPVerificationPage = ({ onBack }) => {
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Verifying...
+                  {/* Show specific text based on state, but default to Verifying during loading */}
+                  {resendLoading ? 'Loading...' : 'Verifying...'}
                 </span>
               ) : (
                 'Verify OTP'
@@ -324,6 +337,7 @@ export const OTPVerificationPage = ({ onBack }) => {
               </p>
               <button
                 onClick={handleResend}
+                // Disable if timer is active OR resendLoading is true
                 disabled={isTimerActive || resendLoading}
                 className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors ${
                   isTimerActive || resendLoading
@@ -378,14 +392,19 @@ export const CreateNewPasswordPage = () => {
   const handleSubmit = useCallback(async () => {
     if (!isValidPassword) return; 
     
-    const resultAction = dispatch(forgotPasswordReset({
-      email,
-      new_password: newPassword,
-    }));
-    
-    if (forgotPasswordReset.fulfilled.match(resultAction)) {
-        setIsSuccess(true)
-        navigate('/login')
+    try {
+        // Await the dispatch and use .unwrap() to handle success/failure
+        await dispatch(forgotPasswordReset({
+            email,
+            new_password: newPassword,
+        })).unwrap();
+
+        // If unwrap succeeds (promise fulfills), set success state
+        setIsSuccess(true);
+        
+    } catch (error) {
+        // Error is automatically set in Redux state (reduxError)
+        console.error("Password reset failed:", error);
     }
     
 
@@ -395,7 +414,8 @@ export const CreateNewPasswordPage = () => {
     if (isSuccess) {
         setTimeout(() => {
             dispatch(clearForgot());
-            navigate('/login');
+            // Navigate to login after successful reset and cleanup
+            navigate('/login', { replace: true });
         }, 3000); 
     }
   }, [isSuccess, dispatch, navigate]);
@@ -446,7 +466,7 @@ export const CreateNewPasswordPage = () => {
                 <div className="relative mb-5">
                   <div className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-6 shadow-md transition-all duration-300 focus-within:shadow-xl focus-within:ring-2 focus-within:ring-green-500 focus-within:ring-opacity-50">
                     <InputField
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       label="New Password"
                       icon={Lock}
                       placeholder="Enter your new password"
@@ -462,7 +482,7 @@ export const CreateNewPasswordPage = () => {
                 <div className="relative mb-5">
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 shadow-md transition-all duration-300 focus-within:shadow-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-opacity-50">
                     <InputField
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       label="Confirm Password"
                       icon={Lock}
                       placeholder="Re-enter your new password"
@@ -557,7 +577,7 @@ const PasswordResetFlow = () => {
   } 
   
   const handleStep2Back = () => {
-     dispatch(clearForgot());
+      dispatch(clearForgot());
   };
 
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, AlertCircle, Building2, Users, CreditCard, Wallet, LogOut, ChevronDown } from 'lucide-react';
+import { useLogout } from '../../hooks/useLogout';
 
 const AdminNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,7 +22,6 @@ const AdminNavbar = () => {
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -37,11 +37,14 @@ const AdminNavbar = () => {
     setActiveLink(path);
     setIsMobileMenuOpen(false);
   };
-
+  const {logout} = useLogout()
   const handleProfileMenuClick = (action) => {
     console.log('Profile action:', action);
     setIsProfileOpen(false);
-    // Handle profile actions here
+
+    if(action === 'logout'){
+      logout()
+    }
   };
 
   const isActive = (path) => activeLink === path;
@@ -50,7 +53,6 @@ const AdminNavbar = () => {
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <button
             onClick={() => handleNavClick('/dashboard')}
             className="flex items-center space-x-2 group"
