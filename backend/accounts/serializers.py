@@ -152,6 +152,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['full_name'] = self.user.full_name
         data['email'] = self.user.email
 
+        if self.user.role == 'workshop_admin':
+            try:
+                workshop_status = self.user.workshop.verification_status
+                data['workshop_status'] = workshop_status
+            except AttributeError:
+                data['workshop_status'] = 'NO WORKSHOP FOUND'
 
         return data
     

@@ -237,7 +237,8 @@ const authSlice = createSlice({
                 id : action.payload.user_id,
                 full_name : action.payload.full_name,
                 email: action.payload.email,
-                role : action.payload.role
+                role : action.payload.role,
+                workshop_status : action.payload.workshop_status
             }
             state.user = userData
             localStorage.setItem(USER_KEY, JSON.stringify(userData))

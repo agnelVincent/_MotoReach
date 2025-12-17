@@ -160,14 +160,17 @@ class LoginView(TokenObtainPairView):
         
         data = serializer.validated_data
 
-        response = Response(
-            {'access' : data['access'],
+        response_data = {
+            'access' : data['access'],
              'full_name' : data['full_name'],
              'role' : data['role'],
              'email' : data['email']
-             },
-            status=status.HTTP_200_OK
-        )
+        }
+        
+        if 'workshop_status' in data:
+            response_data['workshop_status'] = data['workshop_status']
+
+        response = Response(response_data, status=status.HTTP_200_OK)
 
         response.set_cookie(
             key = settings.SIMPLE_JWT['AUTH_COOKIE'],
@@ -178,6 +181,8 @@ class LoginView(TokenObtainPairView):
             samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
             path = '/'
         )
+
+        print(response)
 
         return response
     
