@@ -10,11 +10,11 @@ const AdminNavbar = () => {
 
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Reports / Complaints', path: '/reports', icon: AlertCircle },
+    { name: 'Users', path: '/users', icon: Users },
     { name: 'Workshops', path: '/workshops', icon: Building2 },
     { name: 'Mechanics', path: '/mechanics', icon: Users },
     { name: 'Subscription', path: '/subscription', icon: CreditCard },
-    { name: 'Wallet', path: '/wallet', icon: Wallet },
+    { name: 'Reports / Complaints', path: '/reports', icon: AlertCircle }
   ];
 
   const profileMenuItems = [

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+
 import { 
-  Car, Bell, User, Menu, X, LayoutDashboard, AlertCircle, Building2, Users, CreditCard, Wallet, LogOut, ChevronDown,
+   User, AlertCircle, Building2, Users, CreditCard,
   UserPlus,
   DollarSign,
   FileText,
@@ -16,14 +16,25 @@ import {
   Award,
   Zap
 } from 'lucide-react';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchAdminStats } from '../../redux/slices/adminSlice';
 
 
 const AdminDashboard = () => {
+
+  const dispatch = useDispatch()
+  const {stats} = useSelector(state => state.admin)
+
+  useEffect(() => {
+    dispatch(fetchAdminStats())
+  },[])
+
+
   const metrics = [
     {
       title: 'Total Users',
-      value: '12,458',
-      change: '+15.3%',
+      value: stats.metrics.total_users,
       isPositive: true,
       icon: Users,
       gradient: 'from-blue-500 to-indigo-600',
@@ -31,8 +42,7 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Workshops',
-      value: '847',
-      change: '+8.2%',
+      value: stats.metrics.total_workshops,
       isPositive: true,
       icon: Building2,
       gradient: 'from-purple-500 to-pink-600',
@@ -40,8 +50,7 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Mechanics',
-      value: '3,245',
-      change: '+12.1%',
+      value: stats.metrics.total_mechanics,
       isPositive: true,
       icon: User,
       gradient: 'from-orange-500 to-red-600',
@@ -87,18 +96,11 @@ const AdminDashboard = () => {
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
-  const recentSignups = [
-    { name: 'Rajesh Kumar', email: 'rajesh@example.com', type: 'User', time: '5 mins ago' },
-    { name: 'AutoFix Workshop', email: 'autofix@example.com', type: 'Workshop', time: '12 mins ago' },
-    { name: 'Amit Sharma', email: 'amit@example.com', type: 'Mechanic', time: '25 mins ago' },
-    { name: 'Sarah Williams', email: 'sarah@example.com', type: 'User', time: '1 hour ago' },
-  ];
+const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(); 
+  };
 
-  const pendingApprovals = [
-    { name: 'SpeedCare Workshop', location: 'Bangalore', requestedOn: '2 days ago', status: 'Pending' },
-    { name: 'ProMech Services', location: 'Mumbai', requestedOn: '3 days ago', status: 'Pending' },
-    { name: 'QuickFix Auto', location: 'Delhi', requestedOn: '5 days ago', status: 'Pending' },
-  ];
 
   const recentComplaints = [
     { id: 'COMP-1234', user: 'John Doe', workshop: 'AutoFix Workshop', issue: 'Poor service quality', priority: 'high', status: 'Open' },
@@ -106,18 +108,24 @@ const AdminDashboard = () => {
     { id: 'COMP-1236', user: 'Mike Johnson', workshop: 'ProMech', issue: 'Billing issue', priority: 'low', status: 'Resolved' },
   ];
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'User':
-        return 'bg-blue-100 text-blue-700';
-      case 'Workshop':
-        return 'bg-purple-100 text-purple-700';
-      case 'Mechanic':
-        return 'bg-orange-100 text-orange-700';
-      default:
-        return 'bg-gray-100 text-gray-700';
-    }
+const getTypeColor = (type) => {
+    const t = type.toLowerCase();
+    if (t === 'user') return 'bg-blue-100 text-blue-700';
+    if (t === 'workshop_admin' || t === 'workshop') return 'bg-purple-100 text-purple-700';
+    if (t === 'mechanic') return 'bg-orange-100 text-orange-700';
+    return 'bg-gray-100 text-gray-700';
   };
+
+  const getRoleLabel = (role) => {
+  const r = role.toLowerCase();
+
+  if (r === 'user') return 'User';
+  if (r === 'workshop_admin' || r === 'workshop') return 'Workshop';
+  if (r === 'mechanic') return 'Mechanic';
+
+  return role; 
+};
+
 
   const getPriorityColor = (priority) => {
     switch (priority) {
@@ -152,7 +160,6 @@ const AdminDashboard = () => {
 
       <div className="pt-20 pb-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
               Admin Dashboard
@@ -243,9 +250,9 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {/* Recent Signups & Pending Approvals */}
+{/* Recent Signups & Pending Approvals */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Recent Signups */}
+            {/* Recent Signups - DYNAMIC */}
             <div className="bg-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -258,29 +265,29 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-3">
-                {recentSignups.map((signup, index) => (
+                {stats.recent_signups.map((signup, index) => (
                   <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center">
                         <User className="w-5 h-5 text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-800">{signup.name}</p>
+                        <p className="font-semibold text-gray-800">{signup.full_name}</p>
                         <p className="text-xs text-gray-500">{signup.email}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getTypeColor(signup.type)}`}>
-                        {signup.type}
+                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getTypeColor(signup.role)}`}>
+                        {getRoleLabel(signup.role)}
                       </span>
-                      <p className="text-xs text-gray-500 mt-1">{signup.time}</p>
+                      <p className="text-xs text-gray-500 mt-1">{formatTime(signup.time)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Pending Workshop Approvals */}
+            {/* Pending Workshop Approvals - DYNAMIC */}
             <div className="bg-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -289,11 +296,13 @@ const AdminDashboard = () => {
                   </div>
                   <h2 className="text-xl font-bold text-gray-800">Pending Approvals</h2>
                 </div>
-                <span className="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">{pendingApprovals.length} Pending</span>
+                <span className="text-sm font-semibold text-orange-600 bg-orange-50 px-3 py-1 rounded-full">
+                    {stats.pending_approvals.length} Pending
+                </span>
               </div>
 
               <div className="space-y-3">
-                {pendingApprovals.map((approval, index) => (
+                {stats.pending_approvals.map((approval, index) => (
                   <div key={index} className="p-4 bg-orange-50 rounded-lg border border-orange-100 hover:shadow-md transition-all duration-200">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -303,12 +312,12 @@ const AdminDashboard = () => {
                           {approval.location}
                         </p>
                       </div>
-                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getStatusColor(approval.status)}`}>
+                      <span className="text-xs font-semibold px-3 py-1 rounded-full bg-orange-100 text-orange-700">
                         {approval.status}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-gray-500">Requested {approval.requestedOn}</p>
+                      <p className="text-xs text-gray-500">Requested {formatTime(approval.requestedOn)}</p>
                       <div className="flex gap-2">
                         <button className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200">
                           <CheckCircle className="w-4 h-4" />
@@ -323,6 +332,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+
 
           {/* Recent Complaints */}
           <div className="bg-white rounded-2xl p-6 shadow-lg">
