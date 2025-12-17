@@ -11,7 +11,7 @@ function AdminRoute() {
             <Route index element={<AdminDashboard />} />
             <Route path="users" element={<AdminUser/>}/>
             <Route path="workshops" element={<AdminWorkshop/>}/>
-            <Route path="mechanic" element={<AdminMechanic/>}/>
+            <Route path="mechanics" element={<AdminMechanic/>}/>
         </Route>
     );
 }

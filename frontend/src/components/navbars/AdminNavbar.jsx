@@ -1,20 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, AlertCircle, Building2, Users, CreditCard, Wallet, LogOut, ChevronDown } from 'lucide-react';
 import { useLogout } from '../../hooks/useLogout';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const AdminNavbar = () => {
+
+  const navigate = useNavigate(); // 2. Initialize navigate
+  const location = useLocation();
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState('/dashboard');
   const profileRef = useRef(null);
 
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Users', path: '/users', icon: Users },
-    { name: 'Workshops', path: '/workshops', icon: Building2 },
-    { name: 'Mechanics', path: '/mechanics', icon: Users },
-    { name: 'Subscription', path: '/subscription', icon: CreditCard },
-    { name: 'Reports / Complaints', path: '/reports', icon: AlertCircle }
+    { name: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { name: 'Users', path: '/admin/users', icon: Users },
+    { name: 'Workshops', path: '/admin/workshops', icon: Building2 },
+    { name: 'Mechanics', path: '/admin/mechanics', icon: Users },
+    { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
+    { name: 'Reports / Complaints', path: '/admin/reports', icon: AlertCircle }
   ];
 
   const profileMenuItems = [
@@ -33,21 +37,23 @@ const AdminNavbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleNavClick = (path) => {
-    setActiveLink(path);
+const handleNavClick = (path) => {
+    navigate(path); 
     setIsMobileMenuOpen(false);
   };
-  const {logout} = useLogout()
-  const handleProfileMenuClick = (action) => {
-    console.log('Profile action:', action);
-    setIsProfileOpen(false);
 
-    if(action === 'logout'){
-      logout()
+  const {logout} = useLogout()
+
+const handleProfileMenuClick = (action) => {
+    setIsProfileOpen(false);
+    if (action === 'logout') {
+      logout();
+    } else if (action === 'profile') {
+      navigate('/admin/profile');
     }
   };
 
-  const isActive = (path) => activeLink === path;
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">

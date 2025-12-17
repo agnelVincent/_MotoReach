@@ -1,31 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { User, Shield, ShieldOff, Search, Filter, Activity, Building2, CheckCircle, Clock } from 'lucide-react';
+import { fetchMechanics, toggleBlockStatus } from '../../redux/slices/userManagementSlice';
+import { toast } from 'react-hot-toast';
 
 const AdminMechanic = () => {
-  const [mechanics, setMechanics] = useState([
-    { id: 1, fullName: 'Vikram Singh', email: 'vikram.singh@example.com', workshops: ['AutoFix Workshop'], availability: 'Available', isBlocked: false },
-    { id: 2, fullName: 'Amit Sharma', email: 'amit.sharma@example.com', workshops: ['SpeedCare Services', 'ProMech Auto'], availability: 'Busy', isBlocked: false },
-    { id: 3, fullName: 'Rajesh Kumar', email: 'rajesh.kumar@example.com', workshops: ['QuickFix Garage'], availability: 'Available', isBlocked: false },
-    { id: 4, fullName: 'Suresh Patel', email: 'suresh.patel@example.com', workshops: ['Elite Motors'], availability: 'Available', isBlocked: false },
-    { id: 5, fullName: 'Manoj Reddy', email: 'manoj.reddy@example.com', workshops: ['City Auto Care'], availability: 'Busy', isBlocked: true },
-    { id: 6, fullName: 'Karan Verma', email: 'karan.verma@example.com', workshops: ['Best Mechanics', 'Premium Auto'], availability: 'Available', isBlocked: false },
-    { id: 7, fullName: 'Sanjay Malhotra', email: 'sanjay.m@example.com', workshops: ['AutoFix Workshop'], availability: 'Busy', isBlocked: false },
-    { id: 8, fullName: 'Anil Gupta', email: 'anil.gupta@example.com', workshops: ['SpeedCare Services'], availability: 'Available', isBlocked: false },
-  ]);
+  const dispatch = useDispatch();
+  const { mechanics, loading } = useSelector((state) => state.userManagement);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAvailability, setFilterAvailability] = useState('All');
 
-  const handleToggleBlock = (mechanicId) => {
-    setMechanics(mechanics.map(mechanic =>
-      mechanic.id === mechanicId
-        ? { ...mechanic, isBlocked: !mechanic.isBlocked }
-        : mechanic
-    ));
+  useEffect(() => {
+    dispatch(fetchMechanics());
+  }, [dispatch]);
+
+  const handleToggleBlock = async (userId) => {
+    try {
+      await dispatch(toggleBlockStatus(userId)).unwrap();
+      toast.success("Mechanic status updated");
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
   };
 
   const filteredMechanics = mechanics.filter(mechanic => {
-    const matchesSearch = 
+    const matchesSearch =
       mechanic.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       mechanic.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       mechanic.workshops.some(w => w.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -40,8 +40,12 @@ const AdminMechanic = () => {
     blocked: mechanics.filter(m => m.isBlocked).length
   };
 
+  if (loading && mechanics.length === 0) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-100 p-6 mt-14">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -179,23 +183,21 @@ const AdminMechanic = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                        mechanic.availability === 'Available'
+                      <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${mechanic.availability === 'Available'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
-                      }`}>
+                        }`}>
                         <Activity className="w-3 h-3" />
                         {mechanic.availability}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleToggleBlock(mechanic.id)}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                          mechanic.isBlocked
+                        onClick={() => handleToggleBlock(mechanic.userId)}
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${mechanic.isBlocked
                             ? 'bg-green-100 text-green-700 hover:bg-green-200'
                             : 'bg-red-100 text-red-700 hover:bg-red-200'
-                        }`}
+                          }`}
                       >
                         {mechanic.isBlocked ? (
                           <>

@@ -1,32 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Shield, ShieldOff, Search, Filter, Download } from 'lucide-react';
+import { fetchUsers, toggleBlockStatus } from '../../redux/slices/userManagementSlice';
+import { toast } from 'react-hot-toast';
 
 const AdminUser = () => {
-  const [users, setUsers] = useState([
-    { id: 1, fullName: 'Rajesh Kumar', email: 'rajesh.kumar@example.com', status: 'Active' },
-    { id: 2, fullName: 'Priya Sharma', email: 'priya.sharma@example.com', status: 'Active' },
-    { id: 3, fullName: 'Amit Patel', email: 'amit.patel@example.com', status: 'Blocked' },
-    { id: 4, fullName: 'Sneha Reddy', email: 'sneha.reddy@example.com', status: 'Active' },
-    { id: 5, fullName: 'Vikram Singh', email: 'vikram.singh@example.com', status: 'Active' },
-    { id: 6, fullName: 'Anjali Verma', email: 'anjali.verma@example.com', status: 'Blocked' },
-    { id: 7, fullName: 'Rohit Malhotra', email: 'rohit.malhotra@example.com', status: 'Active' },
-    { id: 8, fullName: 'Kavita Nair', email: 'kavita.nair@example.com', status: 'Active' },
-  ]);
+  const dispatch = useDispatch();
+  const { users, loading } = useSelector((state) => state.userManagement);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
 
-  const handleToggleStatus = (userId) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'Active' ? 'Blocked' : 'Active' }
-        : user
-    ));
+  useEffect(() => {
+    dispatch(fetchUsers());
+  }, [dispatch]);
+
+  const handleToggleStatus = async (userId) => {
+    try {
+      await dispatch(toggleBlockStatus(userId)).unwrap();
+      toast.success("User status updated");
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
   };
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'All' || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -37,8 +37,12 @@ const AdminUser = () => {
     blocked: users.filter(u => u.status === 'Blocked').length
   };
 
+  if (loading && users.length === 0) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100 p-6 mt-14">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -119,10 +123,6 @@ const AdminUser = () => {
                 </select>
               </div>
 
-              <button className="px-6 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-all duration-300 flex items-center gap-2">
-                <Download className="w-5 h-5" />
-                <span className="hidden md:inline">Export</span>
-              </button>
             </div>
           </div>
         </div>
@@ -154,22 +154,20 @@ const AdminUser = () => {
                     </td>
                     <td className="px-6 py-4 text-gray-600">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-                        user.status === 'Active' 
-                          ? 'bg-green-100 text-green-700' 
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${user.status === 'Active'
+                          ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
-                      }`}>
+                        }`}>
                         {user.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => handleToggleStatus(user.id)}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                          user.status === 'Active'
+                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${user.status === 'Active'
                             ? 'bg-red-100 text-red-700 hover:bg-red-200'
                             : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
+                          }`}
                       >
                         {user.status === 'Active' ? (
                           <>
