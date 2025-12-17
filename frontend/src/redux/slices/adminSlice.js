@@ -26,6 +26,7 @@ export const verifyWorkshop = createAsyncThunk(
     }
 );
 
+
 const adminSlice = createSlice({
     name: 'admin',
     initialState: {
@@ -66,6 +67,7 @@ const adminSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
             });
+            
     }
 });
 
