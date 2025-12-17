@@ -35,6 +35,8 @@ class RegistrationSerializer(serializers.Serializer):
     workshop_type = serializers.CharField(max_length = 20, required = False, allow_blank = True)
     contact_number = serializers.CharField( allow_blank = True, required = False, validators = contact_validators)
     type = serializers.CharField(max_length = 20, allow_blank = True,required = False)
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
 
     def validate_role(self, value):
         allowed_roles = ['user','mechanic','workshop_admin']
@@ -109,6 +111,8 @@ class RegistrationSerializer(serializers.Serializer):
             locality=clean_optional(validated_data.get('locality')),
             contact_number=clean_optional(validated_data.get('contact_number')),
             type=clean_optional(validated_data.get('workshop_type')),
+            latitude=validated_data.get('latitude'),
+            longitude=validated_data.get('longitude')
         )
 
 

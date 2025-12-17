@@ -94,7 +94,9 @@ class VerifyOTPView(APIView):
                         state=pending_user.state,
                         pincode=pending_user.pincode,
                         contact_number=pending_user.contact_number,
-                        type=pending_user.type
+                        type=pending_user.type,
+                        latitude=pending_user.latitude,
+                        longitude=pending_user.longitude
                     )
 
                 elif user.role == 'mechanic':

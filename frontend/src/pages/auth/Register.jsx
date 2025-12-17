@@ -1,10 +1,11 @@
 import InputField from "../../components/InputField";
+import LocationPicker from "../../components/LocationPicker";
 import TextAreaField from "../../components/TextAreaField";
 import { useState, useEffect } from 'react';
 import { User, Building2, Wrench, Mail, Lock, Phone, MapPin, FileText, AlertCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { registerUser, clearError } from '../../redux/slices/authSlice'; 
+import { registerUser, clearError } from '../../redux/slices/authSlice';
 
 const Register = () => {
   const dispatch = useDispatch();
@@ -30,7 +31,10 @@ const Register = () => {
     pinCode: '',
     locality: '',
     licenseNumber: '',
-    contactNumber: ''
+    licenseNumber: '',
+    contactNumber: '',
+    latitude: null,
+    longitude: null
   });
 
   const roles = [
@@ -50,7 +54,6 @@ const Register = () => {
 
   const handleRoleChange = (roleId) => {
     setSelectedRole(roleId);
-    setFormError('');
     dispatch(clearError());
     if (roleId === 'user') {
       setFormData(prev => ({
@@ -62,7 +65,10 @@ const Register = () => {
         pinCode: '',
         locality: '',
         licenseNumber: '',
-        contactNumber: ''
+        licenseNumber: '',
+        contactNumber: '',
+        latitude: null,
+        longitude: null
       }));
     }
   };
@@ -70,19 +76,19 @@ const Register = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
-        ...prev,
-        [name]: value
+      ...prev,
+      [name]: value
     }));
-};
+  };
 
-const validateForm = () => {
+  const validateForm = () => {
 
     setClientErrors({});
     let errors = {};
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+\-=[\]{}|;:'",.<>/?\\~`]{8,}$/;
-    const phoneRegex = /^\d{10,15}$/; 
+    const phoneRegex = /^\d{10,15}$/;
 
 
     if (!formData.fullName) errors.fullName = "Full Name is required.";
@@ -91,63 +97,67 @@ const validateForm = () => {
     if (!formData.confirmPassword) errors.confirmPassword = "Confirm Password is required.";
 
     if (formData.email && !emailRegex.test(formData.email)) {
-        errors.email = "Invalid email address format.";
+      errors.email = "Invalid email address format.";
     }
 
     if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-        errors.confirmPassword = "Passwords do not match.";
+      errors.confirmPassword = "Passwords do not match.";
     }
 
     if (formData.password && !passwordStrengthRegex.test(formData.password)) {
-        errors.password = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
+      errors.password = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
     }
 
     if (selectedRole === 'workshop') {
-        const workshopFields = {
-            workshopName: "Workshop Name",
-            workshopAddress: "Workshop Address",
-            licenseNumber: "License Number",
-            state: "State",
-            city: "City",
-            pinCode: "Pin Code",
-            locality: "Locality",
-            contactNumber: "Contact Number",
-        };
-        
-        for (const field in workshopFields) {
-            if (!formData[field]) {
-                errors[field] = `${workshopFields[field]} is required for Workshop Admin registration.`;
-            }
-        }
+      const workshopFields = {
+        workshopName: "Workshop Name",
+        workshopAddress: "Workshop Address",
+        licenseNumber: "License Number",
+        state: "State",
+        city: "City",
+        pinCode: "Pin Code",
+        locality: "Locality",
+        contactNumber: "Contact Number",
+      };
 
-        if (formData.pinCode && !/^\d{6}$/.test(formData.pinCode)) {
-             errors.pinCode = "Pin Code must be 6 digits.";
+      if (!formData.latitude || !formData.longitude) {
+        errors.location = "Please select the workshop location on the map.";
+      }
+
+      for (const field in workshopFields) {
+        if (!formData[field]) {
+          errors[field] = `${workshopFields[field]} is required for Workshop Admin registration.`;
         }
+      }
+
+      if (formData.pinCode && !/^\d{6}$/.test(formData.pinCode)) {
+        errors.pinCode = "Pin Code must be 6 digits.";
+      }
 
     }
 
     if (selectedRole === 'mechanic' || selectedRole === 'workshop') {
-        if (!formData.contactNumber) {
-            errors.contactNumber = "Contact Number is required for this role.";
-        } 
+      if (!formData.contactNumber) {
+        errors.contactNumber = "Contact Number is required for this role.";
+      }
 
-        else if (!phoneRegex.test(formData.contactNumber)) {
-            errors.contactNumber = "Contact number must be between 10 to 15 digits.";
-        }
+      else if (!phoneRegex.test(formData.contactNumber)) {
+        errors.contactNumber = "Contact number must be between 10 to 15 digits.";
+      }
     }
 
     if (Object.keys(errors).length > 0) {
-            
-        setClientErrors(errors);
-        
-        return false;
+
+      setClientErrors(errors);
+
+      return false;
     }
     setClientErrors({});
     return true;
-};
+  };
 
   const handleSubmit = (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
 
     dispatch(clearError());
     if (!validateForm()) {
@@ -158,8 +168,8 @@ const validateForm = () => {
       full_name: formData.fullName,
       email: formData.email,
       password: formData.password,
-      confirm_password : formData.confirmPassword,
-      role: selectedRole == 'workshop' ? 'workshop_admin' : selectedRole, 
+      confirm_password: formData.confirmPassword,
+      role: selectedRole == 'workshop' ? 'workshop_admin' : selectedRole,
       workshop_name: formData.workshopName,
       address_line: formData.workshopAddress,
       state: formData.state,
@@ -168,37 +178,39 @@ const validateForm = () => {
       locality: formData.locality,
       license_number: formData.licenseNumber,
       contact_number: formData.contactNumber,
-      workshop_type: workshopType, 
-      };
-      if(selectedRole !== 'workshop'){
-        delete dataToSend.address_line
-        delete dataToSend.city
-        delete dataToSend.license_number
-        delete dataToSend.pincode
-        delete dataToSend.state
-        delete dataToSend.workshop_type
-        delete dataToSend.workshop_name
-        delete dataToSend.locality
-      }
+      workshop_type: workshopType,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+    };
+    if (selectedRole !== 'workshop') {
+      delete dataToSend.address_line
+      delete dataToSend.city
+      delete dataToSend.license_number
+      delete dataToSend.pincode
+      delete dataToSend.state
+      delete dataToSend.workshop_type
+      delete dataToSend.workshop_name
+      delete dataToSend.locality
+    }
     dispatch(registerUser(dataToSend));
   };
 
-  const allErrors = { 
-    ...clientErrors, 
-    ...(typeof error === 'object' && error !== null ? error : {}) 
-};
+  const allErrors = {
+    ...clientErrors,
+    ...(typeof error === 'object' && error !== null ? error : {})
+  };
 
-const getError = (camelCaseKey, snakeCaseKey) => {
+  const getError = (camelCaseKey, snakeCaseKey) => {
     if (allErrors[camelCaseKey]) {
-        return allErrors[camelCaseKey];
+      return allErrors[camelCaseKey];
     }
     if (Array.isArray(allErrors[snakeCaseKey]) && allErrors[snakeCaseKey].length > 0) {
-        return allErrors[snakeCaseKey][0];
+      return allErrors[snakeCaseKey][0];
     }
     return undefined;
-};
+  };
 
-return (
+  return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
       <div className="flex-grow flex items-center justify-center px-4 py-12 ">
         <div className="w-full max-w-2xl">
@@ -219,12 +231,11 @@ return (
                   <button
                     key={role.id}
                     onClick={() => handleRoleChange(role.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
-                      selectedRole === role.id
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-transparent text-gray-600 hover:bg-gray-200'
-                    }`}
-                    disabled={loading} 
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${selectedRole === role.id
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-transparent text-gray-600 hover:bg-gray-200'
+                      }`}
+                    disabled={loading}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="hidden sm:inline">{role.name}</span>
@@ -232,16 +243,16 @@ return (
                 );
               })}
             </div>
-            
+
             {error && (
               <div className="mb-6 p-4 rounded-lg flex flex-col gap-2 bg-red-50 text-red-800 border border-red-200">
                 <div className="flex items-center gap-2 font-semibold">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                    Registration Failed
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  Registration Failed
                 </div>
                 {typeof error === 'string' && <p className="text-sm">{error}</p>}
                 {typeof error === 'object' && !Object.keys(error).filter(key => key !== 'error').length && (
-                    <p className="text-sm">{error?.error || 'An unknown server error occurred.'}</p>
+                  <p className="text-sm">{error?.error || 'An unknown server error occurred.'}</p>
                 )}
               </div>
             )}
@@ -327,6 +338,23 @@ return (
                     disabled={loading}
                     error={getError('workshopAddress', 'address_line')}
                   />
+
+                  <div className="col-span-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Workshop Location <span className="text-red-500">*</span>
+                    </label>
+                    <LocationPicker
+                      initialLat={formData.latitude}
+                      initialLng={formData.longitude}
+                      onLocationSelect={(lat, lng) => {
+                        setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+                        setClientErrors(prev => ({ ...prev, location: null }));
+                      }}
+                    />
+                    {clientErrors.location && (
+                      <p className="mt-1 text-sm text-red-600">{clientErrors.location}</p>
+                    )}
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <InputField
@@ -451,19 +479,18 @@ return (
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${
-                    loading 
-                      ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-[1.02]'
-                }`}
+                className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${loading
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-[1.02]'
+                  }`}
               >
                 {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Registering...
-                    </span>
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Registering...
+                  </span>
                 ) : (
-                    'Create Account'
+                  'Create Account'
                 )}
               </button>
             </form>
@@ -471,7 +498,7 @@ return (
             <div className="mt-6 text-center">
               <p className="text-gray-600">
                 Already have an account?{' '}
-                <button 
+                <button
                   onClick={() => navigate('/login')}
                   className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-300"
                 >
