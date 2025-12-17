@@ -12,17 +12,19 @@ import {
   ArrowUpRight,
   Calendar,
   Activity,
-  Shield,
-  Award,
   Zap
 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect} from 'react';
+import {useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAdminStats } from '../../redux/slices/adminSlice';
+import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
+
 
 
 const AdminDashboard = () => {
 
+  const navigate = useNavigate();
   const dispatch = useDispatch()
   const {stats} = useSelector(state => state.admin)
 
@@ -154,6 +156,8 @@ const getTypeColor = (type) => {
         return 'bg-gray-100 text-gray-700';
     }
   };
+
+  const { handleStatusUpdate } = useWorkshopVerification();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-slate-100">
@@ -287,7 +291,6 @@ const getTypeColor = (type) => {
               </div>
             </div>
 
-            {/* Pending Workshop Approvals - DYNAMIC */}
             <div className="bg-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -303,10 +306,16 @@ const getTypeColor = (type) => {
 
               <div className="space-y-3">
                 {stats.pending_approvals.map((approval, index) => (
-                  <div key={index} className="p-4 bg-orange-50 rounded-lg border border-orange-100 hover:shadow-md transition-all duration-200">
+                  <div 
+                    key={approval.id || index} 
+                    onClick={() => navigate(`/admin/workshop-details/${approval.id}`)}
+                    className="p-4 bg-orange-50 rounded-lg border border-orange-100 hover:shadow-md transition-all duration-200 cursor-pointer group relative"
+                  >
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <p className="font-semibold text-gray-800">{approval.name}</p>
+                        <p className="font-semibold text-gray-800 group-hover:text-orange-600 transition-colors">
+                          {approval.name}
+                        </p>
                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                           <Building2 className="w-3 h-3" />
                           {approval.location}
@@ -316,19 +325,46 @@ const getTypeColor = (type) => {
                         {approval.status}
                       </span>
                     </div>
+                    
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-gray-500">Requested {formatTime(approval.requestedOn)}</p>
+                      
+                      {/* Container for buttons */}
                       <div className="flex gap-2">
-                        <button className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors duration-200">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // CRITICAL: Stop the card's onClick from firing
+                            handleStatusUpdate(e, approval.id, 'approve');
+                          }}
+                          className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 shadow-sm hover:scale-105 relative z-10"
+                          title="Approve"
+                        >
                           <CheckCircle className="w-4 h-4" />
                         </button>
-                        <button className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors duration-200">
+                        
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation(); // CRITICAL: Stop the card's onClick from firing
+                            handleStatusUpdate(e, approval.id, 'reject');
+                          }}
+                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 shadow-sm hover:scale-105 relative z-10"
+                          title="Reject"
+                        >
                           <XCircle className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))}
+
+                
+                {stats.pending_approvals.length === 0 && (
+                  <div className="text-center py-6 text-gray-500 italic">
+                    No pending approvals found.
+                  </div>
+                )}
               </div>
             </div>
           </div>

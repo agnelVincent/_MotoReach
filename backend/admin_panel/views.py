@@ -2,6 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from accounts.models import Workshop,User,Mechanic
+from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 class AdminDashboardStatsView(APIView):
     permission_classes = [IsAdminUser]
@@ -42,6 +44,30 @@ class AdminDashboardStatsView(APIView):
                 },
                 'recent_signups' : signups_data,
                 'pending_approvals' : pending_data
-            }
+            }, status=status.HTTP_200_OK
         )
     
+class WorkshopVerificationView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, workshop_id):
+
+        workshop = get_object_or_404(Workshop, id=workshop_id)
+        action = request.data.get('action')
+        if action == 'approve':
+            workshop.verification_status = 'APPROVED'
+        elif action == 'reject':
+            workshop.verification_status = 'REJECTED'
+        else:
+            return Response({'error' : 'Invalid action'},status=status.HTTP_400_BAD_REQUEST)
+        
+        workshop.save()
+
+        return Response(
+            {
+                'message' : f'workshop {action}ed successfully',
+                'workshop_id' : workshop_id,
+                'status' : workshop.verification_status
+            },
+            status=status.HTTP_200_OK
+        )
