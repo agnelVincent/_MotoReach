@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
-import { 
-  FileText, 
-  User, 
-  Car, 
-  Wrench, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import React, { useState, useEffect } from 'react';
+import axiosInstance from '../../api/axiosInstance';
+import {
+  FileText,
+  User,
+  Car,
+  Wrench,
+  Eye,
+  CheckCircle,
+  XCircle,
+  Clock,
   Ban,
   X,
   Calendar,
@@ -19,132 +20,81 @@ import {
 } from 'lucide-react';
 
 const WorkshopRequestList = () => {
-  // Mock request data with hardcoded image URLs
-  const [requests, setRequests] = useState([
-    {
-      id: 1,
-      userName: 'Rajesh Kumar',
-      vehicleType: 'Honda City',
-      issueCategory: 'Engine Oil Change',
-      status: 'Pending',
-      date: '2024-01-15T10:30:00',
-      description: 'Need complete engine oil change. The vehicle has completed 10,000 km and requires synthetic oil.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400',
-        'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=400',
-        'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400'
-      ],
-      vehicleDetails: { model: 'Honda City 2020', registration: 'KA-01-AB-1234' }
-    },
-    {
-      id: 2,
-      userName: 'Priya Sharma',
-      vehicleType: 'Maruti Swift',
-      issueCategory: 'Brake System Repair',
-      status: 'Approved',
-      date: '2024-01-14T14:20:00',
-      description: 'Brake pads making squeaking noise. Need immediate inspection and replacement.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400',
-        'https://images.unsplash.com/photo-1580274455191-1c62238fa333?w=400'
-      ],
-      vehicleDetails: { model: 'Maruti Swift 2019', registration: 'KA-02-CD-5678' }
-    },
-    {
-      id: 3,
-      userName: 'Amit Patel',
-      vehicleType: 'Hyundai Creta',
-      issueCategory: 'AC Not Working',
-      status: 'Rejected',
-      date: '2024-01-13T09:15:00',
-      description: 'Air conditioning stopped working suddenly. No cooling at all.',
-      // Replace with real uploaded images later
-      photos: [],
-      vehicleDetails: { model: 'Hyundai Creta 2021', registration: 'KA-03-EF-9012' }
-    },
-    {
-      id: 4,
-      userName: 'Sneha Reddy',
-      vehicleType: 'Toyota Innova',
-      issueCategory: 'General Service',
-      status: 'Pending',
-      date: '2024-01-16T11:00:00',
-      description: 'Complete general servicing required. Last service was 6 months ago.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400',
-        'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400',
-        'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=400',
-        'https://images.unsplash.com/photo-1612825173281-9a193378527e?w=400'
-      ],
-      vehicleDetails: { model: 'Toyota Innova Crysta 2018', registration: 'KA-04-GH-3456' }
-    },
-    {
-      id: 5,
-      userName: 'Vikram Singh',
-      vehicleType: 'Ford EcoSport',
-      issueCategory: 'Battery Replacement',
-      status: 'Cancelled',
-      date: '2024-01-12T16:45:00',
-      description: 'Battery dead, needs replacement urgently.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400'
-      ],
-      vehicleDetails: { model: 'Ford EcoSport 2017', registration: 'KA-05-IJ-7890' }
-    },
-    {
-      id: 6,
-      userName: 'Anjali Verma',
-      vehicleType: 'Tata Nexon',
-      issueCategory: 'Tire Replacement',
-      status: 'Approved',
-      date: '2024-01-17T13:30:00',
-      description: 'Front two tires need replacement. Uneven wear observed.',
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-      photos: [
-        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
-        'https://images.unsplash.com/photo-1563720360172-67b8f3dce741?w=400',
-        'https://images.unsplash.com/photo-1449130015084-2bf505b6be5a?w=400'
-      ],
-      vehicleDetails: { model: 'Tata Nexon EV 2022', registration: 'KA-06-KL-2345' }
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      const response = await axiosInstance.get('service-request/workshop/requests/');
+      const mappedRequests = response.data.map(req => ({
+        id: req.id,
+        userName: `Customer #${req.id}`, // Backend should ideally provide user name. Using ID for now as User details might not be fully exposed in serializer
+        vehicleType: req.vehicle_model,
+        issueCategory: req.issue_category,
+        status: mapBackendStatus(req.status),
+        date: req.created_at,
+        description: req.description,
+        photos: req.image_urls || [],
+        vehicleDetails: { model: req.vehicle_model, registration: req.vehicle_type } // Mapping vehicle_type to registration roughly as per serializer
+      }));
+      setRequests(mappedRequests);
+    } catch (error) {
+      console.error("Error fetching requests:", error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  const mapBackendStatus = (status) => {
+    switch (status) {
+      case 'REQUESTED': return 'Pending';
+      case 'ACCEPTED': return 'Approved';
+      case 'REJECTED': return 'Rejected';
+      case 'CANCELLED': return 'Cancelled';
+      default: return status;
+    }
+  }
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [enlargedImage, setEnlargedImage] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
   const [filterStatus, setFilterStatus] = useState('All');
 
-  const handleApprove = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Pending' 
-        ? { ...req, status: 'Approved' } 
-        : req
-    ));
-    if (selectedRequest?.id === requestId) {
-      setSelectedRequest({ ...selectedRequest, status: 'Approved' });
+  const handleApprove = async (requestId) => {
+    try {
+      await axiosInstance.patch(`service-request/${requestId}/update-status/`, {
+        status: 'ACCEPTED'
+      });
+      fetchRequests(); // Refresh
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest(null);
+      }
+    } catch (error) {
+      console.error("Error approving request:", error);
     }
   };
 
-  const handleReject = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Pending' 
-        ? { ...req, status: 'Rejected' } 
-        : req
-    ));
-    setSelectedRequest(null);
+  const handleReject = async (requestId) => {
+    try {
+      await axiosInstance.patch(`service-request/${requestId}/update-status/`, {
+        status: 'REJECTED'
+      });
+      fetchRequests(); // Refresh
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest(null);
+      }
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+    }
   };
 
-  const handleCancelConnection = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Approved' 
-        ? { ...req, status: 'Cancelled' } 
-        : req
-    ));
-    setSelectedRequest(null);
+  const handleCancelConnection = async (requestId) => {
+    // Implement cancellation if needed
+    console.log("Cancel connection not fully implemented yet");
   };
 
   const getStatusStyle = (status) => {
@@ -303,9 +253,9 @@ const WorkshopRequestList = () => {
                           <h3 className="text-lg font-bold text-gray-800">{request.userName}</h3>
                           <p className="text-sm text-gray-500 flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            {new Date(request.date).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
+                            {new Date(request.date).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
@@ -433,8 +383,8 @@ const WorkshopRequestList = () => {
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {selectedRequest.photos.map((photo, index) => (
-                        <div 
-                          key={index} 
+                        <div
+                          key={index}
                           className="relative aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer group"
                           onClick={() => setEnlargedImage(photo)}
                         >

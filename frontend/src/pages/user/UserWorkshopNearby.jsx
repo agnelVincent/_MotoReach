@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
-import { useSelector } from 'react-redux'; // Added
-import { useNavigate } from 'react-router-dom'; // Added
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal } from 'lucide-react';
+import { fetchNearbyWorkshops } from '../../redux/slices/serviceRequestSlice';
+import axiosInstance from '../../api/axiosInstance';
 
 const UserWorkshopNearby = () => {
   const navigate = useNavigate();
-  
-  
-  const { nearbyWorkshops, currentRequest } = useSelector((state) => state.serviceRequest);
+  const dispatch = useDispatch()
+  const { requestId } = useParams();
+
+  const { nearbyWorkshops, currentRequest, loading } = useSelector((state) => state.serviceRequest);
   console.log(nearbyWorkshops)
-  
+
+  useEffect(() => {
+    if (!currentRequest || currentRequest.id !== parseInt(requestId)) {
+      dispatch(fetchNearbyWorkshops(requestId));
+    }
+  }, [dispatch, requestId, currentRequest]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+          <p className="text-slate-500 font-medium">Finding nearby experts...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('distance');
 
@@ -18,7 +38,6 @@ const UserWorkshopNearby = () => {
     workshop.address_line.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 3. Sort workshops (Dynamic)
   const sortedWorkshops = [...filteredWorkshops].sort((a, b) => {
     if (sortBy === 'rating') {
       return b.rating_avg - a.rating_avg;
@@ -28,9 +47,17 @@ const UserWorkshopNearby = () => {
     return 0;
   });
 
-  const handleConnect = (workshopId, workshopName) => {
-    // Navigate to the payment/connection page with the chosen workshop ID
-    navigate(`/user/checkout/${currentRequest.id}/${workshopId}`);
+  const handleConnect = async (workshopId, workshopName) => {
+    try {
+      await axiosInstance.post(`service-request/${requestId}/connect/`, {
+        workshop_id: workshopId
+      });
+      // Navigate to user services page with success indicator or just list
+      navigate('/user/services');
+    } catch (error) {
+      console.error("Error connecting to workshop:", error);
+      alert("Failed to connect. Please try again.");
+    }
   };
 
   const renderStars = (rating) => {
@@ -38,9 +65,9 @@ const UserWorkshopNearby = () => {
     const fullStars = Math.floor(rating);
     for (let i = 0; i < 5; i++) {
       stars.push(
-        <Star 
-          key={i} 
-          className={`w-4 h-4 ${i < fullStars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+        <Star
+          key={i}
+          className={`w-4 h-4 ${i < fullStars ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
         />
       );
     }
@@ -94,8 +121,8 @@ const UserWorkshopNearby = () => {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Top Rated</p>
                 <p className="text-3xl font-bold text-yellow-600">
-                  {nearbyWorkshops.length > 0 
-                    ? Math.max(...nearbyWorkshops.map(w => w.rating_avg)).toFixed(1) 
+                  {nearbyWorkshops.length > 0
+                    ? Math.max(...nearbyWorkshops.map(w => w.rating_avg)).toFixed(1)
                     : '0.0'}
                 </p>
               </div>

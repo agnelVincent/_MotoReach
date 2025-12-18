@@ -4,6 +4,7 @@ import UserHome from "../../pages/user/UserHome";
 import UserProfile from "../../pages/user/UserProfile";
 import UserRequest from "../../pages/user/UserRequest";
 import UserWorkshopNearby from "../../pages/user/UserWorkshopNearby";
+import UserServices from "../../pages/user/UserServices";
 
 function UserRoute() {
     return (
@@ -12,7 +13,8 @@ function UserRoute() {
             <Route path="home" element={<UserHome />} />
             <Route path='profile' element={<UserProfile />} />
             <Route path="request" element={<UserRequest/>}/>
-            <Route path="workshops-nearby" element={<UserWorkshopNearby/>} />
+            <Route path='services' element={<UserServices/>}/>
+            <Route path="workshops-nearby/:requestId" element={<UserWorkshopNearby/>} />
         </Route>
     );
 }

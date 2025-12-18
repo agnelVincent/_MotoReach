@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Car, 
-  Wrench, 
-  FileText, 
-  Image as ImageIcon, 
-  X, 
-  Plus, 
+import {
+  Car,
+  Wrench,
+  FileText,
+  Image as ImageIcon,
+  X,
+  Plus,
   ArrowRight,
   ShieldCheck
 } from 'lucide-react';
@@ -39,7 +39,7 @@ const UserRequest = () => {
 
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  
+
   const handleLocationSelect = (lat, lng) => {
     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
   };
@@ -53,29 +53,34 @@ const UserRequest = () => {
   const removeImage = (index) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  const payload = {
-    vehicle_type: formData.vehicleType,
-    vehicle_model: formData.vehicleModel,
-    issue_category: formData.issueCategory,
-    description: formData.description,
-    user_latitude: formData.latitude,
-    user_longitude: formData.longitude,
-    image_urls: images 
-  };
 
-  const resultAction = await dispatch(createServiceRequest(payload));
-  if (createServiceRequest.fulfilled.match(resultAction)) {
-    navigate('/user/workshops-nearby');
-  }
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true); // Set loading state
+
+    const payload = {
+      vehicle_type: formData.vehicleType,
+      vehicle_model: formData.vehicleModel,
+      issue_category: formData.issueCategory,
+      description: formData.description,
+      user_latitude: formData.latitude,
+      user_longitude: formData.longitude,
+      image_urls: images
+    };
+
+    const resultAction = await dispatch(createServiceRequest(payload));
+    setIsSubmitting(false);
+
+    if (createServiceRequest.fulfilled.match(resultAction)) {
+      const newRequestId = resultAction.payload.request.id;
+      navigate(`/user/workshops-nearby/${newRequestId}`);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Header Section */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center justify-center p-3 bg-blue-600 rounded-2xl shadow-lg mb-4">
@@ -86,7 +91,7 @@ const handleSubmit = async (e) => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          
+
           {/* Section 1: Vehicle & Issue Info */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
@@ -94,33 +99,33 @@ const handleSubmit = async (e) => {
                 <Wrench className="w-5 h-5 text-blue-500" /> Vehicle Details
               </h2>
             </div>
-            
+
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Vehicle Type</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. Sedan, SUV, Bike"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  onChange={(e) => setFormData({...formData, vehicleType: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Vehicle Model</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="e.g. Toyota Camry 2022"
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  onChange={(e) => setFormData({...formData, vehicleModel: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
                   required
                 />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Issue Category</label>
-                <select 
+                <select
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none bg-white"
-                  onChange={(e) => setFormData({...formData, issueCategory: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, issueCategory: e.target.value })}
                   required
                 >
                   <option value="">Select a category</option>
@@ -131,11 +136,11 @@ const handleSubmit = async (e) => {
                 <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
                   <FileText className="w-4 h-4" /> Description
                 </label>
-                <textarea 
+                <textarea
                   rows="4"
                   placeholder="Describe the problem in detail..."
                   className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
                 ></textarea>
               </div>
@@ -167,7 +172,7 @@ const handleSubmit = async (e) => {
                 {images.map((img, index) => (
                   <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm">
                     <img src={img} alt="preview" className="w-full h-full object-cover" />
-                    <button 
+                    <button
                       type="button"
                       onClick={() => removeImage(index)}
                       className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
