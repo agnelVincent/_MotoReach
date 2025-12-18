@@ -4,6 +4,7 @@ import forgotPasswordReducer from './slices/forgotPasswordSlice'
 import profileReducer from './slices/ProfileSlice'
 import adminReducer from './slices/adminSlice'
 import userManagementReducer from './slices/userManagementSlice'
+import serviceRequestReducer from './slices/serviceRequestSlice'
 
 export const store = configureStore({
     reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
         forgotPassword: forgotPasswordReducer,
         profile: profileReducer,
         admin: adminReducer,
-        userManagement: userManagementReducer
+        userManagement: userManagementReducer,
+        serviceRequest: serviceRequestReducer
     }
 })
