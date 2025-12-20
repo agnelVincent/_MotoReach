@@ -1,9 +1,26 @@
 from django.urls import path
-from .views import RegisterView,VerifyOTPView, ResendOTPView, LoginView,LogoutView, GoogleAuthView, ForgotPasswordVerifyOtpView, ForgotPasswordResetView, ForgotPasswordSendOtpView, ProfileView, ChangePasswordView, CookieTokenRefeshView
+from .views import (
+    UserRegisterView,
+    MechanicRegisterView,
+    WorkshopRegisterView,
+    VerifyOTPView, 
+    ResendOTPView, 
+    LoginView,
+    LogoutView, 
+    GoogleAuthView, 
+    ForgotPasswordVerifyOtpView, 
+    ForgotPasswordResetView, 
+    ForgotPasswordSendOtpView, 
+    ProfileView, 
+    ChangePasswordView, 
+    CookieTokenRefeshView
+)
 
 
 urlpatterns = [
-    path('register/',RegisterView.as_view(), name = 'register'),
+    path('register/user/', UserRegisterView.as_view(), name='register_user'),
+    path('register/mechanic/', MechanicRegisterView.as_view(), name='register_mechanic'),
+    path('register/workshop/', WorkshopRegisterView.as_view(), name='register_workshop'),
     path('verify-otp/', VerifyOTPView.as_view(),name = 'verify-otp'),
     path('resend-otp/',ResendOTPView.as_view(),name = 'resend-otp'),
     path('login/', LoginView.as_view(), name = 'token_obtain_pair'),

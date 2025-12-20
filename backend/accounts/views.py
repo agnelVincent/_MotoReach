@@ -1,4 +1,18 @@
-from .serializers import RegistrationSerializer, VerifyOTPSerializer, ResendOTPSerializer, CustomTokenObtainPairSerializer, UserRoleSerializer, ForgotPasswordResetSerializer, ForgotPasswordVerifyOtpSerializer, ForgotPasswordSendOtpSerializer, ProfileUpdateSerializer, ChangePasswordSerializer, CookieTokenRefreshSerializer 
+from .serializers import (
+    UserRegistrationSerializer, 
+    MechanicRegistrationSerializer, 
+    WorkshopRegistrationSerializer,
+    VerifyOTPSerializer, 
+    ResendOTPSerializer, 
+    CustomTokenObtainPairSerializer, 
+    UserRoleSerializer, 
+    ForgotPasswordResetSerializer, 
+    ForgotPasswordVerifyOtpSerializer, 
+    ForgotPasswordSendOtpSerializer, 
+    ProfileUpdateSerializer, 
+    ChangePasswordSerializer, 
+    CookieTokenRefreshSerializer
+)
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -18,10 +32,12 @@ from rest_framework import serializers
 from django.db import transaction
 
 
-class RegisterView(APIView):
+class BaseRegisterView(APIView):
     permission_classes = [AllowAny]
+    serializer_class = None 
+
     def post(self,request):
-        serializer = RegistrationSerializer(data = request.data)
+        serializer = self.serializer_class(data = request.data)
         if serializer.is_valid():
             try:
                 pending_user = serializer.save()
@@ -43,7 +59,16 @@ class RegisterView(APIView):
                 )
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+class UserRegisterView(BaseRegisterView):
+    serializer_class = UserRegistrationSerializer
+
+class MechanicRegisterView(BaseRegisterView):
+    serializer_class = MechanicRegistrationSerializer
+
+class WorkshopRegisterView(BaseRegisterView):
+    serializer_class = WorkshopRegistrationSerializer
+
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 

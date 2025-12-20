@@ -14,6 +14,18 @@ export const createServiceRequest = createAsyncThunk(
   }
 );
 
+export const fetchNearbyWorkshops = createAsyncThunk(
+  'serviceRequest/fetchNearby',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`service-request/${requestId}/nearby/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch workshops");
+    }
+  }
+);
+
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
   initialState: {
@@ -39,7 +51,13 @@ const serviceRequestSlice = createSlice({
       .addCase(createServiceRequest.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      });
+      })
+
+      .addCase(fetchNearbyWorkshops.fulfilled, (state, action) => {
+          state.loading = false;
+          state.currentRequest = action.payload.request;
+          state.nearbyWorkshops = action.payload.nearby_workshops;
+      })
   }
 });
 

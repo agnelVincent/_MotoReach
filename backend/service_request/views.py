@@ -52,5 +52,34 @@ class CreateServiceRequestView(generics.CreateAPIView):
 
     
 
+class ServiceRequestDetailView(generics.RetrieveAPIView):
+    serializer_class = ServiceRequestSerializer
+    queryset = ServiceRequest.objects.all()
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        u_lat = instance.user_latitude
+        u_lon = instance.user_longitude
+        
+        workshops = Workshop.objects.filter(
+            verification_status='APPROVED'
+        ).exclude(latitude__isnull=True)
+        
+        nearby_list = []
+        for ws in workshops:
+            dist = calculate_distance(u_lat, u_lon, ws.latitude, ws.longitude)
+            if dist <= 20:
+                ws.distance = round(dist, 2)
+                nearby_list.append(ws)
+        
+        nearby_list.sort(key=lambda x: x.distance)
+        
+        req_serializer = self.get_serializer(instance)
+        ws_serializer = NearbyWorkshopSerializer(nearby_list, many=True)
+        
+        return Response({
+            "request": req_serializer.data,
+            "nearby_workshops": ws_serializer.data
+        })
 

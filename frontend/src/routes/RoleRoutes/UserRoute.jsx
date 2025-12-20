@@ -12,7 +12,7 @@ function UserRoute() {
             <Route path="home" element={<UserHome />} />
             <Route path='profile' element={<UserProfile />} />
             <Route path="request" element={<UserRequest/>}/>
-            <Route path="workshops-nearby" element={<UserWorkshopNearby/>} />
+            <Route path="workshops-nearby/:requestId" element={<UserWorkshopNearby/>} />
         </Route>
     );
 }

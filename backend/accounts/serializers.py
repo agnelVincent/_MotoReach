@@ -13,36 +13,18 @@ from django.contrib.auth.hashers import make_password
 
 User = get_user_model()
 
-contact_validators = [RegexValidator(
-    regex='^\d{10}$',
-    message='Contact number must be exactly 10 digits'
-)]
+contact_validators = [
+    RegexValidator(
+        regex=r'^\d{10}$',
+        message='Contact number must be exactly 10 digits'
+    )
+]
 
-class RegistrationSerializer(serializers.Serializer):
+class BaseRegistrationSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length = 100)
     email = serializers.EmailField()
     password = serializers.CharField(max_length = 128, style = {'input_type' : 'password'})
     confirm_password = serializers.CharField(max_length = 128, style ={'input_type' : 'password'})
-    role = serializers.CharField(max_length = 20)
-
-    workshop_name = serializers.CharField(max_length = 255, allow_blank = True, required = False)
-    address_line = serializers.CharField(allow_blank = True, required = False)
-    license_number = serializers.CharField(max_length = 255, allow_blank = True, required = False)
-    state = serializers.CharField(max_length = 30, allow_blank = True, required = False)
-    locality = serializers.CharField(max_length = 255, allow_blank = True, required = False)
-    city = serializers.CharField(max_length = 50, allow_blank = True, required = False)
-    pincode = serializers.CharField(max_length = 6, allow_blank = True, required = False)
-    workshop_type = serializers.CharField(max_length = 20, required = False, allow_blank = True)
-    contact_number = serializers.CharField( allow_blank = True, required = False, validators = contact_validators)
-    type = serializers.CharField(max_length = 20, allow_blank = True,required = False)
-    latitude = serializers.FloatField(required=False)
-    longitude = serializers.FloatField(required=False)
-
-    def validate_role(self, value):
-        allowed_roles = ['user','mechanic','workshop_admin']
-        if value not in allowed_roles:
-            raise serializers.ValidationError('Invalid role selected')
-        return value
 
     def validate_email(self,value):
         if User.objects.filter(email = value).exists():
@@ -57,34 +39,10 @@ class RegistrationSerializer(serializers.Serializer):
     def validate(self,data):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({'confirm_password':'Passwords does not match'})
-        role = data.get('role')
-
-        if role == 'workshop_admin':
-            required_fields = [
-                'workshop_name','license_number','state','city','locality','pincode','address_line','contact_number','workshop_type'
-            ]
-
-            for field in required_fields:
-                if not data.get(field):
-                    raise serializers.ValidationError({field : 'This field is required for Workshop Admin registration'})
-                
-            if Workshop.objects.filter(license_number = data['license_number']).exists():
-                raise serializers.ValidationError({'license_number' : 'A workshop with this license number already registered'})
-            
-            if data['workshop_type'].upper() not in ['INDIVIDUAL','TEAM']:
-                raise serializers.ValidationError({'workshop_type' : 'Invalid workshop type selected'})
-            
-            data['workshop_type'] = data['workshop_type'].upper()
-
-        elif role == 'mechanic':
-            if not data.get('contact_number'):
-                raise serializers.ValidationError({"contact_number": "Contact number is required for Mechanic registration."})
-            
         data.pop('confirm_password')
-
         return data
-    
-    def create(self, validated_data):
+
+    def create_pending_user(self, validated_data, role, extra_fields=None):
         email = validated_data['email']
 
         try:
@@ -92,42 +50,88 @@ class RegistrationSerializer(serializers.Serializer):
             existing_user.delete()
         except PendingUser.DoesNotExist:
             pass
+        
         hashed_password = make_password(validated_data['password'])
-        def clean_optional(value):
-            return value if value else None
+        
+        create_kwargs = {
+            'email': email,
+            'full_name': validated_data['full_name'],
+            'password': hashed_password,
+            'role': role
+        }
 
-        pending_user = PendingUser.objects.create(
-            email=email,
-            full_name=validated_data['full_name'],
-            password=hashed_password,
-            role=validated_data['role'],
+        if extra_fields:
+            create_kwargs.update(extra_fields)
 
-            workshop_name=clean_optional(validated_data.get('workshop_name')),
-            license_number=clean_optional(validated_data.get('license_number')),
-            address_line=clean_optional(validated_data.get('address_line')),
-            state=clean_optional(validated_data.get('state')),
-            city=clean_optional(validated_data.get('city')),
-            pincode=clean_optional(validated_data.get('pincode')),
-            locality=clean_optional(validated_data.get('locality')),
-            contact_number=clean_optional(validated_data.get('contact_number')),
-            type=clean_optional(validated_data.get('workshop_type')),
-            latitude=validated_data.get('latitude'),
-            longitude=validated_data.get('longitude')
-        )
-
-
+        pending_user = PendingUser.objects.create(**create_kwargs)
         pending_user.save()
 
         otp_record , status, message = send_otp_mail(
             email = validated_data['email'],
             full_name=validated_data['full_name'],
-            role = validated_data['role']
+            role = role
         )
 
-        print(f"OTP email result: {message}")
-
         return pending_user
-            
+
+class UserRegistrationSerializer(BaseRegistrationSerializer):
+    role = serializers.CharField(default='user', read_only=True)
+
+    def create(self, validated_data):
+        return self.create_pending_user(validated_data, role='user')
+
+class MechanicRegistrationSerializer(BaseRegistrationSerializer):
+    role = serializers.CharField(default='mechanic', read_only=True)
+    contact_number = serializers.CharField(required = True, validators = contact_validators)
+
+    def create(self, validated_data):
+        extra_fields = {
+            'contact_number': validated_data.get('contact_number')
+        }
+        return self.create_pending_user(validated_data, role='mechanic', extra_fields=extra_fields)
+
+class WorkshopRegistrationSerializer(BaseRegistrationSerializer):
+    role = serializers.CharField(default='workshop_admin', read_only=True)
+    workshop_name = serializers.CharField(max_length = 255, required = True)
+    address_line = serializers.CharField(required = True)
+    license_number = serializers.CharField(max_length = 255, required = True)
+    state = serializers.CharField(max_length = 30, required = True)
+    locality = serializers.CharField(max_length = 255, required = True)
+    city = serializers.CharField(max_length = 50, required = True)
+    pincode = serializers.CharField(max_length = 6, required = True)
+    workshop_type = serializers.CharField(max_length = 20, required = True)
+    contact_number = serializers.CharField(required = True, validators = contact_validators)
+    latitude = serializers.FloatField(required=True)
+    longitude = serializers.FloatField(required=True)
+
+    def validate(self, data):
+        data = super().validate(data)
+        
+        if Workshop.objects.filter(license_number = data['license_number']).exists():
+            raise serializers.ValidationError({'license_number' : 'A workshop with this license number already registered'})
+        
+        if data['workshop_type'].upper() not in ['INDIVIDUAL','TEAM']:
+            raise serializers.ValidationError({'workshop_type' : 'Invalid workshop type selected'})
+        
+        data['workshop_type'] = data['workshop_type'].upper()
+        return data
+
+    def create(self, validated_data):
+        extra_fields = {
+            'workshop_name': validated_data.get('workshop_name'),
+            'license_number': validated_data.get('license_number'),
+            'address_line': validated_data.get('address_line'),
+            'state': validated_data.get('state'),
+            'city': validated_data.get('city'),
+            'pincode': validated_data.get('pincode'),
+            'locality': validated_data.get('locality'),
+            'contact_number': validated_data.get('contact_number'),
+            'type': validated_data.get('workshop_type'),
+            'latitude': validated_data.get('latitude'),
+            'longitude': validated_data.get('longitude')
+        }
+        return self.create_pending_user(validated_data, role='workshop_admin', extra_fields=extra_fields)
+
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length = 6)
