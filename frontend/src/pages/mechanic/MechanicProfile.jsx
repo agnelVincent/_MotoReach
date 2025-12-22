@@ -262,8 +262,7 @@ const handleAvailabilityToggle = () => {
     passwordData.confirmPassword &&
     !passwordMatchError;
 
-  // Determine current availability status (true for 'AVAILABLE', false otherwise)
-  const currentAvailability = profile?.role_details?.availability?.toUpperCase() === 'AVAILABLE' ?? false; 
+  const currentAvailability = profile?.role_details?.availability?.toUpperCase() === 'AVAILABLE' 
 
   if (loading && !profile) {
     return (
