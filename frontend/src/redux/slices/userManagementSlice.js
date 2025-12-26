@@ -62,7 +62,7 @@ const userManagementSlice = createSlice({
     reducers: {},
     extraReducers: (builder) => {
         builder
-            // Users
+
             .addCase(fetchUsers.pending, (state) => {
                 state.loading = true;
             })
@@ -75,7 +75,7 @@ const userManagementSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Workshops
+
             .addCase(fetchWorkshops.pending, (state) => {
                 state.loading = true;
             })
@@ -88,7 +88,7 @@ const userManagementSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Mechanics
+
             .addCase(fetchMechanics.pending, (state) => {
                 state.loading = true;
             })
@@ -101,37 +101,31 @@ const userManagementSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Toggle Block
             .addCase(toggleBlockStatus.fulfilled, (state, action) => {
                 const { userId, isBlocked, status } = action.payload;
 
-                // Update user in users list
+
                 const user = state.users.find(u => u.id === userId);
                 if (user) {
                     user.status = status;
                     user.isActive = !isBlocked;
                 }
 
-                // Update workshop in workshops list (match by userId)
                 const workshop = state.workshops.find(w => w.userId === userId);
                 if (workshop) {
                     workshop.isBlocked = isBlocked;
                 }
 
-                // Update mechanic in mechanics list (match by userId)
                 const mechanic = state.mechanics.find(m => m.userId === userId);
                 if (mechanic) {
                     mechanic.isBlocked = isBlocked;
                 }
             })
 
-            // Listen for verifyWorkshop from adminSlice
             .addCase(verifyWorkshop.fulfilled, (state, action) => {
                 const { workshopId, action: verificationAction } = action.payload;
                 const workshop = state.workshops.find(w => w.id === workshopId);
                 if (workshop) {
-                    // "approve" -> "Approved", "reject" -> "Rejected"
-                    // The action payload from adminSlice is lowercase 'approve' or 'reject'
                     workshop.verificationStatus = verificationAction.charAt(0).toUpperCase() + verificationAction.slice(1) + (verificationAction.endsWith('e') ? 'd' : 'ed');
                 }
             });

@@ -10,7 +10,7 @@ from .serializers import (
     ForgotPasswordVerifyOtpSerializer, 
     ForgotPasswordSendOtpSerializer, 
     ProfileUpdateSerializer, 
-    ChangePasswordSerializer, 
+    ChangePasswordSerializer,    
     CookieTokenRefreshSerializer
 )
 from rest_framework.views import APIView
@@ -464,3 +464,22 @@ class ChangePasswordView(APIView):
         user.save()
 
         return Response({"detail": "Password updated successfully."}, status=200)
+
+class WorkshopReApplyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.role != 'workshop_admin':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = user.workshop
+            if workshop.verification_status == 'REJECTED':
+                workshop.verification_status = 'REQUESTED_AGAIN'
+                workshop.save()
+                return Response({'message': 'Re-application submitted successfully'}, status=status.HTTP_200_OK)
+            else:
+                 return Response({'error': 'Cannot re-apply. Status is not rejected.'}, status=status.HTTP_400_BAD_REQUEST)
+        except Workshop.DoesNotExist:
+            return Response({'error': 'Workshop profile not found'}, status=status.HTTP_404_NOT_FOUND)

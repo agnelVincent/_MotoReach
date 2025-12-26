@@ -26,14 +26,15 @@ class AdminDashboardStatsView(APIView):
             } for u in recent_signups
         ]
 
-        pending_workshops = Workshop.objects.filter(verification_status = 'PENDING')
+        from django.db.models import Q
+        pending_workshops = Workshop.objects.filter(Q(verification_status = 'PENDING') | Q(verification_status='REQUESTED_AGAIN'))
         pending_data = [
             {
                 'id' : w.id,
                 'name' : w.workshop_name,
                 'location' : f'{w.city}, {w.state}',
                 'requestedOn' : w.created_at,
-                'status' : 'Pending'
+                'status' : w.get_verification_status_display()
             } for w in pending_workshops
         ]
 

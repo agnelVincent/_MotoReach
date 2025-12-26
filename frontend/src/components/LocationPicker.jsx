@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { MapPin, Navigation, AlertCircle, CheckCircle2 } from 'lucide-react'; // Icons for professional look
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import icon from 'leaflet/dist/images/marker-icon.png';
+import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 let DefaultIcon = L.icon({
@@ -33,16 +33,16 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
         initialLat && initialLng ? { lat: initialLat, lng: initialLng } : null
     );
     const [loadingLocation, setLoadingLocation] = useState(false);
-    
+
     const [status, setStatus] = useState({ type: '', message: '' });
 
     const handleUseCurrentLocation = () => {
-        setStatus({ type: '', message: '' }); 
-        
+        setStatus({ type: '', message: '' });
+
         if (!navigator.geolocation) {
-            setStatus({ 
-                type: 'error', 
-                message: 'Your browser does not support location services.' 
+            setStatus({
+                type: 'error',
+                message: 'Your browser does not support location services.'
             });
             return;
         }
@@ -77,17 +77,17 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
                 const latlng = { lat: data.latitude, lng: data.longitude };
                 setPosition(latlng);
                 onLocationSelect(data.latitude, data.longitude);
-                setStatus({ 
-                    type: 'warning', 
-                    message: 'GPS unavailable. Used IP for approximate location.' 
+                setStatus({
+                    type: 'warning',
+                    message: 'GPS unavailable. Used IP for approximate location.'
                 });
             } else {
                 throw new Error("Invalid IP data");
             }
         } catch (error) {
-            setStatus({ 
-                type: 'error', 
-                message: 'Could not detect location. Please select manually on the map.' 
+            setStatus({
+                type: 'error',
+                message: 'Could not detect location. Please select manually on the map.'
             });
         } finally {
             setLoadingLocation(false);
@@ -101,11 +101,10 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
                     type="button"
                     onClick={handleUseCurrentLocation}
                     disabled={loadingLocation}
-                    className={`px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 ${
-                        loadingLocation
+                    className={`px-4 py-2 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center gap-2 ${loadingLocation
                             ? 'bg-blue-400 cursor-wait'
                             : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
-                    }`}
+                        }`}
                 >
                     {loadingLocation ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -119,11 +118,10 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
 
             {/* Professional Status Bar */}
             {status.message && (
-                <div className={`flex items-center gap-2 p-3 text-sm rounded-lg border transition-all animate-in fade-in slide-in-from-top-1 ${
-                    status.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' : 
-                    status.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
-                    'bg-green-50 text-green-700 border-green-200'
-                }`}>
+                <div className={`flex items-center gap-2 p-3 text-sm rounded-lg border transition-all animate-in fade-in slide-in-from-top-1 ${status.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+                        status.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            'bg-green-50 text-green-700 border-green-200'
+                    }`}>
                     {status.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                     {status.message}
                 </div>
@@ -148,7 +146,7 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
             {position && (
                 <div className="flex items-center gap-2 text-xs text-gray-600 font-mono bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm">
                     <MapPin className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="font-semibold text-gray-400">COORDS:</span> 
+                    <span className="font-semibold text-gray-400">COORDS:</span>
                     {position.lat.toFixed(6)}, {position.lng.toFixed(6)}
                 </div>
             )}

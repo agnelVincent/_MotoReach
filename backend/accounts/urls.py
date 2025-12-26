@@ -13,7 +13,8 @@ from .views import (
     ForgotPasswordSendOtpView, 
     ProfileView, 
     ChangePasswordView, 
-    CookieTokenRefeshView
+    CookieTokenRefeshView,
+    WorkshopReApplyView
 )
 
 
@@ -31,5 +32,6 @@ urlpatterns = [
     path('forgot-password/verify-otp/', ForgotPasswordVerifyOtpView.as_view(), name='forgot_password_verify_otp'),
     path('forgot-password/reset/', ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
     path("profile/", ProfileView.as_view(), name="profile"),
-    path("change-password/", ChangePasswordView.as_view(), name="change-password")
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("reapply-workshop/", WorkshopReApplyView.as_view(), name="reapply-workshop")
 ]

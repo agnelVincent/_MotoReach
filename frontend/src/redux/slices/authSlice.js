@@ -151,6 +151,23 @@ export const resendOtp = createAsyncThunk(
 
 
 
+
+export const reApplyWorkshop = createAsyncThunk(
+    'auth/reApplyWorkshop',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post('accounts/reapply-workshop/')
+            return response.data
+        }
+        catch (error) {
+            if (error.response && error.response.data) {
+                return rejectWithValue(error.response.data)
+            }
+            return rejectWithValue({ error: error.message })
+        }
+    }
+)
+
 const loadInitialState = () => {
 
     let authState = { isAuthenticated: false, accessToken: null, user: null }
@@ -456,6 +473,23 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload;
                 state.otpResendSuccess = null;
+            })
+
+            .addCase(reApplyWorkshop.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(reApplyWorkshop.fulfilled, (state) => {
+                state.loading = false;
+                state.error = null;
+                if (state.user) {
+                    state.user.workshop_status = 'REQUESTED_AGAIN';
+                    localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+                }
+            })
+            .addCase(reApplyWorkshop.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload?.error || 'Re-application failed';
             });
 
     }

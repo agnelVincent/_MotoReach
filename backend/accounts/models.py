@@ -58,7 +58,8 @@ class Workshop(models.Model):
     VERIFICATION_STATUS_CHOICES = [
         ('PENDING','Pending'),
         ('APPROVED','Approved'),
-        ('REJECTED','Rejected')
+        ('REJECTED','Rejected'),
+        ('REQUESTED_AGAIN','Requested Again')
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='workshop')
     workshop_name = models.CharField(max_length=255)
