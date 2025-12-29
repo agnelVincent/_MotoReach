@@ -46,29 +46,39 @@ const UserRequest = () => {
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    const newImages = files.map(file => URL.createObjectURL(file));
+    const newImages = files.map(file => ({
+      file: file,
+      preview: URL.createObjectURL(file)
+    }));
     setImages(prev => [...prev, ...newImages]);
   };
 
   const removeImage = (index) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImages(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true); // Set loading state
+    setIsSubmitting(true);
 
-    const payload = {
-      vehicle_type: formData.vehicleType,
-      vehicle_model: formData.vehicleModel,
-      issue_category: formData.issueCategory,
-      description: formData.description,
-      user_latitude: formData.latitude,
-      user_longitude: formData.longitude,
-      image_urls: images
-    };
+    const data = new FormData();
+    data.append('vehicle_type', formData.vehicleType);
+    data.append('vehicle_model', formData.vehicleModel);
+    data.append('issue_category', formData.issueCategory);
+    data.append('description', formData.description);
+    data.append('user_latitude', formData.latitude);
+    data.append('user_longitude', formData.longitude);
 
-    const resultAction = await dispatch(createServiceRequest(payload));
+    images.forEach(image => {
+      data.append('images', image.file);
+    });
+
+    const resultAction = await dispatch(createServiceRequest(data));
     setIsSubmitting(false);
 
     if (createServiceRequest.fulfilled.match(resultAction)) {
@@ -171,7 +181,7 @@ const UserRequest = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 {images.map((img, index) => (
                   <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                    <img src={img} alt="preview" className="w-full h-full object-cover" />
+                    <img src={img.preview} alt="preview" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
