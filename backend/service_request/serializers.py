@@ -17,7 +17,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vehicle_type', 'vehicle_model', 'issue_category', 
             'description', 'image_urls', 'user_latitude', 'user_longitude',
-            'images', 'status', 'platform_fee_paid', 'active_connection'
+            'images', 'status', 'platform_fee_paid', 'active_connection', 'created_at'
         ]
         read_only_fields = ['id', 'image_urls', 'status', 'platform_fee_paid', 'active_connection']
 

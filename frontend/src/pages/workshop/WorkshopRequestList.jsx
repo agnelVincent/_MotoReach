@@ -26,6 +26,44 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
+const ExpirationTimer = ({ requestedAt }) => {
+  const [timeLeft, setTimeLeft] = useState('');
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const created = new Date(requestedAt);
+      const expires = new Date(created.getTime() + 60 * 60 * 1000); // 1 hour expiration
+      const now = new Date();
+      const difference = expires - now;
+
+      if (difference <= 0) {
+        setIsExpired(true);
+        setTimeLeft('Expired');
+        return;
+      }
+
+      const minutes = Math.floor((difference / 1000 / 60) % 60);
+      const seconds = Math.floor((difference / 1000) % 60);
+      setTimeLeft(`${minutes}m ${seconds}s`);
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [requestedAt]);
+
+  if (isExpired) return <span className="text-red-500 font-bold text-xs">Expired</span>;
+
+  return (
+    <div className="flex items-center gap-1 text-orange-600 font-mono text-sm bg-orange-50 px-2 py-1 rounded">
+      <Clock className="w-3 h-3" />
+      <span>{timeLeft}</span>
+    </div>
+  );
+};
+
 const WorkshopRequestList = () => {
   const dispatch = useDispatch();
   const { workshopRequests, loading } = useSelector((state) => state.serviceRequest);
@@ -243,6 +281,9 @@ const WorkshopRequestList = () => {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
+                            {request.status === 'REQUESTED' && (
+                              <ExpirationTimer requestedAt={request.requested_at} />
+                            )}
                           </p>
                         </div>
                       </div>

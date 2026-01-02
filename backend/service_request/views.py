@@ -132,6 +132,15 @@ class ConnectWorkshopView(APIView):
         if existing_connection:
             return Response({"error": "You already have an active connection request for this service."}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Limit the sending connection request for the same request, same workshop to 3
+        previous_attempts = WorkshopConnection.objects.filter(
+            service_request=service_request,
+            workshop=workshop
+        ).count()
+
+        if previous_attempts >= 3:
+            return Response({"error": "You have reached the maximum limit of 3 connection attempts for this workshop."}, status=status.HTTP_400_BAD_REQUEST)
+        
         WorkshopConnection.objects.create(
             service_request=service_request,
             workshop=workshop,
@@ -298,3 +307,29 @@ class UserCancelConnectionView(APIView):
         connection.service_request.save()
         
         return Response({"message": "Connection cancelled"}, status=status.HTTP_200_OK)
+        
+class DeleteServiceRequestView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
+        except ServiceRequest.DoesNotExist:
+            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if service_request.platform_fee_paid:
+            return Response({"error": "Cannot delete request because platform fee is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if service_request.status not in ['CREATED', 'CANCELLED', 'EXPIRED']:
+            return Response({"error": "Cannot delete active or processed service request."}, status=status.HTTP_400_BAD_REQUEST)
+
+        active_connections = WorkshopConnection.objects.filter(
+            service_request=service_request,
+            status__in=['REQUESTED', 'ACCEPTED']
+        ).exists()
+        
+        if active_connections:
+             return Response({"error": "Cannot delete request with ongoing connections."}, status=status.HTTP_400_BAD_REQUEST)
+
+        service_request.delete()
+        return Response({"message": "Service request deleted successfully"}, status=status.HTTP_200_OK)

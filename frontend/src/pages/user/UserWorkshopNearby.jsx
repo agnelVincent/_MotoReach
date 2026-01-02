@@ -22,7 +22,7 @@ const UserWorkshopNearby = () => {
   const [urlParamsCleared, setUrlParamsCleared] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('distance');
-  
+
   // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
@@ -85,7 +85,7 @@ const UserWorkshopNearby = () => {
       const response = await axiosInstance.post('stripe/create-checkout-session/', {
         service_request_id: currentRequest.id
       });
-      
+
       if (response.data.message === 'Platform fee already paid') {
         await dispatch(fetchNearbyWorkshops(requestId));
         setShowPaymentModal(false);
@@ -93,7 +93,7 @@ const UserWorkshopNearby = () => {
         setIsProcessing(false);
         return;
       }
-      
+
       if (response.data.url) {
         window.location.href = response.data.url;
       }
@@ -162,15 +162,15 @@ const UserWorkshopNearby = () => {
             <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
               <CreditCard className="w-8 h-8 text-blue-600" />
             </div>
-            
+
             <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
               Platform Fee Required
             </h3>
-            
+
             <p className="text-gray-600 text-center mb-6">
               To connect with <span className="font-semibold text-gray-800">{selectedWorkshop?.name}</span>, you need to pay a one-time platform fee. This allows you to connect with any workshop.
             </p>
-            
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -180,7 +180,7 @@ const UserWorkshopNearby = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPaymentModal(false)}
@@ -218,15 +218,15 @@ const UserWorkshopNearby = () => {
             <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
               <AlertTriangle className="w-8 h-8 text-red-600" />
             </div>
-            
+
             <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
               Confirm Disconnection
             </h3>
-            
+
             <p className="text-gray-600 text-center mb-6">
               Are you sure you want to disconnect from this workshop? You will need to request a new connection if you change your mind.
             </p>
-            
+
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -236,7 +236,7 @@ const UserWorkshopNearby = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDisconnectModal(false)}
@@ -433,9 +433,18 @@ const UserWorkshopNearby = () => {
                     if (isConnectedToThis) {
                       if (connection.status === 'REQUESTED') {
                         return (
-                          <button disabled className="w-full py-3 bg-gray-400 text-white font-semibold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
-                            Request Sent
-                          </button>
+                          <div className="flex gap-2 w-full">
+                            <button disabled className="flex-1 py-3 bg-gray-400 text-white font-semibold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
+                              Request Sent
+                            </button>
+                            <button
+                              onClick={() => handleDisconnectClick(currentRequest.id)}
+                              className="px-4 py-3 bg-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center"
+                              title="Cancel Request"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
                         );
                       }
                       return (

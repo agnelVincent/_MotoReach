@@ -64,9 +64,10 @@ const AdminWorkshop = () => {
     const styles = {
       Approved: 'bg-green-100 text-green-700',
       Pending: 'bg-yellow-100 text-yellow-700',
-      Rejected: 'bg-red-100 text-red-700',
-      'Requested Again': 'bg-blue-100 text-blue-700'
+      Rejected: 'bg-red-100 text-red-700'
     };
+    // Map Requested Again to Pending style if it slips through, but we normalize it below
+    if (status === 'Requested Again') return styles.Pending;
     return styles[status] || 'bg-gray-100 text-gray-700';
   };
 
@@ -161,7 +162,6 @@ const AdminWorkshop = () => {
                 <option value="Approved">Approved</option>
                 <option value="Pending">Pending</option>
                 <option value="Rejected">Rejected</option>
-                <option value="Requested Again">Requested Again</option>
               </select>
             </div>
           </div>
@@ -181,75 +181,80 @@ const AdminWorkshop = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredWorkshops.map((workshop) => (
-                  <tr key={workshop.id} className="hover:bg-gray-50 transition-colors duration-200">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                          <Building2 className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">{workshop.workshopName}</p>
-                          {workshop.isBlocked && (
-                            <span className="text-xs text-red-600 font-medium">Blocked</span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-800 font-medium">{workshop.ownerName}</td>
-                    <td className="px-6 py-4 text-gray-600">{workshop.email}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={editingStatus[workshop.id] || workshop.verificationStatus}
-                          onChange={(e) => handleStatusChange(workshop.id, e.target.value)}
-                          className={`px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all duration-300 cursor-pointer ${editingStatus[workshop.id] && editingStatus[workshop.id] !== workshop.verificationStatus
-                            ? 'border-purple-500 ring-2 ring-purple-200'
-                            : 'border-transparent'
-                            } ${getStatusBadge(editingStatus[workshop.id] || workshop.verificationStatus)}`}
-                        >
-                          <option value="Approved">Approved</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Rejected">Rejected</option>
-                          <option value="Requested Again">Re-Request</option>
-                        </select>
+                {filteredWorkshops.map((workshop) => {
+                  // Normalize 'Requested Again' to 'Pending' for display
+                  const normalizedVerificationStatus = workshop.verificationStatus === 'Requested Again' ? 'Pending' : workshop.verificationStatus;
+                  const currentStatus = editingStatus[workshop.id] || normalizedVerificationStatus;
 
-                        {editingStatus[workshop.id] && editingStatus[workshop.id] !== workshop.verificationStatus && (
-                          <button
-                            onClick={(e) => handleUpdateStatus(e, workshop.id)}
-                            className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300"
-                            title="Update Status"
+                  return (
+                    <tr key={workshop.id} className="hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800">{workshop.workshopName}</p>
+                            {workshop.isBlocked && (
+                              <span className="text-xs text-red-600 font-medium">Blocked</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-800 font-medium">{workshop.ownerName}</td>
+                      <td className="px-6 py-4 text-gray-600">{workshop.email}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={currentStatus}
+                            onChange={(e) => handleStatusChange(workshop.id, e.target.value)}
+                            className={`px-3 py-2 rounded-lg text-sm font-semibold border-2 transition-all duration-300 cursor-pointer ${editingStatus[workshop.id] && editingStatus[workshop.id] !== normalizedVerificationStatus
+                              ? 'border-purple-500 ring-2 ring-purple-200'
+                              : 'border-transparent'
+                              } ${getStatusBadge(currentStatus)}`}
                           >
-                            <Save className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleToggleBlock(workshop.userId)}
-                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${workshop.isBlocked
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-red-100 text-red-700 hover:bg-red-200'
-                            }`}
-                        >
-                          {workshop.isBlocked ? (
-                            <>
-                              <Shield className="w-4 h-4" />
-                              Unblock
-                            </>
-                          ) : (
-                            <>
-                              <ShieldOff className="w-4 h-4" />
-                              Block
-                            </>
+                            <option value="Approved">Approved</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+
+                          {editingStatus[workshop.id] && editingStatus[workshop.id] !== normalizedVerificationStatus && (
+                            <button
+                              onClick={(e) => handleUpdateStatus(e, workshop.id)}
+                              className="p-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300"
+                              title="Update Status"
+                            >
+                              <Save className="w-4 h-4" />
+                            </button>
                           )}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleBlock(workshop.userId)}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${workshop.isBlocked
+                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                              : 'bg-red-100 text-red-700 hover:bg-red-200'
+                              }`}
+                          >
+                            {workshop.isBlocked ? (
+                              <>
+                                <Shield className="w-4 h-4" />
+                                Unblock
+                              </>
+                            ) : (
+                              <>
+                                <ShieldOff className="w-4 h-4" />
+                                Block
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -102,6 +102,18 @@ export const userCancelConnection = createAsyncThunk(
   }
 );
 
+export const deleteServiceRequest = createAsyncThunk(
+  'serviceRequest/deleteServiceRequest',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      await axiosInstance.delete(`service-request/${requestId}/delete/`);
+      return { requestId };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to delete request");
+    }
+  }
+);
+
 
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
@@ -196,6 +208,10 @@ const serviceRequestSlice = createSlice({
         if (index !== -1) {
           state.userRequests[index].status = 'FEE_PAID'; // Reset to fee paid
         }
+      })
+      .addCase(deleteServiceRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userRequests = state.userRequests.filter(r => r.id !== action.payload.requestId);
       });
   }
 });
