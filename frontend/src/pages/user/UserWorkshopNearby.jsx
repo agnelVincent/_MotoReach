@@ -1,23 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
-import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal } from 'lucide-react';
-import { fetchNearbyWorkshops } from '../../redux/slices/serviceRequestSlice';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal, CheckCircle, AlertCircle, X, CreditCard, AlertTriangle } from 'lucide-react';
+import { fetchNearbyWorkshops, userCancelConnection } from '../../redux/slices/serviceRequestSlice';
 import axiosInstance from '../../api/axiosInstance';
+import { toast } from 'react-hot-toast';
 
 const UserWorkshopNearby = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
+  const location = useLocation();
   const { requestId } = useParams();
 
   const { nearbyWorkshops, currentRequest, loading } = useSelector((state) => state.serviceRequest);
-  console.log(nearbyWorkshops)
+
+  const queryParams = new URLSearchParams(location.search);
+  const paymentSuccess = queryParams.get('payment_success');
+  const paymentCanceled = queryParams.get('payment_canceled');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(!!paymentSuccess);
+  const [showCancelMessage, setShowCancelMessage] = useState(!!paymentCanceled);
+  const [urlParamsCleared, setUrlParamsCleared] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('distance');
+  
+  // Modal states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDisconnectModal, setShowDisconnectModal] = useState(false);
+  const [selectedWorkshop, setSelectedWorkshop] = useState(null);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!currentRequest || currentRequest.id !== parseInt(requestId)) {
       dispatch(fetchNearbyWorkshops(requestId));
     }
   }, [dispatch, requestId, currentRequest]);
+
+  useEffect(() => {
+    if (paymentCanceled && !urlParamsCleared) {
+      setTimeout(() => {
+        navigate(`/user/workshops-nearby/${requestId}`, { replace: true });
+        setUrlParamsCleared(true);
+      }, 100);
+    }
+  }, [paymentCanceled, requestId, navigate, urlParamsCleared]);
 
   if (loading) {
     return (
@@ -29,9 +55,6 @@ const UserWorkshopNearby = () => {
       </div>
     );
   }
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('distance');
 
   const filteredWorkshops = nearbyWorkshops.filter(workshop =>
     workshop.workshop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,15 +71,71 @@ const UserWorkshopNearby = () => {
   });
 
   const handleConnect = async (workshopId, workshopName) => {
+    if (!currentRequest?.platform_fee_paid) {
+      setSelectedWorkshop({ id: workshopId, name: workshopName });
+      setShowPaymentModal(true);
+      return;
+    }
+    await connectToWorkshop(workshopId);
+  };
+
+  const handlePaymentConfirm = async () => {
+    setIsProcessing(true);
+    try {
+      const response = await axiosInstance.post('stripe/create-checkout-session/', {
+        service_request_id: currentRequest.id
+      });
+      
+      if (response.data.message === 'Platform fee already paid') {
+        await dispatch(fetchNearbyWorkshops(requestId));
+        setShowPaymentModal(false);
+        await connectToWorkshop(selectedWorkshop.id);
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      toast.error(error.response?.data?.error || "Failed to initiate payment. Please try again.");
+      setIsProcessing(false);
+      setShowPaymentModal(false);
+    }
+  };
+
+  const connectToWorkshop = async (workshopId) => {
     try {
       await axiosInstance.post(`service-request/${requestId}/connect/`, {
         workshop_id: workshopId
       });
-      // Navigate to user services page with success indicator or just list
-      navigate('/user/services');
+      toast.success("Connection request sent successfully!");
+      dispatch(fetchNearbyWorkshops(requestId));
     } catch (error) {
       console.error("Error connecting to workshop:", error);
-      alert("Failed to connect. Please try again.");
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Failed to connect. Please try again.";
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleDisconnectClick = (serviceRequestId) => {
+    setSelectedRequestId(serviceRequestId);
+    setShowDisconnectModal(true);
+  };
+
+  const handleDisconnectConfirm = async () => {
+    setIsProcessing(true);
+    try {
+      await dispatch(userCancelConnection(selectedRequestId)).unwrap();
+      toast.success("Disconnected successfully");
+      dispatch(fetchNearbyWorkshops(requestId));
+      setShowDisconnectModal(false);
+    } catch (error) {
+      toast.error("Failed to disconnect");
+      console.error(error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -76,6 +155,115 @@ const UserWorkshopNearby = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-4">
+              <CreditCard className="w-8 h-8 text-blue-600" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
+              Platform Fee Required
+            </h3>
+            
+            <p className="text-gray-600 text-center mb-6">
+              To connect with <span className="font-semibold text-gray-800">{selectedWorkshop?.name}</span>, you need to pay a one-time platform fee. This allows you to connect with any workshop.
+            </p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-semibold mb-1">Secure Payment</p>
+                  <p>Your payment is processed securely through Stripe. Connect with confidence.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                disabled={isProcessing}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePaymentConfirm}
+                disabled={isProcessing}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Proceed to Payment
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disconnect Modal */}
+      {showDisconnectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            
+            <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
+              Confirm Disconnection
+            </h3>
+            
+            <p className="text-gray-600 text-center mb-6">
+              Are you sure you want to disconnect from this workshop? You will need to request a new connection if you change your mind.
+            </p>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-semibold mb-1">Important</p>
+                  <p>This action cannot be undone. Any ongoing communication will be terminated.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDisconnectModal(false)}
+                disabled={isProcessing}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Keep Connected
+              </button>
+              <button
+                onClick={handleDisconnectConfirm}
+                disabled={isProcessing}
+                className="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    Disconnecting...
+                  </>
+                ) : (
+                  'Yes, Disconnect'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -88,7 +276,42 @@ const UserWorkshopNearby = () => {
           </p>
         </div>
 
-        {/* Stats Summary */}
+        {showSuccessMessage && (
+          <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Payment Successful!</p>
+                <p className="text-sm">Platform fee paid. You can now connect with workshops.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSuccessMessage(false)}
+              className="text-green-700 hover:text-green-900"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {showCancelMessage && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Payment Cancelled</p>
+                <p className="text-sm">You need to pay the platform fee to connect with workshops.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCancelMessage(false)}
+              className="text-red-700 hover:text-red-900"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-md">
             <div className="flex items-center justify-between">
@@ -133,7 +356,6 @@ const UserWorkshopNearby = () => {
           </div>
         </div>
 
-        {/* Search and Sort */}
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -161,7 +383,6 @@ const UserWorkshopNearby = () => {
           </div>
         </div>
 
-        {/* Workshop Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedWorkshops.map((workshop) => (
             <div
@@ -203,19 +424,60 @@ const UserWorkshopNearby = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleConnect(workshop.id, workshop.workshop_name)}
-                  className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
-                >
-                  Connect Now
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
+                <div className="mt-auto">
+                  {(() => {
+                    const connection = currentRequest?.active_connection;
+                    const isConnectedToThis = connection?.workshop_id === workshop.id;
+                    const isConnectedToAny = !!connection;
+
+                    if (isConnectedToThis) {
+                      if (connection.status === 'REQUESTED') {
+                        return (
+                          <button disabled className="w-full py-3 bg-gray-400 text-white font-semibold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
+                            Request Sent
+                          </button>
+                        );
+                      }
+                      return (
+                        <div className="flex gap-2 w-full">
+                          <button disabled className="flex-1 py-3 bg-green-600 text-white font-semibold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
+                            Connected <CheckCircle className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDisconnectClick(currentRequest.id)}
+                            className="px-4 py-3 bg-red-100 text-red-600 font-semibold rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center"
+                            title="Disconnect"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (isConnectedToAny) {
+                      return (
+                        <button disabled className="w-full py-3 bg-gray-300 text-gray-500 font-semibold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
+                          Unavailable
+                        </button>
+                      );
+                    }
+
+                    return (
+                      <button
+                        onClick={() => handleConnect(workshop.id, workshop.workshop_name)}
+                        className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2"
+                      >
+                        Connect Now
+                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    );
+                  })()}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* No Results UI */}
         {sortedWorkshops.length === 0 && (
           <div className="text-center py-12 bg-white rounded-xl shadow-md">
             <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />

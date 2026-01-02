@@ -84,6 +84,10 @@ const UserRequest = () => {
     if (createServiceRequest.fulfilled.match(resultAction)) {
       const newRequestId = resultAction.payload.request.id;
       navigate(`/user/workshops-nearby/${newRequestId}`);
+    } else {
+      const errorMsg = resultAction.payload ? JSON.stringify(resultAction.payload) : "Failed to create request. Please try again.";
+      alert(`Error: ${errorMsg}`);
+      console.error("Creation failed:", resultAction.payload);
     }
   };
 

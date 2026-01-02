@@ -6,8 +6,12 @@ export const createServiceRequest = createAsyncThunk(
   'serviceRequest/create',
   async (requestData, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post('service-request/create/', requestData);
-      return response.data; 
+      const response = await axiosInstance.post('service-request/create/', requestData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        }
+      });
+      return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || "Something went wrong");
     }
@@ -26,11 +30,86 @@ export const fetchNearbyWorkshops = createAsyncThunk(
   }
 );
 
+export const fetchUserServiceRequests = createAsyncThunk(
+  'serviceRequest/fetchUserRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('service-request/user-requests/');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch requests");
+    }
+  }
+);
+
+export const fetchWorkshopRequests = createAsyncThunk(
+  'serviceRequest/fetchWorkshopRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('service-request/workshop/connection-requests/');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch requests");
+    }
+  }
+);
+
+export const acceptRequest = createAsyncThunk(
+  'serviceRequest/acceptRequest',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/workshop/connection-requests/${requestId}/accept/`);
+      return { requestId, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to accept request");
+    }
+  }
+);
+
+export const rejectRequest = createAsyncThunk(
+  'serviceRequest/rejectRequest',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/workshop/connection-requests/${requestId}/reject/`);
+      return { requestId, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to reject request");
+    }
+  }
+);
+
+export const cancelRequestWorkshop = createAsyncThunk(
+  'serviceRequest/cancelRequestWorkshop',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/workshop/connection-requests/${requestId}/cancel/`);
+      return { requestId, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to cancel request");
+    }
+  }
+);
+
+export const userCancelConnection = createAsyncThunk(
+  'serviceRequest/userCancelConnection',
+  async (serviceRequestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/connection/${serviceRequestId}/cancel/`);
+      return { serviceRequestId, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to cancel connection");
+    }
+  }
+);
+
+
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
   initialState: {
     currentRequest: null,
     nearbyWorkshops: [],
+    userRequests: [],
+    workshopRequests: [],
     loading: false,
     error: null,
   },
@@ -53,11 +132,71 @@ const serviceRequestSlice = createSlice({
         state.error = action.payload;
       })
 
-      .addCase(fetchNearbyWorkshops.fulfilled, (state, action) => {
-          state.loading = false;
-          state.currentRequest = action.payload.request;
-          state.nearbyWorkshops = action.payload.nearby_workshops;
+      .addCase(fetchNearbyWorkshops.pending, (state) => {
+        state.loading = true;
+        state.error = null;
       })
+      .addCase(fetchNearbyWorkshops.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentRequest = action.payload.request;
+        state.nearbyWorkshops = action.payload.nearby_workshops;
+        state.error = null;
+      })
+      .addCase(fetchNearbyWorkshops.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchUserServiceRequests.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchUserServiceRequests.fulfilled, (state, action) => {
+        state.loading = false;
+        state.userRequests = action.payload;
+      })
+      .addCase(fetchUserServiceRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchWorkshopRequests.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchWorkshopRequests.fulfilled, (state, action) => {
+        state.loading = false;
+        state.workshopRequests = action.payload;
+      })
+      .addCase(fetchWorkshopRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(acceptRequest.fulfilled, (state, action) => {
+        const index = state.workshopRequests.findIndex(r => r.id === action.payload.requestId);
+        if (index !== -1) {
+          state.workshopRequests[index].status = 'ACCEPTED';
+        }
+      })
+      .addCase(rejectRequest.fulfilled, (state, action) => {
+        const index = state.workshopRequests.findIndex(r => r.id === action.payload.requestId);
+        if (index !== -1) {
+          state.workshopRequests[index].status = 'REJECTED';
+        }
+      })
+      .addCase(cancelRequestWorkshop.fulfilled, (state, action) => {
+        const index = state.workshopRequests.findIndex(r => r.id === action.payload.requestId);
+        if (index !== -1) {
+          state.workshopRequests[index].status = 'CANCELLED';
+        }
+      })
+      .addCase(userCancelConnection.fulfilled, (state, action) => {
+        state.loading = false;
+        // Find the request in userRequests and update its status
+        const index = state.userRequests.findIndex(r => r.id === action.payload.serviceRequestId);
+        if (index !== -1) {
+          state.userRequests[index].status = 'FEE_PAID'; // Reset to fee paid
+        }
+      });
   }
 });
 

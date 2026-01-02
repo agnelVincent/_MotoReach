@@ -1,21 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Wallet, Users, CreditCard, LogOut, ChevronDown } from 'lucide-react';
 import { useLogout } from '../../hooks/useLogout';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const WorkshopNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [activeLink, setActiveLink] = useState('/dashboard');
   const profileRef = useRef(null);
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Requests', path: '/requests', icon: FileText },
-    { name: 'Wallet', path: '/wallet', icon: Wallet },
-    { name: 'Mechanics', path: '/mechanics', icon: Users },
-    { name: 'Payment', path: '/payment', icon: CreditCard },
+    { name: 'Dashboard', path: '/workshop', icon: LayoutDashboard },
+    { name: 'Requests', path: '/workshop/requests', icon: FileText },
+    { name: 'Wallet', path: '/workshop/wallet', icon: Wallet },
+    { name: 'Mechanics', path: '/workshop/mechanics', icon: Users },
+    { name: 'Payment', path: '/workshop/payment', icon: CreditCard },
   ];
 
   const profileMenuItems = [
@@ -23,7 +23,7 @@ const WorkshopNavbar = () => {
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
 
-  const {logout} = useLogout()
+  const { logout } = useLogout()
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -38,25 +38,25 @@ const WorkshopNavbar = () => {
   }, []);
 
   const handleNavClick = (path) => {
-    setActiveLink(path);
+    navigate(path);
     setIsMobileMenuOpen(false);
   };
 
-const handleProfileMenuClick = (action) => {
-  console.log('Profile action:', action);
-  setIsProfileOpen(false);
+  const handleProfileMenuClick = (action) => {
+    console.log('Profile action:', action);
+    setIsProfileOpen(false);
 
-  if (action === 'profile') {
-    console.log("Navigate to profile here");
-    navigate('/workshop/profile');
-  }
+    if (action === 'profile') {
+      console.log("Navigate to profile here");
+      navigate('/workshop/profile');
+    }
 
-  if (action === 'logout') {
-    logout();
-  }
-};
+    if (action === 'logout') {
+      logout();
+    }
+  };
 
-  const isActive = (path) => activeLink === path;
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
@@ -86,11 +86,10 @@ const handleProfileMenuClick = (action) => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${
-                    isActive(link.path)
-                      ? 'text-indigo-600 bg-indigo-50'
-                      : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
+                    ? 'text-indigo-600 bg-indigo-50'
+                    : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {link.name}
@@ -132,11 +131,10 @@ const handleProfileMenuClick = (action) => {
                       <button
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${
-                          item.action === 'logout'
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
+                          ? 'text-red-600 hover:bg-red-50'
+                          : 'text-gray-700 hover:bg-gray-50'
+                          }`}
                       >
                         <Icon className="w-4 h-4" />
                         {item.name}
@@ -180,11 +178,10 @@ const handleProfileMenuClick = (action) => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                    isActive(link.path)
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
+                    ? 'bg-indigo-50 text-indigo-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {link.name}
@@ -203,11 +200,10 @@ const handleProfileMenuClick = (action) => {
                   <button
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                      item.action === 'logout'
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name}

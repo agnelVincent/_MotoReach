@@ -1,21 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown } from 'lucide-react';
 // 👇 1. Import useNavigate for routing
-import { useNavigate } from 'react-router-dom'; 
+// 👇 1. Import useNavigate for routing
+import { useNavigate, useLocation } from 'react-router-dom';
 // 👇 2. Import your custom hook for logout
-import { useLogout } from '../../hooks/useLogout'; 
+import { useLogout } from '../../hooks/useLogout';
 
 const MechanicNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  // Setting a default, but remember to use useLocation for proper highlighting on refresh
-  const [activeLink, setActiveLink] = useState('/dashboard'); 
   const profileRef = useRef(null);
+  const location = useLocation();
 
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Requests', path: '/requests', icon: FileText },
-    { name: 'Workshop', path: '/workshop', icon: Building2 },
+    { name: 'Dashboard', path: '/mechanic', icon: LayoutDashboard },
+    { name: 'Requests', path: '/mechanic/requests', icon: FileText },
+    { name: 'Workshop', path: '/mechanic/workshop', icon: Building2 },
   ];
 
   const profileMenuItems = [
@@ -26,7 +26,7 @@ const MechanicNavbar = () => {
   // 👇 Get the navigation and logout functions
   const navigate = useNavigate();
   const { logout } = useLogout();
- 
+
   // Close profile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -40,9 +40,8 @@ const MechanicNavbar = () => {
   }, []);
 
   const handleNavClick = (path) => {
-    setActiveLink(path);
     // 👇 Navigate to the path for main nav links
-    navigate(path); 
+    navigate(path);
     setIsMobileMenuOpen(false);
   };
 
@@ -50,9 +49,8 @@ const MechanicNavbar = () => {
     setIsProfileOpen(false);
 
     if (action === 'profile') {
-      setActiveLink('/mechanic/profile');
       // 👇 Navigate to the ABSOLUTE route for profile
-      navigate('/mechanic/profile'); 
+      navigate('/mechanic/profile');
     }
 
     if (action === 'logout') {
@@ -61,7 +59,7 @@ const MechanicNavbar = () => {
     }
   };
 
-  const isActive = (path) => activeLink === path;
+  const isActive = (path) => location.pathname === path;
 
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
@@ -91,11 +89,10 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${
-                    isActive(link.path)
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
                       ? 'text-orange-600 bg-orange-50'
                       : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {link.name}
@@ -137,11 +134,10 @@ const MechanicNavbar = () => {
                       <button
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${
-                          item.action === 'logout'
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
                             ? 'text-red-600 hover:bg-red-50'
                             : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <Icon className="w-4 h-4" />
                         {item.name}
@@ -185,11 +181,10 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                    isActive(link.path)
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
                       ? 'bg-orange-50 text-orange-600'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {link.name}
@@ -208,11 +203,10 @@ const MechanicNavbar = () => {
                   <button
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                      item.action === 'logout'
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
                         ? 'text-red-600 hover:bg-red-50'
                         : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name}

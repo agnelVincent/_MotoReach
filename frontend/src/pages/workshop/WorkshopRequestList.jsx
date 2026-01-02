@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
-import { 
-  FileText, 
-  User, 
-  Car, 
-  Wrench, 
-  Eye, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchWorkshopRequests,
+  acceptRequest,
+  rejectRequest,
+  cancelRequestWorkshop
+} from '../../redux/slices/serviceRequestSlice';
+import {
+  FileText,
+  User,
+  Car,
+  Wrench,
+  Eye,
+  CheckCircle,
+  XCircle,
+  Clock,
   Ban,
   X,
   Calendar,
@@ -17,165 +24,86 @@ import {
   AlertCircle,
   ZoomIn
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const WorkshopRequestList = () => {
-  // Mock request data with hardcoded image URLs
-  const [requests, setRequests] = useState([
-    {
-      id: 1,
-      userName: 'Rajesh Kumar',
-      vehicleType: 'Honda City',
-      issueCategory: 'Engine Oil Change',
-      status: 'Pending',
-      date: '2024-01-15T10:30:00',
-      description: 'Need complete engine oil change. The vehicle has completed 10,000 km and requires synthetic oil.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400',
-        'https://images.unsplash.com/photo-1625047509248-ec889cbff17f?w=400',
-        'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400'
-      ],
-      vehicleDetails: { model: 'Honda City 2020', registration: 'KA-01-AB-1234' }
-    },
-    {
-      id: 2,
-      userName: 'Priya Sharma',
-      vehicleType: 'Maruti Swift',
-      issueCategory: 'Brake System Repair',
-      status: 'Approved',
-      date: '2024-01-14T14:20:00',
-      description: 'Brake pads making squeaking noise. Need immediate inspection and replacement.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400',
-        'https://images.unsplash.com/photo-1580274455191-1c62238fa333?w=400'
-      ],
-      vehicleDetails: { model: 'Maruti Swift 2019', registration: 'KA-02-CD-5678' }
-    },
-    {
-      id: 3,
-      userName: 'Amit Patel',
-      vehicleType: 'Hyundai Creta',
-      issueCategory: 'AC Not Working',
-      status: 'Rejected',
-      date: '2024-01-13T09:15:00',
-      description: 'Air conditioning stopped working suddenly. No cooling at all.',
-      // Replace with real uploaded images later
-      photos: [],
-      vehicleDetails: { model: 'Hyundai Creta 2021', registration: 'KA-03-EF-9012' }
-    },
-    {
-      id: 4,
-      userName: 'Sneha Reddy',
-      vehicleType: 'Toyota Innova',
-      issueCategory: 'General Service',
-      status: 'Pending',
-      date: '2024-01-16T11:00:00',
-      description: 'Complete general servicing required. Last service was 6 months ago.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400',
-        'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400',
-        'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=400',
-        'https://images.unsplash.com/photo-1612825173281-9a193378527e?w=400'
-      ],
-      vehicleDetails: { model: 'Toyota Innova Crysta 2018', registration: 'KA-04-GH-3456' }
-    },
-    {
-      id: 5,
-      userName: 'Vikram Singh',
-      vehicleType: 'Ford EcoSport',
-      issueCategory: 'Battery Replacement',
-      status: 'Cancelled',
-      date: '2024-01-12T16:45:00',
-      description: 'Battery dead, needs replacement urgently.',
-      // Replace with real uploaded images later
-      photos: [
-        'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=400'
-      ],
-      vehicleDetails: { model: 'Ford EcoSport 2017', registration: 'KA-05-IJ-7890' }
-    },
-    {
-      id: 6,
-      userName: 'Anjali Verma',
-      vehicleType: 'Tata Nexon',
-      issueCategory: 'Tire Replacement',
-      status: 'Approved',
-      date: '2024-01-17T13:30:00',
-      description: 'Front two tires need replacement. Uneven wear observed.',
-
-      photos: [
-        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400',
-        'https://images.unsplash.com/photo-1563720360172-67b8f3dce741?w=400',
-        'https://images.unsplash.com/photo-1449130015084-2bf505b6be5a?w=400'
-      ],
-      vehicleDetails: { model: 'Tata Nexon EV 2022', registration: 'KA-06-KL-2345' }
-    }
-  ]);
+  const dispatch = useDispatch();
+  const { workshopRequests, loading } = useSelector((state) => state.serviceRequest);
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [enlargedImage, setEnlargedImage] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
   const [filterStatus, setFilterStatus] = useState('All');
 
-  const handleApprove = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Pending' 
-        ? { ...req, status: 'Approved' } 
-        : req
-    ));
-    if (selectedRequest?.id === requestId) {
-      setSelectedRequest({ ...selectedRequest, status: 'Approved' });
+  useEffect(() => {
+    dispatch(fetchWorkshopRequests());
+  }, [dispatch]);
+
+  const handleApprove = async (requestId) => {
+    try {
+      await dispatch(acceptRequest(requestId)).unwrap();
+      toast.success('Request accepted successfully');
+      if (selectedRequest?.id === requestId) {
+        setSelectedRequest({ ...selectedRequest, status: 'ACCEPTED' });
+      }
+    } catch (error) {
+      toast.error('Failed to accept request');
     }
   };
 
-  const handleReject = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Pending' 
-        ? { ...req, status: 'Rejected' } 
-        : req
-    ));
-    setSelectedRequest(null);
+  const handleReject = async (requestId) => {
+    try {
+      await dispatch(rejectRequest(requestId)).unwrap();
+      toast.success('Request rejected');
+      setSelectedRequest(null);
+    } catch (error) {
+      toast.error('Failed to reject request');
+    }
   };
 
-  const handleCancelConnection = (requestId) => {
-    setRequests(requests.map(req =>
-      req.id === requestId && req.status === 'Approved' 
-        ? { ...req, status: 'Cancelled' } 
-        : req
-    ));
-    setSelectedRequest(null);
+  const handleCancelConnection = async (requestId) => {
+    try {
+      await dispatch(cancelRequestWorkshop(requestId)).unwrap();
+      toast.success('Connection cancelled');
+      setSelectedRequest(null);
+    } catch (error) {
+      toast.error('Failed to cancel connection');
+    }
   };
 
   const getStatusStyle = (status) => {
     const styles = {
-      Pending: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      Approved: 'bg-green-100 text-green-700 border-green-300',
-      Rejected: 'bg-red-100 text-red-700 border-red-300',
-      Cancelled: 'bg-gray-100 text-gray-700 border-gray-300'
+      REQUESTED: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+      ACCEPTED: 'bg-green-100 text-green-700 border-green-300',
+      REJECTED: 'bg-red-100 text-red-700 border-red-300',
+      AUTO_REJECTED: 'bg-red-100 text-red-700 border-red-300',
+      CANCELLED: 'bg-gray-100 text-gray-700 border-gray-300',
+      EXPIRED: 'bg-gray-100 text-gray-700 border-gray-300'
     };
     return styles[status] || 'bg-gray-100 text-gray-700 border-gray-300';
   };
 
   const getStatusIcon = (status) => {
     const icons = {
-      Pending: <Clock className="w-4 h-4" />,
-      Approved: <CheckCircle className="w-4 h-4" />,
-      Rejected: <XCircle className="w-4 h-4" />,
-      Cancelled: <Ban className="w-4 h-4" />
+      REQUESTED: <Clock className="w-4 h-4" />,
+      ACCEPTED: <CheckCircle className="w-4 h-4" />,
+      REJECTED: <XCircle className="w-4 h-4" />,
+      AUTO_REJECTED: <XCircle className="w-4 h-4" />,
+      CANCELLED: <Ban className="w-4 h-4" />,
+      EXPIRED: <Ban className="w-4 h-4" />
     };
     return icons[status] || <Clock className="w-4 h-4" />;
   };
 
-  const filteredRequests = requests.filter(req =>
+  const filteredRequests = workshopRequests.filter(req =>
     filterStatus === 'All' || req.status === filterStatus
   );
 
   const sortedRequests = [...filteredRequests].sort((a, b) => {
     if (sortBy === 'newest') {
-      return new Date(b.date) - new Date(a.date);
+      return new Date(b.requested_at) - new Date(a.requested_at);
     } else if (sortBy === 'oldest') {
-      return new Date(a.date) - new Date(b.date);
+      return new Date(a.requested_at) - new Date(b.requested_at);
     } else if (sortBy === 'status') {
       return a.status.localeCompare(b.status);
     }
@@ -183,11 +111,15 @@ const WorkshopRequestList = () => {
   });
 
   const stats = {
-    total: requests.length,
-    pending: requests.filter(r => r.status === 'Pending').length,
-    approved: requests.filter(r => r.status === 'Approved').length,
-    rejected: requests.filter(r => r.status === 'Rejected').length
+    total: workshopRequests.length,
+    pending: workshopRequests.filter(r => r.status === 'REQUESTED').length,
+    approved: workshopRequests.filter(r => r.status === 'ACCEPTED').length,
+    rejected: workshopRequests.filter(r => ['REJECTED', 'AUTO_REJECTED'].includes(r.status)).length
   };
+
+  if (loading && workshopRequests.length === 0) {
+    return <div className="p-10 text-center">Loading requests...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 p-6">
@@ -275,10 +207,11 @@ const WorkshopRequestList = () => {
                   className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 appearance-none bg-white cursor-pointer"
                 >
                   <option value="All">All Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Cancelled">Cancelled</option>
+                  <option value="REQUESTED">Pending</option>
+                  <option value="ACCEPTED">Approved</option>
+                  <option value="REJECTED">Rejected</option>
+                  <option value="AUTO_REJECTED">Auto Rejected</option>
+                  <option value="CANCELLED">Cancelled</option>
                 </select>
               </div>
             </div>
@@ -300,12 +233,12 @@ const WorkshopRequestList = () => {
                           <User className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-gray-800">{request.userName}</h3>
+                          <h3 className="text-lg font-bold text-gray-800">{request.user_name}</h3>
                           <p className="text-sm text-gray-500 flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
-                            {new Date(request.date).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric', 
+                            {new Date(request.requested_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
@@ -316,18 +249,18 @@ const WorkshopRequestList = () => {
 
                       <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusStyle(request.status)}`}>
                         {getStatusIcon(request.status)}
-                        {request.status}
+                        {request.status.replace('_', ' ')}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-15">
                       <div className="flex items-center gap-2 text-gray-700">
                         <Car className="w-5 h-5 text-gray-400" />
-                        <span className="font-medium">{request.vehicleType}</span>
+                        <span className="font-medium">{request.service_request.vehicle_type}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-700">
                         <Wrench className="w-5 h-5 text-gray-400" />
-                        <span className="font-medium">{request.issueCategory}</span>
+                        <span className="font-medium">{request.service_request.issue_category}</span>
                       </div>
                     </div>
                   </div>
@@ -347,7 +280,7 @@ const WorkshopRequestList = () => {
           ))}
         </div>
 
-        {sortedRequests.length === 0 && (
+        {sortedRequests.length === 0 && !loading && (
           <div className="text-center py-12 bg-white rounded-xl shadow-md">
             <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-xl font-semibold text-gray-800 mb-2">No requests found</p>
@@ -379,7 +312,7 @@ const WorkshopRequestList = () => {
                       <User className="w-5 h-5 text-purple-600" />
                       <div>
                         <p className="text-sm text-gray-600">Customer Name</p>
-                        <p className="font-semibold text-gray-800">{selectedRequest.userName}</p>
+                        <p className="font-semibold text-gray-800">{selectedRequest.user_name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -387,7 +320,7 @@ const WorkshopRequestList = () => {
                       <div>
                         <p className="text-sm text-gray-600">Request Date</p>
                         <p className="font-semibold text-gray-800">
-                          {new Date(selectedRequest.date).toLocaleDateString()}
+                          {new Date(selectedRequest.requested_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -401,16 +334,10 @@ const WorkshopRequestList = () => {
                       <Car className="w-5 h-5 text-purple-600" />
                       <div>
                         <p className="text-sm text-gray-600">Vehicle Model</p>
-                        <p className="font-semibold text-gray-800">{selectedRequest.vehicleDetails.model}</p>
+                        <p className="font-semibold text-gray-800">{selectedRequest.service_request.vehicle_model}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm text-gray-600">Registration</p>
-                        <p className="font-semibold text-gray-800">{selectedRequest.vehicleDetails.registration}</p>
-                      </div>
-                    </div>
+                    {/* Add more unique details if available */}
                   </div>
                 </div>
 
@@ -418,38 +345,46 @@ const WorkshopRequestList = () => {
                   <h3 className="text-lg font-bold text-gray-800 mb-3">Issue Category</h3>
                   <div className="flex items-center gap-2 mb-3">
                     <Wrench className="w-5 h-5 text-purple-600" />
-                    <span className="font-semibold text-gray-800">{selectedRequest.issueCategory}</span>
+                    <span className="font-semibold text-gray-800">{selectedRequest.service_request.issue_category}</span>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-gray-700 leading-relaxed">{selectedRequest.description}</p>
+                    <p className="text-gray-700 leading-relaxed">{selectedRequest.service_request.description}</p>
                   </div>
                 </div>
 
-                {selectedRequest.photos.length > 0 && (
+                {selectedRequest.service_request.image_urls && selectedRequest.service_request.image_urls.length > 0 && (
                   <div>
                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                       <Image className="w-5 h-5 text-purple-600" />
                       Uploaded Photos
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {selectedRequest.photos.map((photo, index) => (
-                        <div 
-                          key={index} 
-                          className="relative aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer group"
-                          onClick={() => setEnlargedImage(photo)}
-                        >
-                          <img src={photo} alt={`Photo ${index + 1}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
-                            <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      {selectedRequest.service_request.image_urls.map((photo, index) => {
+                        if (typeof photo !== 'string') return null;
+                        return (
+                          <div
+                            key={index}
+                            className="relative aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer group bg-gray-100"
+                            onClick={() => setEnlargedImage(photo)}
+                          >
+                            <img
+                              src={photo}
+                              alt={`Issue Photo ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.target.onerror = null; e.target.src = 'https://via.placeholder.com/150?text=Error'; }}
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-300 flex items-center justify-center">
+                              <ZoomIn className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-4 pt-4 border-t border-gray-200">
-                  {selectedRequest.status === 'Pending' && (
+                  {selectedRequest.status === 'REQUESTED' && (
                     <>
                       <button
                         onClick={() => handleApprove(selectedRequest.id)}
@@ -468,7 +403,7 @@ const WorkshopRequestList = () => {
                     </>
                   )}
 
-                  {selectedRequest.status === 'Approved' && (
+                  {selectedRequest.status === 'ACCEPTED' && (
                     <button
                       onClick={() => handleCancelConnection(selectedRequest.id)}
                       className="flex-1 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg"
@@ -478,7 +413,7 @@ const WorkshopRequestList = () => {
                     </button>
                   )}
 
-                  {(selectedRequest.status === 'Rejected' || selectedRequest.status === 'Cancelled') && (
+                  {['REJECTED', 'CANCELLED', 'AUTO_REJECTED', 'EXPIRED'].includes(selectedRequest.status) && (
                     <div className="flex-1 text-center py-4 bg-gray-100 rounded-lg border-2 border-gray-300">
                       <p className="text-gray-600 font-semibold">No actions available</p>
                       <p className="text-sm text-gray-500 mt-1">This request has been {selectedRequest.status.toLowerCase()}</p>

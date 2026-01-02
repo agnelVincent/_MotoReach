@@ -23,7 +23,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/accounts/',include('accounts.urls')),
     path('api/admin-panel/',include('admin_panel.urls')),
-    path('api/service-request/',include('service_request.urls'))
+    path('api/service-request/',include('service_request.urls')),
+    path('api/stripe/', include('payments.urls'))
 ]
 
 if settings.DEBUG:

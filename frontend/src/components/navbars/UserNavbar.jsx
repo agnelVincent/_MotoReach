@@ -1,33 +1,32 @@
-import  { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Bell, Menu, X, Car, User, LogOut, Settings } from 'lucide-react';
-import { useAuthStatus } from '../../hooks/useAuthStatus'; 
-import { useNavigate } from 'react-router-dom';
+import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLogout } from '../../hooks/useLogout';
 
 const UserNavbar = () => {
-  const { isAuthenticated } = useAuthStatus(); // Use the authentication hook
+  const { isAuthenticated } = useAuthStatus();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false); // New state for profile dropdown
-  const [activeLink, setActiveLink] = useState('/');
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
-    { name: 'Home', path: '/' },
-    { name: 'Subscription', path: '/subscription' },
-    { name: 'Wallet', path: '/wallet' },
-    { name: 'Services', path: '/services' },
+    { name: 'Home', path: '/user' },
+    { name: 'Subscription', path: '/user/subscription' },
+    { name: 'Wallet', path: '/user/wallet' },
+    { name: 'Services', path: '/user/services' },
     { name: 'Contact Us', path: '/contact' },
   ];
 
-  const navigate = useNavigate()
-
   const handleNavClick = (path) => {
-    setActiveLink(path);
+    navigate(path);
     setIsMobileMenuOpen(false);
     setIsProfileMenuOpen(false);
   };
 
-  const isActive = (path) => activeLink === path;
+  const isActive = (path) => location.pathname === path;
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -36,10 +35,10 @@ const UserNavbar = () => {
 
   const toggleProfileMenu = () => {
     setIsProfileMenuOpen(!isProfileMenuOpen);
-    setIsMobileMenuOpen(false); 
+    setIsMobileMenuOpen(false);
   };
 
-  const {logout} = useLogout();
+  const { logout } = useLogout();
 
 
 
@@ -77,7 +76,7 @@ const UserNavbar = () => {
               Profile Page
             </button>
             <button
-              onClick={logout} 
+              onClick={logout}
               className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
             >
               <LogOut className="w-4 h-4 mr-3" />
@@ -155,11 +154,10 @@ const UserNavbar = () => {
               <button
                 key={link.path}
                 onClick={() => handleNavClick(link.path)}
-                className={`text-sm font-medium transition-all duration-300 relative ${
-                  isActive(link.path)
-                    ? 'text-blue-600'
-                    : 'text-gray-700 hover:text-blue-600'
-                }`}
+                className={`text-sm font-medium transition-all duration-300 relative ${isActive(link.path)
+                  ? 'text-blue-600'
+                  : 'text-gray-700 hover:text-blue-600'
+                  }`}
               >
                 {link.name}
                 {isActive(link.path) && (
@@ -218,11 +216,10 @@ const UserNavbar = () => {
               <button
                 key={link.path}
                 onClick={() => handleNavClick(link.path)}
-                className={`w-full text-left px-4 py-2.5 text-base font-medium rounded-lg transition-all duration-300 ${
-                  isActive(link.path)
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
-                }`}
+                className={`w-full text-left px-4 py-2.5 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600'
+                  }`}
               >
                 {link.name}
               </button>
