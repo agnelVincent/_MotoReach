@@ -5,7 +5,7 @@ export const initiatePlatformFeePayment = createAsyncThunk(
     "payment/initiatePlatformFee",
     async ({ serviceRequestId }, { rejectWithValue }) => {
         try {
-            const response = await axiosInstance.post("stripe/create-checkout-session/", {
+            const response = await axiosInstance.post("payments/create-checkout-session/", {
                 service_request_id: serviceRequestId,
             });
             return response.data;
@@ -19,13 +19,31 @@ export const initiatePlatformFeePayment = createAsyncThunk(
     }
 );
 
+export const payPlatformFeeWithWallet = createAsyncThunk(
+    "payment/payPlatformFeeWithWallet",
+    async ({ serviceRequestId }, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post("payments/wallet/pay-fee/", {
+                service_request_id: serviceRequestId,
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data?.error ||
+                error.response?.data?.message ||
+                "Failed to pay with wallet"
+            );
+        }
+    }
+);
+
 const paymentSlice = createSlice({
     name: "payment",
     initialState: {
         loading: false,
         error: null,
         checkoutUrl: null,
-        paymentStatus: 'idle', 
+        paymentStatus: 'idle',
     },
     reducers: {
         resetPaymentState: (state) => {
@@ -48,6 +66,21 @@ const paymentSlice = createSlice({
                 state.paymentStatus = 'succeeded';
             })
             .addCase(initiatePlatformFeePayment.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+                state.paymentStatus = 'failed';
+            })
+
+            .addCase(payPlatformFeeWithWallet.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+                state.paymentStatus = 'loading';
+            })
+            .addCase(payPlatformFeeWithWallet.fulfilled, (state) => {
+                state.loading = false;
+                state.paymentStatus = 'succeeded';
+            })
+            .addCase(payPlatformFeeWithWallet.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
                 state.paymentStatus = 'failed';

@@ -1,6 +1,8 @@
 import stripe
 from django.conf import settings
-from .models import Payment
+from django.db.models import F
+from .models import Wallet, WalletTransaction
+from django.db import transaction
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -22,26 +24,25 @@ def check_and_process_refund(service_request):
          return True, "Already refunded"
 
     try:
-        # Credit to Wallet
-        from .models import Wallet, WalletTransaction
-        
-        wallet, created = Wallet.objects.get_or_create(user=service_request.user)
-        wallet.balance += payment.amount
-        wallet.save()
 
-        # Log Transaction
-        WalletTransaction.objects.create(
-            wallet=wallet,
-            amount=payment.amount,
-            transaction_type='CREDIT',
-            description=f"Refund for Service Request #{service_request.id} (Expired/Unconnected)"
-        )
+        with transaction.atomic():
+            wallet, created = Wallet.objects.get_or_create(user=service_request.user)
+            wallet.balance = F('balance') + payment.amount
+            wallet.save()
+            
+            wallet.refresh_from_db()
 
-        # Mark Payment as Refunded
-        payment.status = 'REFUNDED'
-        payment.is_refunded = True
-        payment.refund_txn_id = f"WALLET-REFUND-{payment.id}" # Internal ID
-        payment.save()
+            WalletTransaction.objects.create(
+                wallet=wallet,
+                amount=payment.amount,
+                transaction_type='CREDIT',
+                description=f"Refund for Service Request #{service_request.id} (Expired/Unconnected)"
+            )
+
+            payment.status = 'REFUNDED'
+            payment.is_refunded = True
+            payment.refund_txn_id = f"WALLET-REFUND-{payment.id}" 
+            payment.save()
         
         return True, "Refund processed to Wallet"
 

@@ -8,7 +8,7 @@ const ExpirationTimer = ({ requestedAt }) => {
     useEffect(() => {
         const calculateTimeLeft = () => {
             const created = new Date(requestedAt);
-            const expires = new Date(created.getTime() + 60 * 60 * 1000); // 1 hour expiration
+            const expires = new Date(created.getTime() + 60 * 60 * 1000); 
             const now = new Date();
             const difference = expires - now;
 
@@ -19,7 +19,7 @@ const ExpirationTimer = ({ requestedAt }) => {
             }
 
             const minutes = Math.floor((difference / 1000 / 60) % 60);
-            const seconds = Math.floor((difference / 1000) % 60); // Keeping seconds for precision
+            const seconds = Math.floor((difference / 1000) % 60); 
             setTimeLeft(`${minutes}m ${seconds}s`);
         };
 

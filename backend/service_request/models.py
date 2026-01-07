@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
-
+from django.utils import timezone
+import datetime
 
 class ServiceRequest(models.Model):
     STATUS_CHOICES = [
@@ -41,22 +42,17 @@ class ServiceRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
-        from django.utils import timezone
-        import datetime
 
         is_new = self.pk is None
         
         if is_new:
-            # New request: expire in 30 minutes if fee not paid immediately (unlikely but good default)
             if not self.expires_at:
                  self.expires_at = timezone.now() + datetime.timedelta(minutes=30)
         
         else:
-            # Check if platform_fee_paid changed from False to True
             try:
                 old_instance = ServiceRequest.objects.get(pk=self.pk)
                 if not old_instance.platform_fee_paid and self.platform_fee_paid:
-                    # Fee just paid: extend to 7 days from now
                     self.expires_at = timezone.now() + datetime.timedelta(days=7)
             except ServiceRequest.DoesNotExist:
                 pass 

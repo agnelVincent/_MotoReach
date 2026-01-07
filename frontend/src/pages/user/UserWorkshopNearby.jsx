@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal, CheckCircle, AlertCircle, X, CreditCard, AlertTriangle, Clock } from 'lucide-react';
+import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal, CheckCircle, AlertCircle, X, CreditCard, AlertTriangle, Clock, Wallet } from 'lucide-react';
 import { fetchNearbyWorkshops, userCancelConnection, userConnectToWorkshop } from '../../redux/slices/serviceRequestSlice';
-import { initiatePlatformFeePayment } from '../../redux/slices/paymentSlice';
+
+import { initiatePlatformFeePayment, payPlatformFeeWithWallet } from '../../redux/slices/paymentSlice';
+import { fetchWallet } from '../../redux/slices/walletSlice';
 import { toast } from 'react-hot-toast';
 
 const UserWorkshopNearby = () => {
@@ -14,6 +16,7 @@ const UserWorkshopNearby = () => {
 
   const { nearbyWorkshops, currentRequest, loading } = useSelector((state) => state.serviceRequest);
   const { loading: paymentLoading } = useSelector((state) => state.payment);
+  const { balance } = useSelector((state) => state.wallet); // Get wallet balance
 
   const queryParams = new URLSearchParams(location.search);
   const paymentSuccess = queryParams.get('payment_success');
@@ -29,11 +32,13 @@ const UserWorkshopNearby = () => {
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' or 'wallet'
 
   useEffect(() => {
     if (!currentRequest || currentRequest.id !== parseInt(requestId)) {
       dispatch(fetchNearbyWorkshops(requestId));
     }
+    dispatch(fetchWallet()); // Fetch wallet balance
   }, [dispatch, requestId, currentRequest]);
 
   useEffect(() => {
@@ -82,36 +87,60 @@ const UserWorkshopNearby = () => {
   const handlePaymentConfirm = async () => {
     setIsProcessing(true);
     try {
-      const resultAction = await dispatch(initiatePlatformFeePayment({
-        serviceRequestId: currentRequest.id
-      }));
+      if (paymentMethod === 'wallet') {
+        const resultAction = await dispatch(payPlatformFeeWithWallet({
+          serviceRequestId: currentRequest.id
+        }));
 
-      if (initiatePlatformFeePayment.fulfilled.match(resultAction)) {
-        const data = resultAction.payload;
-
-        if (data.message === 'Platform fee already paid') {
+        if (payPlatformFeeWithWallet.fulfilled.match(resultAction)) {
+          const data = resultAction.payload;
+          toast.success("Payment successful!");
           await dispatch(fetchNearbyWorkshops(requestId));
+          await dispatch(fetchWallet()); // Refresh balance
           setShowPaymentModal(false);
-          await connectToWorkshop(selectedWorkshop.id);
+          if (selectedWorkshop) {
+            await connectToWorkshop(selectedWorkshop.id);
+          }
           setIsProcessing(false);
-          return;
+        } else {
+          toast.error(resultAction.payload || "Wallet payment failed.");
+          setIsProcessing(false);
         }
 
-        if (data.url) {
-          window.location.href = data.url;
-        }
       } else {
-        toast.error(resultAction.payload || "Failed to initiate payment. Please try again.");
-        setIsProcessing(false);
-        setShowPaymentModal(false);
+        // Stripe
+        const resultAction = await dispatch(initiatePlatformFeePayment({
+          serviceRequestId: currentRequest.id
+        }));
+
+        if (initiatePlatformFeePayment.fulfilled.match(resultAction)) {
+          const data = resultAction.payload;
+
+          if (data.message === 'Platform fee already paid') {
+            await dispatch(fetchNearbyWorkshops(requestId));
+            setShowPaymentModal(false);
+            await connectToWorkshop(selectedWorkshop.id);
+            setIsProcessing(false);
+            return;
+          }
+
+          if (data.url) {
+            window.location.href = data.url;
+          }
+        } else {
+          toast.error(resultAction.payload || "Failed to initiate payment. Please try again.");
+          setIsProcessing(false);
+          setShowPaymentModal(false);
+        }
       }
     } catch (error) {
-      console.error("Error creating checkout session:", error);
+      console.error("Error processing payment:", error);
       toast.error("An unexpected error occurred.");
       setIsProcessing(false);
       setShowPaymentModal(false);
     }
   };
+
 
   const connectToWorkshop = async (workshopId) => {
     try {
@@ -177,12 +206,38 @@ const UserWorkshopNearby = () => {
               To connect with <span className="font-semibold text-gray-800">{selectedWorkshop?.name}</span>, you need to pay a one-time platform fee. This allows you to connect with any workshop.
             </p>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
-                  <p className="font-semibold mb-1">Secure Payment</p>
-                  <p>Your payment is processed securely through Stripe. Connect with confidence.</p>
+            <div className="space-y-4 mb-6">
+              {/* Stripe Option */}
+              <div
+                onClick={() => setPaymentMethod('stripe')}
+                className={`bg-blue-50 border rounded-lg p-4 cursor-pointer transition-all ${paymentMethod === 'stripe' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-blue-100 hover:border-blue-300'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <CreditCard className={`w-5 h-5 flex-shrink-0 mt-0.5 ${paymentMethod === 'stripe' ? 'text-blue-600' : 'text-gray-500'}`} />
+                  <div className="text-sm">
+                    <p className={`font-semibold mb-1 ${paymentMethod === 'stripe' ? 'text-blue-800' : 'text-gray-700'}`}>Pay with Card</p>
+                    <p className="text-gray-500">Secure payment via Stripe Checkout.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Wallet Option */}
+              <div
+                onClick={() => setPaymentMethod('wallet')}
+                className={`bg-blue-50 border rounded-lg p-4 cursor-pointer transition-all ${paymentMethod === 'wallet' ? 'border-blue-500 ring-2 ring-blue-200' : 'border-blue-100 hover:border-blue-300'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <Wallet className={`w-5 h-5 flex-shrink-0 mt-0.5 ${paymentMethod === 'wallet' ? 'text-blue-600' : 'text-gray-500'}`} />
+                  <div className="text-sm w-full">
+                    <div className="flex justify-between">
+                      <p className={`font-semibold mb-1 ${paymentMethod === 'wallet' ? 'text-blue-800' : 'text-gray-700'}`}>Pay with Wallet</p>
+                      <span className="font-bold text-gray-800">${balance}</span>
+                    </div>
+                    <p className="text-gray-500">Use your available wallet balance.</p>
+                    {balance < 5.00 && ( // Assuming fee is $5.00, ideally fetch from config
+                      <p className="text-red-500 text-xs mt-1">Insufficient balance. Please top up.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

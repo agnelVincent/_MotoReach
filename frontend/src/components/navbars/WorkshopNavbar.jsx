@@ -25,7 +25,6 @@ const WorkshopNavbar = () => {
 
   const { logout } = useLogout()
 
-  // Close profile dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {

@@ -5,11 +5,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
-from .models import Payment
+from .models import Payment, Wallet, WalletTransaction
+from .serializers import WalletSerializer, WalletTransactionSerializer
 from service_request.models import ServiceRequest
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
+from django.db.models import F
+from django.db import transaction
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -111,7 +114,6 @@ class StripeWebhookView(APIView):
     def handle_checkout_session_completed(self, session):
         print(f"handle_checkout_session_completed called with session ID: {session['id']}")
         
-        # Retrieve payment
         try:
             payment = Payment.objects.get(stripe_checkout_id=session['id'])
             print(f"Payment found: {payment.id}, Status: {payment.status}, Service Request: {payment.service_request_id}")
@@ -124,7 +126,26 @@ class StripeWebhookView(APIView):
         payment.save()
         print(f"Payment updated to COMPLETED")
 
-        # Update Service Request
+        if session.get('metadata', {}).get('payment_type') == 'WALLET_TOPUP':
+            print(f"Processing wallet topup for user {payment.user.id}")
+            
+
+            with transaction.atomic():
+                wallet, created = Wallet.objects.get_or_create(user=payment.user)
+                wallet.balance = F('balance') + payment.amount
+                wallet.save()
+                
+                wallet.refresh_from_db() 
+
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=payment.amount,
+                    transaction_type='CREDIT',
+                    description=f"Added ${payment.amount:.2f} to wallet"
+                )
+            print(f"Wallet balance updated (Atomic)")
+            return
+
         if payment.service_request:
             print(f"Updating ServiceRequest {payment.service_request.id}")
             print(f"Before - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
@@ -138,3 +159,158 @@ class StripeWebhookView(APIView):
             print("WARNING: Payment has no associated service_request")
         
         print("=" * 50)
+
+
+class WalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet, created = Wallet.objects.get_or_create(user=request.user)
+        serializer = WalletSerializer(wallet)
+        return Response(serializer.data)
+
+
+class WalletTransactionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet, created = Wallet.objects.get_or_create(user=request.user)
+        transactions = wallet.transactions.all().order_by('-created_at')
+        
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 20))
+        start = (page - 1) * page_size
+        end = start + page_size
+        
+        paginated_transactions = transactions[start:end]
+        serializer = WalletTransactionSerializer(paginated_transactions, many=True)
+        
+        return Response({
+            'transactions': serializer.data,
+            'total': transactions.count(),
+            'page': page,
+            'page_size': page_size,
+            'has_more': end < transactions.count()
+        })
+
+
+class AddMoneyCheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Create Stripe checkout session for adding money to wallet"""
+        amount = request.data.get('amount')
+        
+        if not amount:
+            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return Response({'error': 'Amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+            if amount > 10000:  # Max limit
+                return Response({'error': 'Amount cannot exceed $10,000'}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': settings.STRIPE_CURRENCY,
+                            'unit_amount': int(amount * 100),
+                            'product_data': {
+                                'name': 'Add Money to Wallet',
+                                'description': f'Add ${amount:.2f} to your wallet balance',
+                            },
+                        },
+                        'quantity': 1,
+                    },
+                ],
+                mode='payment',
+                success_url='http://localhost:5173/user/wallet?add_money_success=true',
+                cancel_url='http://localhost:5173/user/wallet?add_money_canceled=true',
+                metadata={
+                    'user_id': request.user.id,
+                    'payment_type': 'WALLET_TOPUP',
+                    'amount': str(amount)
+                },
+            )
+            
+            # Create payment record
+            Payment.objects.create(
+                user=request.user,
+                amount=amount,
+                currency=settings.STRIPE_CURRENCY,
+                stripe_checkout_id=checkout_session.id,
+                payment_type='SUBSCRIPTION',  # Reusing existing type for wallet topup
+                status='PENDING'
+            )
+
+            return Response({'url': checkout_session.url})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PayPlatformFeeWithWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        service_request_id = request.data.get('service_request_id')
+        if not service_request_id:
+            return Response({'error': 'service_request_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            service_request = ServiceRequest.objects.get(id=service_request_id, user=request.user)
+        except ServiceRequest.DoesNotExist:
+            return Response({'error': 'Service Request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if service_request.platform_fee_paid:
+             return Response({'message': 'Platform fee already paid'}, status=status.HTTP_200_OK)
+
+        fee_amount = settings.STRIPE_PLATFORM_FEE_AMOUNT # Float
+
+        try:
+            with transaction.atomic():
+                wallet, created = Wallet.objects.get_or_create(user=request.user)
+                
+                # Check balance
+                if wallet.balance < fee_amount:
+                     return Response({'error': 'Insufficient wallet balance'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Deduct balance
+                wallet.balance = F('balance') - fee_amount
+                wallet.save()
+                
+                wallet.refresh_from_db()
+
+                # Record Transaction (Debit)
+                txn = WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=fee_amount,
+                    transaction_type='DEBIT',
+                    description=f"Platform Fee for Service Request #{service_request.id}"
+                )
+
+                # Create Payment Record
+                Payment.objects.create(
+                    user=request.user,
+                    service_request=service_request,
+                    amount=fee_amount,
+                    currency=settings.STRIPE_CURRENCY,
+                    stripe_checkout_id=f"WALLET-PAY-{txn.id}", # Internal ID
+                    payment_type='PLATFORM_FEE',
+                    status='COMPLETED'
+                )
+
+                # Update Service Request
+                service_request.platform_fee_paid = True
+                service_request.status = 'CONNECTING'
+                service_request.save()
+
+            return Response({'message': 'Payment successful', 'wallet_balance': wallet.balance}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

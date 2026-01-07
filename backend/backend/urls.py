@@ -24,7 +24,8 @@ urlpatterns = [
     path('api/accounts/',include('accounts.urls')),
     path('api/admin-panel/',include('admin_panel.urls')),
     path('api/service-request/',include('service_request.urls')),
-    path('api/stripe/', include('payments.urls'))
+    path('api/payments/', include('payments.urls')),
+    path('api/stripe/', include('payments.urls')), # Alias for backward compatibility with Stripe Webhooks
 ]
 
 if settings.DEBUG:
