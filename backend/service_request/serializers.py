@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from .models import ServiceRequest, WorkshopConnection
 from accounts.models import Workshop
-from math import radians, cos, sin, asin, sqrt
 
 import cloudinary.uploader
 
@@ -17,14 +16,27 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vehicle_type', 'vehicle_model', 'issue_category', 
             'description', 'image_urls', 'user_latitude', 'user_longitude',
-            'images', 'status', 'platform_fee_paid', 'active_connection', 'created_at'
+            'images', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection', 'created_at'
         ]
-        read_only_fields = ['id', 'image_urls', 'status', 'platform_fee_paid', 'active_connection']
+        read_only_fields = ['id', 'image_urls', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection']
 
     active_connection = serializers.SerializerMethodField()
+    latest_connection = serializers.SerializerMethodField()
+
+    def get_latest_connection(self, obj):
+        connection = WorkshopConnection.objects.filter(service_request=obj).order_by('-requested_at').first()
+        if connection:
+            return {
+                "id": connection.id,
+                "workshop_id": connection.workshop.id,
+                "workshop_name": connection.workshop.workshop_name,
+                "status": connection.status,
+                "requested_at": connection.requested_at,
+                "address": f"{connection.workshop.address_line}, {connection.workshop.city}",
+            }
+        return None
 
     def get_active_connection(self, obj):
-        # We look for connections that are active or requested
         active_connection = WorkshopConnection.objects.filter(
             service_request=obj
         ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED']).first()
@@ -38,7 +50,8 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                 "workshop_phone": str(active_connection.workshop.contact_number) if active_connection.workshop.contact_number else "N/A",
                 "address": f"{active_connection.workshop.address_line}, {active_connection.workshop.city}",
                 "latitude": active_connection.workshop.latitude,
-                "longitude": active_connection.workshop.longitude
+                "longitude": active_connection.workshop.longitude,
+                "requested_at": active_connection.requested_at
             }
         return None
 

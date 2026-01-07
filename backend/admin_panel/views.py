@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAdminUser
 from accounts.models import Workshop,User,Mechanic
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.db.models import F
+from django.db.models import Q
 
 
 class AdminDashboardStatsView(APIView):
@@ -26,7 +26,6 @@ class AdminDashboardStatsView(APIView):
             } for u in recent_signups
         ]
 
-        from django.db.models import Q
         pending_workshops = Workshop.objects.filter(Q(verification_status = 'PENDING') | Q(verification_status='REQUESTED_AGAIN'))
         pending_data = [
             {

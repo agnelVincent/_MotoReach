@@ -36,29 +36,55 @@ class BaseRegisterView(APIView):
     permission_classes = [AllowAny]
     serializer_class = None 
 
-    def post(self,request):
-        serializer = self.serializer_class(data = request.data)
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        
         if serializer.is_valid():
             try:
                 pending_user = serializer.save()
 
                 return Response(
                     {
-                        'message' : 'Registration successful. Please check your email for the OTP verification',
-                        'email' : pending_user.email,
-                        'role' : pending_user.role
+                        'message': 'Registration successful. Please check your email for the OTP verification.',
+                        'email': pending_user.email,
+                        'role': pending_user.role
                     },
-                    status = status.HTTP_201_CREATED
+                    status=status.HTTP_201_CREATED
                 )
             
             except Exception as e:
-                print(f'exception occured : {e}')
+                print(f'Registration exception: {e}')
+                # Provide more specific error if possible
+                error_message = str(e) if str(e) else "An unexpected error occurred during registration. Please try again."
                 return Response(
-                    {'error' : "An unexpected error occured during registration. Please try again"},
-                    status = status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {'error': error_message},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-        print(serializer.errors)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Format validation errors for better readability
+        print(f"Validation errors: {serializer.errors}")
+        
+        # Extract the first error message for user-friendly display
+        errors = serializer.errors
+        if isinstance(errors, dict):
+            # Get first field error
+            first_field = next(iter(errors.keys()))
+            first_error = errors[first_field]
+            
+            if isinstance(first_error, list) and len(first_error) > 0:
+                error_message = f"{first_field.replace('_', ' ').title()}: {first_error[0]}"
+            else:
+                error_message = str(first_error)
+            
+            return Response(
+                {'error': error_message, 'details': errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        return Response(
+            {'error': 'Invalid registration data. Please check your inputs.', 'details': errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 class UserRegisterView(BaseRegisterView):
     serializer_class = UserRegistrationSerializer
@@ -74,7 +100,21 @@ class VerifyOTPView(APIView):
 
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            # Return validation errors from serializer
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email']
         otp = serializer.validated_data['otp']
@@ -82,24 +122,54 @@ class VerifyOTPView(APIView):
 
         try:
             with transaction.atomic():
+                # Check if OTP record exists
+                try:
+                    otp_record = EmailOTP.objects.get(
+                        email=email,
+                        is_verified=False,
+                        purpose='registration'
+                    )
+                except EmailOTP.DoesNotExist:
+                    return Response(
+                        {'error': 'No OTP found for this email. Please request a new OTP or register again.'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
-                otp_record = EmailOTP.objects.get(
-                    email=email,
-                    is_verified=False,
-                    purpose='registration'
-                )
+                # Check if pending user exists
+                try:
+                    pending_user = PendingUser.objects.get(email=email)
+                except PendingUser.DoesNotExist:
+                    return Response(
+                        {'error': 'Registration session expired. Please register again.'},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
-                pending_user = PendingUser.objects.get(email=email)
+                # Verify role matches
+                if pending_user.role != role:
+                    return Response(
+                        {'error': f'Role mismatch. Please verify you selected the correct role: {pending_user.role}.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
+                # Check if OTP is expired
                 if otp_record.is_expired():
-                    raise serializers.ValidationError("OTP expired")
+                    return Response(
+                        {'error': 'OTP has expired. Please request a new OTP.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
+                # Verify OTP
                 if otp_record.otp != otp:
-                    raise serializers.ValidationError("Invalid OTP")
+                    return Response(
+                        {'error': 'Invalid OTP. Please check the code and try again.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
+                # Mark OTP as verified
                 otp_record.is_verified = True
                 otp_record.save()
 
+                # Create user account
                 user = User.objects.create_user(
                     email=pending_user.email,
                     full_name=pending_user.full_name,
@@ -108,6 +178,7 @@ class VerifyOTPView(APIView):
                     is_active=True
                 )
 
+                # Create role-specific profile
                 if user.role == 'workshop_admin':
                     Workshop.objects.create(
                         user=user,
@@ -130,19 +201,20 @@ class VerifyOTPView(APIView):
                         contact_number=pending_user.contact_number
                     )
 
+                # Clean up
                 pending_user.delete()
                 otp_record.delete()
 
                 return Response(
-                    {'message': 'Account created successfully. Please login'},
+                    {'message': 'Account created successfully. Please login to continue.'},
                     status=status.HTTP_201_CREATED
                 )
 
         except Exception as e:
-            print(e)
+            print(f"OTP Verification Error: {e}")
             return Response(
-                {'error': 'Registration failed. Please retry.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': f'Account creation failed: {str(e)}. Please try again or contact support.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
 
@@ -150,48 +222,108 @@ class ResendOTPView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = ResendOTPSerializer(data = request.data)
-        serializer.is_valid(raise_exception=True)
+        serializer = ResendOTPSerializer(data=request.data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email']
         role = serializer.validated_data['role']
     
         try:
-            pending_user = PendingUser.objects.get(email = email, role = role)
+            pending_user = PendingUser.objects.get(email=email, role=role)
         except PendingUser.DoesNotExist:
-            return Response({'error' : 'Pending registration not found'},status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'error': 'No pending registration found for this email and role. Please register first.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         
-        otp_record , status_ok, message = send_otp_mail(
-            email = pending_user.email,
-            full_name = pending_user.full_name,
-            role = pending_user.role
+        otp_record, status_ok, message = send_otp_mail(
+            email=pending_user.email,
+            full_name=pending_user.full_name,
+            role=pending_user.role
         )
 
         if status_ok:
-            return Response({"message":message},status=status.HTTP_200_OK)
+            return Response({"message": message}, status=status.HTTP_200_OK)
         else:
-            return Response({'error' : message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
         
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = CustomTokenObtainPairSerializer
+    
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data = request.data)
-
+        email = request.data.get('email', '')
+        password = request.data.get('password', '')
+        
+        # Check if user exists
+        try:
+            user = User.objects.get(email=email)
+            
+            # Check if account is blocked
+            if not user.is_active:
+                return Response(
+                    {'error': 'Your account has been blocked. Please contact support for assistance.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'No account found with this email address. Please check your email or register.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Validate credentials
+        serializer = self.serializer_class(data=request.data)
+        
         try:
             serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            # Check if it's a password error
+            if user and not user.check_password(password):
+                return Response(
+                    {'error': 'Incorrect password. Please try again or use "Forgot Password" to reset.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            # Return the actual validation error
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                # Get the first error message
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(e)
-            return Response({'error':'Invalid credentials'},status=status.HTTP_400_BAD_REQUEST)
+            print(f"Login error: {e}")
+            return Response(
+                {'error': 'An unexpected error occurred. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         data = serializer.validated_data
 
         response_data = {
-            'access' : data['access'],
-             'full_name' : data['full_name'],
-             'role' : data['role'],
-             'email' : data['email']
+            'access': data['access'],
+            'full_name': data['full_name'],
+            'role': data['role'],
+            'email': data['email']
         }
         
         if 'workshop_status' in data:
@@ -200,16 +332,14 @@ class LoginView(TokenObtainPairView):
         response = Response(response_data, status=status.HTTP_200_OK)
 
         response.set_cookie(
-            key = settings.SIMPLE_JWT['AUTH_COOKIE'],
-            value = data['refresh'],
+            key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+            value=data['refresh'],
             expires=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-            secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+            secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
             httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
             samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-            path = '/'
+            path='/'
         )
-
-        print(response)
 
         return response
     

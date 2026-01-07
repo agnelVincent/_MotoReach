@@ -56,7 +56,6 @@ class CreateCheckoutSessionView(APIView):
                 },
             )
             
-            # Create pending payment record
             Payment.objects.create(
                 user=request.user,
                 service_request=service_request,
@@ -75,6 +74,7 @@ class CreateCheckoutSessionView(APIView):
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         payload = request.body

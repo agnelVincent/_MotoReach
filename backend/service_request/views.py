@@ -7,6 +7,7 @@ from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, Wor
 from django.utils import timezone
 from datetime import timedelta
 from math import radians, cos, sin, asin, sqrt
+from .utils import check_request_expiration
 
 
 def calculate_distance(lat1, long1, lat2, long2):
@@ -19,6 +20,27 @@ def calculate_distance(lat1, long1, lat2, long2):
     c = 2 * asin(sqrt(a))
 
     return R * c
+
+def check_expired_connections(queryset):
+    expiration_threshold = timezone.now() - timedelta(hours=1) 
+    
+    expired_requests = queryset.filter(
+        status='REQUESTED', 
+        requested_at__lt=expiration_threshold
+    )
+    
+    updated_count = 0
+    for conn in expired_requests:
+        conn.status = 'AUTO_REJECTED'
+        conn.responded_at = timezone.now()
+        conn.save()
+
+        if conn.service_request.status == 'CONNECTING':
+            conn.service_request.status = 'FEE_PAID'
+            conn.service_request.save()
+        updated_count += 1
+    
+    return updated_count
 
 class CreateServiceRequestView(generics.CreateAPIView):
     serializer_class = ServiceRequestSerializer
@@ -64,6 +86,9 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         
+        check_request_expiration(instance)
+        instance.refresh_from_db()
+
         u_lat = instance.user_latitude
         u_lon = instance.user_longitude
         
@@ -104,7 +129,20 @@ class UserServiceRequestListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
+        qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
+        
+        user_connections = WorkshopConnection.objects.filter(
+            service_request__in=qs,
+            status='REQUESTED'
+        )
+        check_expired_connections(user_connections)
+        
+        for req in qs:
+            check_request_expiration(req)
+            
+        qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
+
+        return qs
 
 class ConnectWorkshopView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -124,6 +162,9 @@ class ConnectWorkshopView(APIView):
         if not service_request.platform_fee_paid:
              return Response({"error": "Platform fee not paid"}, status=status.HTTP_400_BAD_REQUEST)
         
+        if service_request.status == 'EXPIRED':
+             return Response({"error": "This service request has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        
         existing_connection = WorkshopConnection.objects.filter(
             service_request=service_request, 
             status__in=['REQUESTED', 'ACCEPTED']
@@ -132,7 +173,6 @@ class ConnectWorkshopView(APIView):
         if existing_connection:
             return Response({"error": "You already have an active connection request for this service."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Limit the sending connection request for the same request, same workshop to 3
         previous_attempts = WorkshopConnection.objects.filter(
             service_request=service_request,
             workshop=workshop
@@ -154,9 +194,7 @@ class ConnectWorkshopView(APIView):
 
 
 class WorkshopConnectionRequestsView(APIView):
-    """
-    List all connection requests for the authenticated workshop
-    """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -168,22 +206,7 @@ class WorkshopConnectionRequestsView(APIView):
         except AttributeError:
             return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
         
-        # Lazy Expiration Logic: Check for expired requests (e.g., older than 1 hour)
-        expiration_threshold = timezone.now() - timedelta(hours=1)
-        expired_requests = WorkshopConnection.objects.filter(
-            workshop=workshop, 
-            status='REQUESTED', 
-            requested_at__lt=expiration_threshold
-        )
-        
-        for conn in expired_requests:
-            conn.status = 'AUTO_REJECTED'
-            conn.responded_at = timezone.now()
-            conn.save()
-
-            if conn.service_request.status == 'CONNECTING':
-                conn.service_request.status = 'FEE_PAID'
-                conn.service_request.save()
+        check_expired_connections(WorkshopConnection.objects.filter(workshop=workshop))
 
         connections = WorkshopConnection.objects.filter(workshop=workshop).order_by('-requested_at')
         serializer = WorkshopConnectionSerializer(connections, many=True)

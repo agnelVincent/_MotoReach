@@ -26,19 +26,19 @@ class BaseRegistrationSerializer(serializers.Serializer):
     password = serializers.CharField(max_length = 128, style = {'input_type' : 'password'})
     confirm_password = serializers.CharField(max_length = 128, style ={'input_type' : 'password'})
 
-    def validate_email(self,value):
-        if User.objects.filter(email = value).exists():
-            raise serializers.ValidationError('An account with this email already exists')
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('An account with this email already exists. Please login or use a different email.')
         return value
     
-    def validate_password(self,value):
+    def validate_password(self, value):
         if len(value) < 8:
-            raise serializers.ValidationError('Password must contain atleast 8 letters')
+            raise serializers.ValidationError('Password must be at least 8 characters long.')
         return value
     
-    def validate(self,data):
+    def validate(self, data):
         if data['password'] != data['confirm_password']:
-            raise serializers.ValidationError({'confirm_password':'Passwords does not match'})
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match. Please ensure both passwords are identical.'})
         data.pop('confirm_password')
         return data
 

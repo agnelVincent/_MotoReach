@@ -86,7 +86,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated', 
+        'rest_framework.permissions.AllowAny', 
     )
 }
 
@@ -198,7 +198,7 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
 STRIPE_CURRENCY = os.environ.get("STRIPE_CURRENCY", "usd")
-STRIPE_PLATFORM_FEE_AMOUNT = float(os.environ.get("STRIPE_PLATFORM_FEE_AMOUNT", "5.00"))  # Default $5.00
-PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS = int(os.environ.get("PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS", "3"))  # Minimum 3 workshop connection attempts
+STRIPE_PLATFORM_FEE_AMOUNT = float(os.environ.get("STRIPE_PLATFORM_FEE_AMOUNT", "5.00")) 
+PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS = int(os.environ.get("PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS", "3")) 
 
 stripe.api_key = STRIPE_SECRET_KEY

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { fetchUserServiceRequests, userCancelConnection, deleteServiceRequest } from '../../redux/slices/serviceRequestSlice';
 import { CheckCircle, AlertCircle, Clock, MapPin, Wrench, XCircle, Shield, Trash2, Plus, AlertTriangle, FileX } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import ExpirationTimer from '../../components/ExpirationTimer';
 
 const UserServices = () => {
     const dispatch = useDispatch();
@@ -83,15 +84,15 @@ const UserServices = () => {
                         <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
                             <Trash2 className="w-8 h-8 text-red-600" />
                         </div>
-                        
+
                         <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
                             Delete Service Request
                         </h3>
-                        
+
                         <p className="text-gray-600 text-center mb-4">
                             Are you sure you want to delete this service request for <span className="font-semibold text-gray-800">{selectedRequestDetails?.vehicle_model}</span>?
                         </p>
-                        
+
                         <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                             <div className="flex items-start gap-3">
                                 <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -101,7 +102,7 @@ const UserServices = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowDeleteModal(false)}
@@ -139,15 +140,15 @@ const UserServices = () => {
                         <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mx-auto mb-4">
                             <XCircle className="w-8 h-8 text-orange-600" />
                         </div>
-                        
+
                         <h3 className="text-2xl font-bold text-gray-800 text-center mb-2">
                             Cancel Connection
                         </h3>
-                        
+
                         <p className="text-gray-600 text-center mb-4">
                             Are you sure you want to cancel the connection with <span className="font-semibold text-gray-800">{selectedRequestDetails?.active_connection?.workshop_name}</span>?
                         </p>
-                        
+
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                             <div className="flex items-start gap-3">
                                 <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -157,7 +158,7 @@ const UserServices = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowCancelModal(false)}
@@ -280,9 +281,9 @@ const UserServices = () => {
                                                 {new Date(request.created_at).toLocaleDateString()}
                                             </span>
                                             <span className="text-gray-300">•</span>
-                                            <span className="text-orange-600 font-medium">
+                                            {/* <span className="text-orange-600 font-medium">
                                                 Expires: {new Date(new Date(request.created_at).getTime() + 5 * 60 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
+                                            </span> */}
                                         </p>
                                     </div>
                                     <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider w-fit
@@ -290,41 +291,84 @@ const UserServices = () => {
                                             request.status === 'FEE_PAID' ? 'bg-indigo-100 text-indigo-700' :
                                                 request.status === 'CONNECTING' ? 'bg-purple-100 text-purple-700' :
                                                     request.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-gray-100 text-gray-700'}`}>
+                                                        request.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
+                                                            'bg-gray-100 text-gray-700'}`}>
                                         {request.status.replace('_', ' ')}
                                     </div>
                                 </div>
 
                                 <div className="text-gray-600 text-sm mb-4 bg-gray-50 rounded-lg p-4">
                                     <p className="font-semibold mb-2 flex items-center gap-2 text-gray-700">
-                                        <Wrench className="w-4 h-4 text-blue-600" /> 
+                                        <Wrench className="w-4 h-4 text-blue-600" />
                                         {request.issue_category}
                                     </p>
                                     <p className="text-gray-600 leading-relaxed">{request.description}</p>
                                 </div>
+                                {request.status === 'EXPIRED' && request.platform_fee_paid && (
+                                    <div className="bg-red-50 p-4 rounded-xl mb-4 border border-red-100 flex items-start gap-3">
+                                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                                        <div>
+                                            <h4 className="font-bold text-red-800">Request Expired</h4>
+                                            {request.active_connection?.status === 'ACCEPTED' ? (
+                                                <p className="text-sm text-red-700 mt-1">
+                                                    This request has expired. Since a workshop accepted your request, the platform fee is not refundable.
+                                                </p>
+                                            ) : (
+                                                <p className="text-sm text-red-700 mt-1">
+                                                    This request has expired as no workshop was connected within 7 days.
+                                                    The platform fee has been refunded to your wallet.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {request.status === 'EXPIRED' && !request.platform_fee_paid && (
+                                    <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200 flex items-start gap-3">
+                                        <Clock className="w-5 h-5 text-gray-500 mt-0.5" />
+                                        <div>
+                                            <h4 className="font-bold text-gray-700">Request Expired</h4>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                This request expired because the fee was not paid within 30 minutes.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
-                                {request.active_connection && (
+                                {request.active_connection ? (
                                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl mb-4 border border-blue-200 shadow-sm">
-                                        <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-3 flex items-center gap-2">
-                                            <Shield className="w-4 h-4" /> Connected Workshop
+                                        <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-3 flex items-center justify-between">
+                                            <span className="flex items-center gap-2"><Shield className="w-4 h-4" /> Connected Workshop</span>
+                                            {request.status === 'CONNECTING' && request.active_connection.requested_at && (
+                                                <ExpirationTimer requestedAt={request.active_connection.requested_at} />
+                                            )}
                                         </h4>
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div className="flex-1">
                                                 <p className="font-bold text-gray-800 text-lg mb-1">{request.active_connection.workshop_name}</p>
                                                 <p className="text-sm text-gray-600 flex items-center gap-1">
-                                                    <MapPin className="w-4 h-4 text-blue-600" /> 
+                                                    <MapPin className="w-4 h-4 text-blue-600" />
                                                     {request.active_connection.address}
-                                                </p>
-                                            </div>
-                                            <div className="bg-white px-5 py-3 rounded-lg border border-blue-200 shadow-sm">
-                                                <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Contact</p>
-                                                <p className="font-mono text-gray-800 font-bold text-lg">
-                                                    {request.status === 'CONNECTING' ? 'Pending...' : request.active_connection.workshop_phone}
                                                 </p>
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                ) : request.latest_connection && request.latest_connection.status === 'AUTO_REJECTED' ? (
+                                    <div className="bg-red-50 p-5 rounded-xl mb-4 border border-red-200 shadow-sm">
+                                        <h4 className="text-xs font-bold text-red-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                                            <AlertCircle className="w-4 h-4" /> Auto Rejected
+                                        </h4>
+                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="flex-1">
+                                                <p className="text-gray-700 text-sm mb-1">
+                                                    Request to <span className="font-bold">{request.latest_connection.workshop_name}</span> was auto-rejected due to no response.
+                                                </p>
+                                                <p className="text-sm text-gray-500">
+                                                    Please try connecting to another workshop.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
 
                                 <div className="flex flex-wrap gap-3">
                                     {(request.status === 'CREATED' || request.status === 'FEE_PAID') && (
@@ -374,8 +418,8 @@ const UserServices = () => {
                             </div>
                             <p className="text-gray-500 text-xl font-semibold mb-2">No service requests found</p>
                             <p className="text-gray-400 mb-6">Get started by creating your first service request</p>
-                            <button 
-                                onClick={() => navigate('/user/request')} 
+                            <button
+                                onClick={() => navigate('/user/request')}
                                 className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg inline-flex items-center gap-2"
                             >
                                 <Plus className="w-5 h-5" />

@@ -102,6 +102,20 @@ export const userCancelConnection = createAsyncThunk(
   }
 );
 
+export const userConnectToWorkshop = createAsyncThunk(
+  'serviceRequest/userConnectToWorkshop',
+  async ({ requestId, workshopId }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/${requestId}/connect/`, {
+        workshop_id: workshopId
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to connect to workshop");
+    }
+  }
+);
+
 export const deleteServiceRequest = createAsyncThunk(
   'serviceRequest/deleteServiceRequest',
   async (requestId, { rejectWithValue }) => {
@@ -208,6 +222,16 @@ const serviceRequestSlice = createSlice({
         if (index !== -1) {
           state.userRequests[index].status = 'FEE_PAID'; // Reset to fee paid
         }
+      })
+      .addCase(userConnectToWorkshop.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(userConnectToWorkshop.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(userConnectToWorkshop.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(deleteServiceRequest.fulfilled, (state, action) => {
         state.loading = false;

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal, CheckCircle, AlertCircle, X, CreditCard, AlertTriangle } from 'lucide-react';
-import { fetchNearbyWorkshops, userCancelConnection } from '../../redux/slices/serviceRequestSlice';
-import axiosInstance from '../../api/axiosInstance';
+import { MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal, CheckCircle, AlertCircle, X, CreditCard, AlertTriangle, Clock } from 'lucide-react';
+import { fetchNearbyWorkshops, userCancelConnection, userConnectToWorkshop } from '../../redux/slices/serviceRequestSlice';
+import { initiatePlatformFeePayment } from '../../redux/slices/paymentSlice';
 import { toast } from 'react-hot-toast';
 
 const UserWorkshopNearby = () => {
@@ -13,6 +13,7 @@ const UserWorkshopNearby = () => {
   const { requestId } = useParams();
 
   const { nearbyWorkshops, currentRequest, loading } = useSelector((state) => state.serviceRequest);
+  const { loading: paymentLoading } = useSelector((state) => state.payment);
 
   const queryParams = new URLSearchParams(location.search);
   const paymentSuccess = queryParams.get('payment_success');
@@ -23,7 +24,6 @@ const UserWorkshopNearby = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('distance');
 
-  // Modal states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
@@ -82,24 +82,32 @@ const UserWorkshopNearby = () => {
   const handlePaymentConfirm = async () => {
     setIsProcessing(true);
     try {
-      const response = await axiosInstance.post('stripe/create-checkout-session/', {
-        service_request_id: currentRequest.id
-      });
+      const resultAction = await dispatch(initiatePlatformFeePayment({
+        serviceRequestId: currentRequest.id
+      }));
 
-      if (response.data.message === 'Platform fee already paid') {
-        await dispatch(fetchNearbyWorkshops(requestId));
-        setShowPaymentModal(false);
-        await connectToWorkshop(selectedWorkshop.id);
+      if (initiatePlatformFeePayment.fulfilled.match(resultAction)) {
+        const data = resultAction.payload;
+
+        if (data.message === 'Platform fee already paid') {
+          await dispatch(fetchNearbyWorkshops(requestId));
+          setShowPaymentModal(false);
+          await connectToWorkshop(selectedWorkshop.id);
+          setIsProcessing(false);
+          return;
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        }
+      } else {
+        toast.error(resultAction.payload || "Failed to initiate payment. Please try again.");
         setIsProcessing(false);
-        return;
-      }
-
-      if (response.data.url) {
-        window.location.href = response.data.url;
+        setShowPaymentModal(false);
       }
     } catch (error) {
       console.error("Error creating checkout session:", error);
-      toast.error(error.response?.data?.error || "Failed to initiate payment. Please try again.");
+      toast.error("An unexpected error occurred.");
       setIsProcessing(false);
       setShowPaymentModal(false);
     }
@@ -107,14 +115,12 @@ const UserWorkshopNearby = () => {
 
   const connectToWorkshop = async (workshopId) => {
     try {
-      await axiosInstance.post(`service-request/${requestId}/connect/`, {
-        workshop_id: workshopId
-      });
+      await dispatch(userConnectToWorkshop({ requestId, workshopId })).unwrap();
       toast.success("Connection request sent successfully!");
       dispatch(fetchNearbyWorkshops(requestId));
     } catch (error) {
       console.error("Error connecting to workshop:", error);
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || "Failed to connect. Please try again.";
+      const errorMessage = error.error || error.message || (typeof error === 'string' ? error : "Failed to connect. Please try again.");
       toast.error(errorMessage);
     }
   };
@@ -263,6 +269,32 @@ const UserWorkshopNearby = () => {
           </div>
         </div>
       )}
+
+      {/* Expired Overlay/Message */}
+      {
+        currentRequest?.status === 'EXPIRED' && (
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-40 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 text-center border border-gray-200">
+              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Clock className="w-10 h-10 text-red-600" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">Request Expired</h2>
+              <p className="text-gray-600 text-lg mb-8">
+                This service request has expired and is no longer active.
+                {currentRequest.platform_fee_paid
+                  ? " The platform fee has been refunded to your wallet."
+                  : " Please create a new request to continue."}
+              </p>
+              <button
+                onClick={() => navigate('/user/services')}
+                className="px-8 py-3 bg-gray-900 text-white font-semibold rounded-xl hover:bg-gray-800 transition-colors"
+              >
+                Back to Services
+              </button>
+            </div>
+          </div>
+        )
+      }
 
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -494,7 +526,7 @@ const UserWorkshopNearby = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
