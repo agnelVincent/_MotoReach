@@ -21,16 +21,7 @@ const MechanicFindWorkshop = ({ currentWorkshop }) => {
         }
     }, [searchTerm, dispatch]);
 
-    useEffect(() => {
-        if (successMessage) {
-            toast.success(successMessage);
-            dispatch(clearMessages());
-        }
-        if (error) {
-            toast.error(error);
-            dispatch(clearMessages());
-        }
-    }, [successMessage, error, dispatch]);
+
 
     const handleConnect = (workshopId) => {
         if (currentWorkshop?.joining_status === 'PENDING') {
