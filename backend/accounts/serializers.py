@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.core.validators import RegexValidator
-from .models import PendingUser,User,Workshop
+from .models import PendingUser,User,Workshop,Mechanic
 from .utils import send_otp_mail
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -287,3 +287,18 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         validate_password(value)
         return value
+
+class WorkshopSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Workshop
+        fields = ['id', 'workshop_name', 'city', 'locality', 'address_line', 'rating_avg', 'contact_number']
+
+class MechanicRequestSerializer(serializers.ModelSerializer):
+    mechanic_name = serializers.CharField(source='user.full_name')
+    email = serializers.EmailField(source='user.email')
+    mechanic_id = serializers.IntegerField(source='id')
+    user_id = serializers.IntegerField(source='user.id')
+
+    class Meta:
+        model = Mechanic
+        fields = ['mechanic_id', 'user_id', 'mechanic_name', 'email', 'contact_number', 'joining_status', 'created_at']

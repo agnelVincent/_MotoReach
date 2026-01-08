@@ -7,6 +7,7 @@ import userManagementReducer from './slices/userManagementSlice'
 import serviceRequestReducer from './slices/serviceRequestSlice'
 import paymentReducer from './slices/paymentSlice'
 import walletReducer from './slices/walletSlice'
+import workshopMechanicReducer from './slices/workshopMechanicSlice'
 
 export const store = configureStore({
     reducer: {
@@ -17,6 +18,7 @@ export const store = configureStore({
         userManagement: userManagementReducer,
         serviceRequest: serviceRequestReducer,
         payment: paymentReducer,
-        wallet: walletReducer
+        wallet: walletReducer,
+        workshopMechanic: workshopMechanicReducer
     }
 })

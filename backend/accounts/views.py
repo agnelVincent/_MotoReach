@@ -11,8 +11,11 @@ from .serializers import (
     ForgotPasswordSendOtpSerializer, 
     ProfileUpdateSerializer, 
     ChangePasswordSerializer,    
-    CookieTokenRefreshSerializer
+    CookieTokenRefreshSerializer,
+    WorkshopSearchSerializer,
+    MechanicRequestSerializer
 )
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -613,3 +616,193 @@ class WorkshopReApplyView(APIView):
                  return Response({'error': 'Cannot re-apply. Status is not rejected.'}, status=status.HTTP_400_BAD_REQUEST)
         except Workshop.DoesNotExist:
             return Response({'error': 'Workshop profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class WorkshopSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.GET.get('query', '').strip()
+        if not query:
+            return Response([], status=status.HTTP_200_OK)
+        
+        workshops = Workshop.objects.filter(
+            Q(workshop_name__icontains=query) | Q(city__icontains=query)
+        ).exclude(verification_status='REJECTED') # Should we filter active?
+
+        serializer = WorkshopSearchSerializer(workshops, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class MechanicJoinRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'mechanic':
+            return Response({'error': 'Only mechanics can perform this action'}, status=status.HTTP_403_FORBIDDEN)
+        
+        workshop_id = request.data.get('workshop_id')
+        if not workshop_id:
+             return Response({'error': 'Workshop ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            mechanic = request.user.mechanic
+            # Rule: Cannot apply if we have a workshop in Accepted or Pending state?
+            # Model allows one workshop.
+            if mechanic.workshop and mechanic.joining_status == 'ACCEPTED':
+                 return Response({'error': 'You are already working with a workshop. Please leave before joining another.'}, status=status.HTTP_400_BAD_REQUEST)
+
+             # If pending, we update it? Or validation error?
+            if mechanic.workshop and mechanic.joining_status == 'PENDING':
+                # Allow changing request?
+                pass 
+            
+            workshop = Workshop.objects.get(id=workshop_id)
+            
+            mechanic.workshop = workshop
+            mechanic.joining_status = 'PENDING'
+            mechanic.save()
+            return Response({'message': 'Joining request sent successfully'}, status=status.HTTP_200_OK)
+
+        except Workshop.DoesNotExist:
+             return Response({'error': 'Workshop not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class WorkshopMechanicRequestsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'workshop_admin':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = request.user.workshop
+            requests = Mechanic.objects.filter(workshop=workshop, joining_status='PENDING')
+            serializer = MechanicRequestSerializer(requests, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class WorkshopMechanicActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'workshop_admin':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        mechanic_id = request.data.get('mechanic_id')
+        action = request.data.get('action') # APPROVE, REJECT
+
+        if not mechanic_id or action not in ['APPROVE', 'REJECT']:
+             return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            workshop = request.user.workshop
+            mechanic = Mechanic.objects.get(id=mechanic_id, workshop=workshop)
+            
+            if action == 'APPROVE':
+                mechanic.joining_status = 'ACCEPTED'
+                mechanic.save()
+                return Response({'message': 'Mechanic approved successfully'}, status=status.HTTP_200_OK)
+            elif action == 'REJECT':
+                mechanic.joining_status = 'REJECTED'
+                mechanic.workshop = None # Logic: unlink? Or keep history?
+                # If we unlink, the mechanic won't see "Rejected" status if we rely on getting by workshop.
+                # However, mechanic model has 'joining_status'. If workshop is None, status is meaningless?
+                # Better: Keep workshop as None but maybe we can't store status then?
+                # Logic: Set joining_status = REJECTED. Keep Workshop FK?
+                # If we keep Workshop FK, mechanic is linked to workshop as REJECTED.
+                # Then mechanic knows who rejected.
+                # But they should be able to apply elsewhere.
+                # If they apply elsewhere, FK changes.
+                # So keeping FK is fine for now until they apply elsewhere.
+                mechanic.save()
+                return Response({'message': 'Mechanic rejected'}, status=status.HTTP_200_OK)
+        
+        except Mechanic.DoesNotExist:
+             return Response({'error': 'Mechanic request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class WorkshopMyMechanicsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'workshop_admin':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            workshop = request.user.workshop
+            mechanics = Mechanic.objects.filter(workshop=workshop, joining_status='ACCEPTED')
+            serializer = MechanicRequestSerializer(mechanics, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class MechanicCurrentWorkshopView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'mechanic':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            mechanic = request.user.mechanic
+            workshop = mechanic.workshop
+            
+            if not workshop:
+                return Response(None, status=status.HTTP_200_OK)
+            
+            data = {
+                'id': workshop.id,
+                'workshop_name': workshop.workshop_name,
+                'address_line': workshop.address_line,
+                'city': workshop.city,
+                'locality': workshop.locality,
+                'contact_number': workshop.contact_number,
+                'rating_avg': workshop.rating_avg,
+                'joining_status': mechanic.joining_status
+            }
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class MechanicLeaveWorkshopView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'mechanic':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            mechanic = request.user.mechanic
+            if not mechanic.workshop:
+                 return Response({'error': 'You are not connected to any workshop'}, status=status.HTTP_400_BAD_REQUEST)
+
+            mechanic.workshop = None
+            mechanic.joining_status = 'PENDING' 
+            mechanic.save()
+            return Response({'message': 'Left workshop successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class WorkshopRemoveMechanicView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'workshop_admin':
+             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        mechanic_id = request.data.get('mechanic_id')
+        if not mechanic_id:
+             return Response({'error': 'Mechanic ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            workshop = request.user.workshop
+            # Only remove if they are indeed in this workshop
+            mechanic = Mechanic.objects.get(id=mechanic_id, workshop=workshop)
+            
+            mechanic.workshop = None
+            mechanic.joining_status = 'PENDING' 
+            mechanic.save()
+            return Response({'message': 'Mechanic removed successfully'}, status=status.HTTP_200_OK)
+        except Mechanic.DoesNotExist:
+             return Response({'error': 'Mechanic not found in your workshop'}, status=status.HTTP_404_NOT_FOUND)

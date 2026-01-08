@@ -14,7 +14,17 @@ from .views import (
     ProfileView, 
     ChangePasswordView, 
     CookieTokenRefeshView,
-    WorkshopReApplyView
+    WorkshopReApplyView,
+    WorkshopSearchView,
+    MechanicJoinRequestView,
+    WorkshopMechanicRequestsView,
+    WorkshopMechanicActionView,
+    WorkshopMechanicRequestsView,
+    WorkshopMechanicActionView,
+    WorkshopMyMechanicsView,
+    MechanicCurrentWorkshopView,
+    MechanicLeaveWorkshopView,
+    WorkshopRemoveMechanicView
 )
 
 
@@ -33,5 +43,15 @@ urlpatterns = [
     path('forgot-password/reset/', ForgotPasswordResetView.as_view(), name='forgot_password_reset'),
     path("profile/", ProfileView.as_view(), name="profile"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
-    path("reapply-workshop/", WorkshopReApplyView.as_view(), name="reapply-workshop")
+    path("reapply-workshop/", WorkshopReApplyView.as_view(), name="reapply-workshop"),
+    
+    path("workshops/search/", WorkshopSearchView.as_view(), name="search-workshops"),
+    path("mechanic/join/", MechanicJoinRequestView.as_view(), name="mechanic-join"),
+    path("mechanic/leave/", MechanicLeaveWorkshopView.as_view(), name="mechanic-leave"),
+    path("mechanic/current-workshop/", MechanicCurrentWorkshopView.as_view(), name="mechanic-current-workshop"),
+    
+    path("workshop/mechanic-requests/", WorkshopMechanicRequestsView.as_view(), name="workshop-mechanic-requests"),
+    path("workshop/mechanic-requests/action/", WorkshopMechanicActionView.as_view(), name="workshop-mechanic-action"),
+    path("workshop/mechanics/", WorkshopMyMechanicsView.as_view(), name="workshop-my-mechanics"),
+    path("workshop/mechanic/remove/", WorkshopRemoveMechanicView.as_view(), name="workshop-remove-mechanic"),
 ]

@@ -90,8 +90,8 @@ const MechanicNavbar = () => {
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
-                      ? 'text-orange-600 bg-orange-50'
-                      : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
+                    ? 'text-orange-600 bg-orange-50'
+                    : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
                     }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -135,8 +135,8 @@ const MechanicNavbar = () => {
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
                         className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-gray-700 hover:bg-gray-50'
+                          ? 'text-red-600 hover:bg-red-50'
+                          : 'text-gray-700 hover:bg-gray-50'
                           }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -182,8 +182,8 @@ const MechanicNavbar = () => {
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
-                      ? 'bg-orange-50 text-orange-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+                    ? 'bg-orange-50 text-orange-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -204,8 +204,8 @@ const MechanicNavbar = () => {
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-gray-700 hover:bg-gray-50'
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     <Icon className="w-5 h-5" />

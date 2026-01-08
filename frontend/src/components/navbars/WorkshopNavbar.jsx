@@ -14,7 +14,7 @@ const WorkshopNavbar = () => {
     { name: 'Dashboard', path: '/workshop', icon: LayoutDashboard },
     { name: 'Requests', path: '/workshop/requests', icon: FileText },
     { name: 'Wallet', path: '/workshop/wallet', icon: Wallet },
-    { name: 'Mechanics', path: '/workshop/mechanics', icon: Users },
+    { name: 'Mechanics', path: '/workshop/team', icon: Users },
     { name: 'Payment', path: '/workshop/payment', icon: CreditCard },
   ];
 
