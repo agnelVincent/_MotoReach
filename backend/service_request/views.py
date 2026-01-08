@@ -36,7 +36,7 @@ def check_expired_connections(queryset):
         conn.save()
 
         if conn.service_request.status == 'CONNECTING':
-            conn.service_request.status = 'FEE_PAID'
+            conn.service_request.status = 'PLATFORM_FEE_PAID'
             conn.service_request.save()
         updated_count += 1
     
@@ -237,7 +237,7 @@ class AcceptConnectionRequestView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
 
-        connection.service_request.status = 'IN_PROGRESS'
+        connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
 
         return Response({"message": "Connection request accepted successfully"}, status=status.HTTP_200_OK)
@@ -267,7 +267,7 @@ class RejectConnectionRequestView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
 
-        connection.service_request.status = 'FEE_PAID'
+        connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
 
         return Response({"message": "Connection request rejected successfully"}, status=status.HTTP_200_OK)
@@ -298,7 +298,7 @@ class CancelConnectionRequestView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
         
-        connection.service_request.status = 'FEE_PAID'
+        connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
 
         return Response({"message": "Connection cancelled successfully"}, status=status.HTTP_200_OK)
@@ -326,7 +326,7 @@ class UserCancelConnectionView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
         
-        connection.service_request.status = 'FEE_PAID'
+        connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
         
         return Response({"message": "Connection cancelled"}, status=status.HTTP_200_OK)

@@ -6,8 +6,11 @@ import datetime
 class ServiceRequest(models.Model):
     STATUS_CHOICES = [
         ('CREATED','Created'),
-        ('FEE_PAID','Platform Fee Paid'),
+        ('PLATFORM_FEE_PAID','Platform Fee Paid'),
         ('CONNECTING','Connecting Workshops'),
+        ('CONNECTED','Connected'),
+        ('ESTIMATE_SHARED','Estimate Shared'),
+        ('SERVICE_AMOUNT_PAID','Service Amount Paid'),
         ('IN_PROGRESS','In Progress'),
         ('COMPLETED', 'Completed'),
         ('VERIFIED','Verified'),
