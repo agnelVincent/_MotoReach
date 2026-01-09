@@ -69,7 +69,8 @@ class WorkshopConnection(models.Model):
         ('ACCEPTED','Accepted'),
         ('REJECTED','Rejected'),
         ('AUTO_REJECTED','Auto Rejected'),
-        ('CANCELLED','Cancelled')
+        ('CANCELLED','Cancelled'),
+        ('WITHDRAWN', 'Withdrawn')
     ]
 
     CANCELLED_BY_CHOICES = [

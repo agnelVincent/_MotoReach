@@ -6,6 +6,7 @@ import UserRequest from "../../pages/user/UserRequest";
 import UserWorkshopNearby from "../../pages/user/UserWorkshopNearby";
 import UserServices from "../../pages/user/UserServices";
 import UserWallet from "../../pages/user/UserWallet";
+import UserServiceFlow from "../../pages/user/UserServiceFlow";
 
 function UserRoute() {
     return (

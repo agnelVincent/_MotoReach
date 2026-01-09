@@ -127,8 +127,11 @@ const WorkshopRegister = () => {
 
     const allErrors = {
         ...clientErrors,
-        ...(typeof error === 'object' && error !== null ? error : {})
+        ...(typeof error === 'object' && error && error.details ? error.details : {}),
+        ...(typeof error === 'object' && error && !error.details ? error : {})
     };
+
+    const displayError = typeof error === 'string' ? error : (error?.error || error?.detail);
 
     const getError = (camelCaseKey, snakeCaseKey) => {
         if (allErrors[camelCaseKey]) return allErrors[camelCaseKey];
@@ -140,13 +143,13 @@ const WorkshopRegister = () => {
 
     return (
         <form className="space-y-5" onSubmit={handleSubmit}>
-            {typeof error === 'string' && (
+            {displayError && (
                 <div className="mb-6 p-4 rounded-lg flex flex-col gap-2 bg-red-50 text-red-800 border border-red-200">
                     <div className="flex items-center gap-2 font-semibold">
                         <AlertCircle className="w-5 h-5 flex-shrink-0" />
                         Registration Failed
                     </div>
-                    <p className="text-sm">{error}</p>
+                    <p className="text-sm">{displayError}</p>
                 </div>
             )}
 

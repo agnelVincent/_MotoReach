@@ -220,7 +220,7 @@ const serviceRequestSlice = createSlice({
         // Find the request in userRequests and update its status
         const index = state.userRequests.findIndex(r => r.id === action.payload.serviceRequestId);
         if (index !== -1) {
-          state.userRequests[index].status = 'FEE_PAID'; // Reset to fee paid
+          state.userRequests[index].status = 'PLATFORM_FEE_PAID'; // Reset to fee paid
         }
       })
       .addCase(userConnectToWorkshop.pending, (state) => {

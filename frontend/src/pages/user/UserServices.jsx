@@ -256,7 +256,7 @@ const UserServices = () => {
                                 <div>
                                     <p className="text-sm text-gray-600 mb-1">Pending Action</p>
                                     <p className="text-3xl font-bold text-orange-600">
-                                        {userRequests.filter(r => r.status === 'CREATED' || r.status === 'FEE_PAID').length}
+                                        {userRequests.filter(r => r.status === 'CREATED' || r.status === 'PLATFORM_FEE_PAID').length}
                                     </p>
                                 </div>
                                 <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -288,7 +288,7 @@ const UserServices = () => {
                                     </div>
                                     <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider w-fit
                                          ${request.status === 'CREATED' ? 'bg-blue-100 text-blue-700' :
-                                            request.status === 'FEE_PAID' ? 'bg-indigo-100 text-indigo-700' :
+                                            request.status === 'PLATFORM_FEE_PAID' ? 'bg-indigo-100 text-indigo-700' :
                                                 request.status === 'CONNECTING' ? 'bg-purple-100 text-purple-700' :
                                                     request.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
                                                         request.status === 'EXPIRED' ? 'bg-red-100 text-red-700' :
@@ -371,7 +371,7 @@ const UserServices = () => {
                                 ) : null}
 
                                 <div className="flex flex-wrap gap-3">
-                                    {(request.status === 'CREATED' || request.status === 'FEE_PAID') && (
+                                    {(request.status === 'CREATED' || request.status === 'PLATFORM_FEE_PAID') && (
                                         <button
                                             onClick={() => navigate(`/user/workshops-nearby/${request.id}`)}
                                             className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
@@ -390,13 +390,13 @@ const UserServices = () => {
                                         </button>
                                     )}
 
-                                    {(request.status === 'CONNECTING' || request.status === 'IN_PROGRESS') && (
+                                    {['CONNECTING', 'CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'].includes(request.status) && (
                                         <div className="flex gap-3 flex-wrap w-full sm:w-auto">
                                             <button
                                                 disabled
                                                 className="flex-1 sm:flex-none px-6 py-2.5 bg-gray-100 text-gray-500 rounded-lg font-semibold cursor-not-allowed border-2 border-gray-200"
                                             >
-                                                {request.status === 'IN_PROGRESS' ? '✓ Connected to Workshop' : '⏳ Awaiting Response'}
+                                                {request.status === 'CONNECTING' ? '⏳ Awaiting Response' : '✓ Connected to Workshop'}
                                             </button>
 
                                             <button

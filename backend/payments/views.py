@@ -198,7 +198,6 @@ class AddMoneyCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """Create Stripe checkout session for adding money to wallet"""
         amount = request.data.get('amount')
         
         if not amount:
@@ -208,7 +207,7 @@ class AddMoneyCheckoutView(APIView):
             amount = float(amount)
             if amount <= 0:
                 return Response({'error': 'Amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
-            if amount > 10000:  # Max limit
+            if amount > 10000:  
                 return Response({'error': 'Amount cannot exceed $10,000'}, status=status.HTTP_400_BAD_REQUEST)
         except (ValueError, TypeError):
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
@@ -239,13 +238,12 @@ class AddMoneyCheckoutView(APIView):
                 },
             )
             
-            # Create payment record
             Payment.objects.create(
                 user=request.user,
                 amount=amount,
                 currency=settings.STRIPE_CURRENCY,
                 stripe_checkout_id=checkout_session.id,
-                payment_type='SUBSCRIPTION',  # Reusing existing type for wallet topup
+                payment_type='SUBSCRIPTION',  
                 status='PENDING'
             )
 
@@ -286,7 +284,6 @@ class PayPlatformFeeWithWalletView(APIView):
                 
                 wallet.refresh_from_db()
 
-                # Record Transaction (Debit)
                 txn = WalletTransaction.objects.create(
                     wallet=wallet,
                     amount=fee_amount,

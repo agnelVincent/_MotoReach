@@ -74,10 +74,18 @@ class BaseRegisterView(APIView):
             first_field = next(iter(errors.keys()))
             first_error = errors[first_field]
             
+            error_message = ""
             if isinstance(first_error, list) and len(first_error) > 0:
-                error_message = f"{first_field.replace('_', ' ').title()}: {first_error[0]}"
+                raw_msg = first_error[0]
             else:
-                error_message = str(first_error)
+                raw_msg = str(first_error)
+
+            if first_field == 'non_field_errors':
+                error_message = raw_msg
+            else:
+                # Make field name readable
+                readable_field = first_field.replace('_', ' ').title()
+                error_message = f"{readable_field}: {raw_msg}"
             
             return Response(
                 {'error': error_message, 'details': errors},
@@ -288,18 +296,18 @@ class LoginView(TokenObtainPairView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Validate credentials
+        # Validate credentials manually to provide specific error messages
+        if not user.check_password(password):
+             return Response(
+                {'error': 'Incorrect password. Please try again or use "Forgot Password" to reset.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         serializer = self.serializer_class(data=request.data)
         
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            # Check if it's a password error
-            if user and not user.check_password(password):
-                return Response(
-                    {'error': 'Incorrect password. Please try again or use "Forgot Password" to reset.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
             # Return the actual validation error
             error_detail = e.detail
             if isinstance(error_detail, dict):
@@ -315,6 +323,7 @@ class LoginView(TokenObtainPairView):
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"Login error: {e}")
+            # If AuthenticationFailed occurs here despite manual check, it's weird, but handle it
             return Response(
                 {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -645,17 +654,16 @@ class MechanicJoinRequestView(APIView):
         
         try:
             mechanic = request.user.mechanic
-            # Rule: Cannot apply if we have a workshop in Accepted or Pending state?
-            # Model allows one workshop.
             if mechanic.workshop and mechanic.joining_status == 'ACCEPTED':
                  return Response({'error': 'You are already working with a workshop. Please leave before joining another.'}, status=status.HTTP_400_BAD_REQUEST)
 
-             # If pending, we update it? Or validation error?
             if mechanic.workshop and mechanic.joining_status == 'PENDING':
-                # Allow changing request?
-                pass 
+                return Response({'error' : 'workshop hasnt approved yet'},status=status.HTTP_400_BAD_REQUEST)
             
             workshop = Workshop.objects.get(id=workshop_id)
+
+            if workshop.type == 'INDIVIDUAL':
+                 return Response({'error': 'Individual workshops cannot accept team members. You can only join Team workshops.'}, status=status.HTTP_400_BAD_REQUEST)
             
             mechanic.workshop = workshop
             mechanic.joining_status = 'PENDING'

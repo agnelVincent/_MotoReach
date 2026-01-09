@@ -109,7 +109,7 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
         
         active_connection = WorkshopConnection.objects.filter(
             service_request=instance
-        ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED']).first()
+        ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED', 'WITHDRAWN']).first()
         
         connection_data = None
         if active_connection:
@@ -321,8 +321,13 @@ class UserCancelConnectionView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
              
-        connection.status = 'CANCELLED'
-        connection.cancelled_by = 'USER'
+        if connection.status == 'REQUESTED':
+            connection.status = 'WITHDRAWN'
+            connection.cancelled_by = 'USER'
+        else:
+             connection.status = 'CANCELLED'
+             connection.cancelled_by = 'USER'
+
         connection.responded_at = timezone.now()
         connection.save()
         

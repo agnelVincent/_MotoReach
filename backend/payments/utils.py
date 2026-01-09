@@ -11,11 +11,10 @@ def check_and_process_refund(service_request):
     if not service_request.platform_fee_paid:
         return False, "Fee not paid"
 
-    # Rule: If any workshop accepted, NO refund.
-    if service_request.connections.filter(status='ACCEPTED').exists():
-        return False, "Workshop accepted - Not eligible for refund"
+    if service_request.connections.filter(status__in=['ACCEPTED', 'CANCELLED']).exists():
+        return False, "Workshop connected at least once - Not eligible for refund"
 
-    # Check for Payment
+
     payment = service_request.payments.filter(payment_type='PLATFORM_FEE', status='COMPLETED').first()
     if not payment:
         return False, "Payment transaction not found"
