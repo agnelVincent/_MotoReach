@@ -1,9 +1,9 @@
 from rest_framework import status, generics, permissions, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ServiceRequest, WorkshopConnection
-from accounts.models import Workshop
-from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer
+from .models import ServiceRequest, WorkshopConnection, ServiceExecution
+from accounts.models import Workshop, Mechanic
+from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer, ServiceExecutionMechanicSerializer
 from django.utils import timezone
 from datetime import timedelta
 from math import radians, cos, sin, asin, sqrt
@@ -240,6 +240,14 @@ class AcceptConnectionRequestView(APIView):
         connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
 
+        # Create Service Execution Record
+        ServiceExecution.objects.create(
+            service_request=connection.service_request,
+            workshop=workshop,
+            assigned_to=request.user,  # Default assignment to Admin
+            estimate_amount=0
+        )
+
         return Response({"message": "Connection request accepted successfully"}, status=status.HTTP_200_OK)
 
 
@@ -361,3 +369,93 @@ class DeleteServiceRequestView(APIView):
 
         service_request.delete()
         return Response({"message": "Service request deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class WorkshopMechanicsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        if request.user.role != 'workshop_admin':
+             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+             mechanics = Mechanic.objects.filter(workshop=request.user.workshop)
+             serializer = ServiceExecutionMechanicSerializer(mechanics, many=True)
+             return Response(serializer.data)
+        except Exception as e:
+             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AssignMechanicView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        
+        mechanic_id = request.data.get('mechanic_id')
+        if not mechanic_id:
+             return Response({"error": "Mechanic ID required"}, status=status.HTTP_400_BAD_REQUEST)
+             
+        try:
+            service_request = ServiceRequest.objects.get(pk=pk)
+            
+            # Get execution
+            try:
+                execution = service_request.execution
+            except ServiceExecution.DoesNotExist:
+                 # Should fallback create if missing for some reason
+                 execution = ServiceExecution.objects.create(
+                    service_request=service_request,
+                    workshop=request.user.workshop,
+                    assigned_to=request.user,
+                    estimate_amount=0
+                 )
+
+            if execution.workshop != request.user.workshop:
+                 return Response({"error": "Unauthorized for this service"}, status=status.HTTP_403_FORBIDDEN)
+
+            mechanic = Mechanic.objects.get(pk=mechanic_id, workshop=request.user.workshop)
+            
+            if mechanic in execution.mechanics.all():
+                 return Response({"message": "Mechanic already assigned"}, status=status.HTTP_200_OK)
+            
+            execution.mechanics.add(mechanic)
+            mechanic.availability = 'BUSY'
+            mechanic.save()
+            
+            return Response({"message": "Mechanic assigned successfully"})
+            
+        except ServiceRequest.DoesNotExist:
+             return Response({"error": "Service Request not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Mechanic.DoesNotExist:
+             return Response({"error": "Mechanic not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class RemoveMechanicView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role != 'workshop_admin':
+             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+             
+        mechanic_id = request.data.get('mechanic_id')
+        
+        try:
+             service_request = ServiceRequest.objects.get(pk=pk)
+             execution = service_request.execution
+             
+             if execution.workshop != request.user.workshop:
+                  return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                  
+             mechanic = Mechanic.objects.get(pk=mechanic_id)
+             
+             if mechanic in execution.mechanics.all():
+                  execution.mechanics.remove(mechanic)
+                  mechanic.availability = 'AVAILABLE'
+                  mechanic.save()
+                  
+             return Response({"message": "Mechanic removed successfully"})
+             
+        except Exception as e:
+             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

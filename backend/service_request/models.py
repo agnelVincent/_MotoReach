@@ -94,8 +94,9 @@ class ServiceExecution(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE, related_name='execution')
 
     workshop = models.ForeignKey('accounts.Workshop', on_delete=models.CASCADE, related_name='executions')
-
+    
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_services')
+    mechanics = models.ManyToManyField('accounts.Mechanic', blank=True, related_name='assigned_executions')
 
     estimate_amount = models.DecimalField(max_digits=10, decimal_places=2)
 

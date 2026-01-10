@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchWorkshopRequests,
@@ -66,6 +67,7 @@ const ExpirationTimer = ({ requestedAt }) => {
 
 const WorkshopRequestList = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { workshopRequests, loading } = useSelector((state) => state.serviceRequest);
 
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -445,13 +447,22 @@ const WorkshopRequestList = () => {
                   )}
 
                   {selectedRequest.status === 'ACCEPTED' && (
-                    <button
-                      onClick={() => handleCancelConnection(selectedRequest.id)}
-                      className="flex-1 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg"
-                    >
-                      <Ban className="w-5 h-5" />
-                      Cancel Connection
-                    </button>
+                    <>
+                      <button
+                        onClick={() => navigate(`/workshop/service-flow/${selectedRequest.service_request.id}`)}
+                        className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg"
+                      >
+                        <Wrench className="w-5 h-5" />
+                        Track Service
+                      </button>
+                      <button
+                        onClick={() => handleCancelConnection(selectedRequest.id)}
+                        className="flex-1 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-md hover:shadow-lg"
+                      >
+                        <Ban className="w-5 h-5" />
+                        Cancel Connection
+                      </button>
+                    </>
                   )}
 
                   {['REJECTED', 'CANCELLED', 'AUTO_REJECTED', 'EXPIRED'].includes(selectedRequest.status) && (

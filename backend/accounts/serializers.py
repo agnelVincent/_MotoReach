@@ -301,4 +301,4 @@ class MechanicRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Mechanic
-        fields = ['mechanic_id', 'user_id', 'mechanic_name', 'email', 'contact_number', 'joining_status', 'created_at']
+        fields = ['mechanic_id', 'user_id', 'mechanic_name', 'email', 'contact_number', 'availability', 'joining_status', 'created_at']

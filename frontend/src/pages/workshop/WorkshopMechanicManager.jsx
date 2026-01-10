@@ -139,9 +139,17 @@ const WorkshopMechanicManager = () => {
                                                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-gray-600">
                                                         {mechanic.mechanic_name.charAt(0)}
                                                     </div>
-                                                    <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100">
-                                                        Active
-                                                    </span>
+                                                    <div className="flex gap-2">
+                                                        <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100">
+                                                            Active
+                                                        </span>
+                                                        <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${mechanic.availability === 'AVAILABLE'
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                                : 'bg-orange-50 text-orange-700 border-orange-100'
+                                                            }`}>
+                                                            {mechanic.availability === 'AVAILABLE' ? 'Available' : 'Busy'}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 <h3 className="text-lg font-bold text-gray-900 mb-1">{mechanic.mechanic_name}</h3>

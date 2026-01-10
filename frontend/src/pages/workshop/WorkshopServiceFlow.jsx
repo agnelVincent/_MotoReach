@@ -1,31 +1,38 @@
-import React, { useState } from 'react';
-import { 
-  CheckCircle, 
-  Phone, 
-  Send, 
-  User, 
-  Mail, 
-  UserMinus,
-  UserPlus,
-  DollarSign,
-  Shield,
-  AlertCircle,
-  FileCheck,
-  CreditCard,
-  Wrench,
-  Clock,
-  Link2,
-  Key,
-  Eye,
-  EyeOff
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
+import {
+  CheckCircle, Phone, Send, User, Mail, UserMinus, UserPlus, DollarSign,
+  Shield, AlertCircle, FileCheck, CreditCard, Wrench, Link2, Key, Eye, EyeOff, X
 } from 'lucide-react';
+import {
+  fetchNearbyWorkshops,
+  fetchWorkshopMechanics,
+  assignMechanic,
+  removeMechanic
+} from '../../redux/slices/serviceRequestSlice';
+import { toast } from 'react-hot-toast';
 
 const WorkshopServiceFlow = () => {
-  const [currentStatus] = useState('CONNECTED');
+  const { requestId } = useParams();
+  const dispatch = useDispatch();
+
+  const { currentRequest, mechanics: workshopMechanics, loading } = useSelector((state) => state.serviceRequest);
+
   const [messageInput, setMessageInput] = useState('');
   const [estimateAmount, setEstimateAmount] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [showOtp, setShowOtp] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  useEffect(() => {
+    if (requestId) {
+      dispatch(fetchNearbyWorkshops(requestId));
+      dispatch(fetchWorkshopMechanics());
+    }
+  }, [dispatch, requestId]);
+
+  const currentStatus = currentRequest?.status || 'CREATED';
 
   const statusFlow = [
     { key: 'CREATED', label: 'Request Created', icon: FileCheck },
@@ -37,31 +44,6 @@ const WorkshopServiceFlow = () => {
     { key: 'IN_PROGRESS', label: 'Service In Progress', icon: Wrench },
     { key: 'COMPLETED', label: 'Service Completed', icon: CheckCircle },
     { key: 'VERIFIED', label: 'Verified & Closed', icon: Shield }
-  ];
-
-  const messages = [
-    { id: 1, sender: 'user', text: 'Hello! When can you start the service?', time: '10:35 AM' },
-    { id: 2, sender: 'workshop', text: 'We can start tomorrow morning. The estimated cost is ₹2,500.', time: '10:40 AM' },
-    { id: 3, sender: 'user', text: 'That works for me. Please proceed.', time: '10:45 AM' },
-    { id: 4, sender: 'workshop', text: 'Perfect! We will send you the detailed estimate shortly.', time: '10:50 AM' },
-    { id: 5, sender: 'user', text: 'Thank you!', time: '10:52 AM' }
-  ];
-
-  const servicePersonnel = [
-    {
-      id: 1,
-      name: 'Ramesh Patel',
-      role: 'Workshop Admin',
-      contact: '+91 98765 43210',
-      email: 'ramesh@autofix.com'
-    },
-    {
-      id: 2,
-      name: 'Vikram Singh',
-      role: 'Assigned Mechanic',
-      contact: '+91 98765 43211',
-      email: 'vikram@autofix.com'
-    }
   ];
 
   const getCurrentStatusIndex = () => {
@@ -82,65 +64,72 @@ const WorkshopServiceFlow = () => {
     setShowOtp(true);
   };
 
+  const handleAssignMechanic = async (mechanicId) => {
+    try {
+      await dispatch(assignMechanic({ serviceRequestId: requestId, mechanicId })).unwrap();
+      toast.success("Mechanic assigned successfully");
+      setShowAssignModal(false);
+    } catch (error) {
+      toast.error(error.message || "Failed to assign");
+    }
+  };
+
+  const handleRemoveMechanic = async (mechanicId) => {
+    if (window.confirm("Are you sure you want to remove this mechanic?")) {
+      try {
+        await dispatch(removeMechanic({ serviceRequestId: requestId, mechanicId })).unwrap();
+        toast.success("Mechanic removed successfully");
+      } catch (error) {
+        toast.error(error.message || "Failed to remove");
+      }
+    }
+  };
+
+  if (loading && !currentRequest) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  const execution = currentRequest?.execution;
+  const leadTechnician = execution?.lead_technician;
+  const assignedMechanics = execution?.mechanics || [];
+
+  // Filter mechanics available for assignment (exclude already assigned)
+  const availableMechanics = workshopMechanics.filter(m =>
+    m.availability === 'AVAILABLE' &&
+    !assignedMechanics.some(am => am.id === m.id)
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 p-4 sm:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
             Service Management Dashboard
           </h1>
-          <p className="text-gray-600">Request ID: #SRV-2024-001 | Customer: Rajesh Kumar</p>
+          <p className="text-gray-600">Request ID: #{requestId} | User: {currentRequest?.user_name || 'Customer'}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
+        {/* Status Flow */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 overflow-x-auto">
           <h2 className="text-xl font-bold text-gray-800 mb-6">Service Progress</h2>
-          <div className="relative">
-            <div className="hidden md:flex items-center justify-between">
-              {statusFlow.map((status, index) => {
-                const Icon = status.icon;
-                const completed = isStatusCompleted(index);
-                const current = isStatusCurrent(index);
-                
-                return (
-                  <div key={status.key} className="flex-1 flex items-center">
-                    <div className="flex flex-col items-center flex-1">
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 ${
-                        completed ? 'bg-green-500' : current ? 'bg-purple-600' : 'bg-gray-300'
-                      }`}>
-                        <Icon className="w-7 h-7 text-white" />
-                      </div>
-                      <p className={`text-xs text-center mt-3 font-medium ${
-                        completed || current ? 'text-gray-800' : 'text-gray-400'
-                      }`}>
-                        {status.label}
-                      </p>
-                    </div>
-                    {index < statusFlow.length - 1 && (
-                      <div className={`flex-1 h-1 mx-2 ${
-                        completed ? 'bg-green-500' : 'bg-gray-300'
-                      }`}></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="min-w-[800px] md:min-w-0">
+            <div className="flex items-center justify-between relative">
+              {/* Connecting Line */}
+              <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-0" />
 
-            <div className="md:hidden space-y-3">
               {statusFlow.map((status, index) => {
                 const Icon = status.icon;
                 const completed = isStatusCompleted(index);
                 const current = isStatusCurrent(index);
-                
+
                 return (
-                  <div key={status.key} className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      completed ? 'bg-green-500' : current ? 'bg-purple-600' : 'bg-gray-300'
-                    }`}>
-                      <Icon className="w-5 h-5 text-white" />
+                  <div key={status.key} className="relative z-10 flex flex-col items-center flex-1">
+                    <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-white ${completed ? 'bg-green-500' : current ? 'bg-purple-600 shadow-lg scale-110' : 'bg-gray-300'
+                      }`}>
+                      <Icon className={`w-5 h-5 md:w-7 md:h-7 text-white`} />
                     </div>
-                    <p className={`font-medium ${
-                      completed || current ? 'text-gray-800' : 'text-gray-400'
-                    }`}>
+                    <p className={`text-[10px] md:text-xs text-center mt-2 font-bold px-1 ${completed || current ? 'text-gray-900' : 'text-gray-400'
+                      }`}>
                       {status.label}
                     </p>
                   </div>
@@ -151,6 +140,7 @@ const WorkshopServiceFlow = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* Messages Section - Placeholder */}
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" style={{ height: '600px' }}>
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -158,37 +148,14 @@ const WorkshopServiceFlow = () => {
                   <User className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-white font-bold">Rajesh Kumar</h3>
-                  <p className="text-purple-100 text-xs">Customer</p>
+                  <h3 className="text-white font-bold">In-App Chat</h3>
+                  <p className="text-purple-100 text-xs">Communication Channel</p>
                 </div>
               </div>
-              <button className="p-2 bg-white bg-opacity-20 rounded-full hover:bg-opacity-30 transition-all duration-300">
-                <Phone className="w-5 h-5 text-white" />
-              </button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'workshop' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[70%] ${
-                    message.sender === 'workshop'
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  } rounded-2xl px-4 py-3`}>
-                    <p className="text-sm">{message.text}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.sender === 'workshop' ? 'text-purple-100' : 'text-gray-500'
-                    }`}>
-                      {message.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <p className="text-gray-400 italic">Chat feature coming soon...</p>
             </div>
-
             <div className="border-t border-gray-200 p-4">
               <div className="flex gap-3">
                 <input
@@ -196,64 +163,84 @@ const WorkshopServiceFlow = () => {
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   placeholder="Type your message..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
-                <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 flex items-center gap-2">
+                <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
                   <Send className="w-5 h-5" />
                 </button>
               </div>
             </div>
           </div>
 
+          {/* Side Panel */}
           <div className="space-y-6">
+            {/* Personnel */}
             <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">Service Personnel</h3>
-              
-              <div className="space-y-4">
-                {servicePersonnel.map((person) => (
-                  <div key={person.id} className="bg-gradient-to-br from-gray-50 to-purple-50 rounded-xl p-4 border border-purple-100">
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-bold text-gray-800">{person.name}</p>
-                        <p className="text-sm text-purple-600 font-medium">{person.role}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="w-4 h-4" />
-                        <span>{person.contact}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Mail className="w-4 h-4" />
-                        <span>{person.email}</span>
-                      </div>
-                    </div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-800">Service Personnel</h3>
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                  title="Add Mechanic"
+                >
+                  <UserPlus className="w-5 h-5" />
+                </button>
+              </div>
 
-                    <div className="flex gap-2">
-                      <button className="flex-1 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 text-xs font-semibold flex items-center justify-center gap-1">
-                        <UserMinus className="w-4 h-4" />
-                        Remove
-                      </button>
-                      <button className="flex-1 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-300 text-xs font-semibold flex items-center justify-center gap-1">
-                        <UserPlus className="w-4 h-4" />
-                        Assign
-                      </button>
+              <div className="space-y-4">
+                {/* Lead Technician */}
+                {leadTechnician && (
+                  <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
+                        {leadTechnician.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-800">{leadTechnician.name}</p>
+                        <p className="text-xs text-purple-600 font-bold uppercase">Workshop Admin (Lead)</p>
+                        <p className="text-xs text-gray-500">{leadTechnician.email}</p>
+                      </div>
                     </div>
                   </div>
+                )}
+
+                {/* Assigned Mechanics */}
+                {assignedMechanics.map((mechanic) => (
+                  <div key={mechanic.id} className="bg-white border rounded-xl p-4 relative group">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-bold">
+                        {mechanic.name.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-800">{mechanic.name}</p>
+                        <p className="text-xs text-blue-600 font-bold uppercase">Mechanic</p>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                          <Phone className="w-3 h-3" /> {mechanic.contact_number || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveMechanic(mechanic.id)}
+                      className="absolute top-2 right-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      title="Remove"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
+
+                {assignedMechanics.length === 0 && !leadTechnician && (
+                  <p className="text-center text-gray-500 text-sm">No personnel assigned.</p>
+                )}
               </div>
             </div>
 
+            {/* Estimate - Placeholder Logic */}
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-600" />
-                Set Estimated Service Amount
+                Service Estimate
               </h3>
-              
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -264,66 +251,82 @@ const WorkshopServiceFlow = () => {
                     value={estimateAmount}
                     onChange={(e) => setEstimateAmount(e.target.value)}
                     placeholder="Enter amount"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                
-                <button className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-md hover:shadow-lg">
-                  Share Estimate with User
+                <button className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-md">
+                  Share Estimate
                 </button>
               </div>
             </div>
 
+            {/* OTP Section */}
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <Key className="w-5 h-5 text-purple-600" />
-                Service Completion OTP
+                Completion OTP
               </h3>
-              
-              <p className="text-sm text-gray-600 mb-4">
-                Generate OTP after service completion to allow user verification.
-              </p>
-
               {!generatedOtp ? (
-                <button 
+                <button
                   onClick={handleGenerateOtp}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold shadow-md hover:shadow-lg"
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all font-semibold shadow-md"
                 >
                   Generate OTP
                 </button>
               ) : (
                 <div className="space-y-3">
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg p-4 border-2 border-purple-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-purple-700">Generated OTP</p>
-                      <button 
-                        onClick={() => setShowOtp(!showOtp)}
-                        className="p-1 hover:bg-purple-200 rounded transition-all duration-300"
-                      >
-                        {showOtp ? <EyeOff className="w-4 h-4 text-purple-600" /> : <Eye className="w-4 h-4 text-purple-600" />}
-                      </button>
-                    </div>
-                    <p className="text-3xl font-bold text-purple-900 tracking-widest text-center">
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 flex justify-between items-center">
+                    <p className="text-2xl font-bold text-purple-900 tracking-widest">
                       {showOtp ? generatedOtp : '••••••'}
                     </p>
+                    <button onClick={() => setShowOtp(!showOtp)}>
+                      {showOtp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                  <button 
-                    onClick={handleGenerateOtp}
-                    className="w-full py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all duration-300 text-sm font-medium"
-                  >
-                    Regenerate OTP
-                  </button>
                 </div>
               )}
             </div>
-
-            <button className="w-full py-3 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-md">
-              <AlertCircle className="w-5 h-5" />
-              Report Complaint
-            </button>
           </div>
         </div>
       </div>
+
+      {/* Assign Mechanic Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Assign Mechanic</h3>
+              <button onClick={() => setShowAssignModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {availableMechanics.length > 0 ? (
+                availableMechanics.map(mechanic => (
+                  <div key={mechanic.id} className="flex items-center justify-between p-3 border rounded-xl hover:border-purple-300 transition-all">
+                    <div>
+                      <p className="font-bold text-gray-800">{mechanic.name}</p>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Available</span>
+                    </div>
+                    <button
+                      onClick={() => handleAssignMechanic(mechanic.id)}
+                      className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
+                    >
+                      <UserPlus className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No available mechanics found.</p>
+                  <p className="text-xs mt-1">They might be busy or already assigned.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

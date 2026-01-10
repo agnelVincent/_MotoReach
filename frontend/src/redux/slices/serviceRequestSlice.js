@@ -128,6 +128,48 @@ export const deleteServiceRequest = createAsyncThunk(
   }
 );
 
+export const fetchWorkshopMechanics = createAsyncThunk(
+  'serviceRequest/fetchMechanics',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('service-request/workshop/my-mechanics/');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch mechanics");
+    }
+  }
+);
+
+export const assignMechanic = createAsyncThunk(
+  'serviceRequest/assignMechanic',
+  async ({ serviceRequestId, mechanicId }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/assign/`, { mechanic_id: mechanicId });
+      // Refresh request details to show update
+      dispatch(fetchNearbyWorkshops(serviceRequestId));
+      dispatch(fetchWorkshopMechanics());
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to assign mechanic");
+    }
+  }
+);
+
+export const removeMechanic = createAsyncThunk(
+  'serviceRequest/removeMechanic',
+  async ({ serviceRequestId, mechanicId }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/remove/`, { mechanic_id: mechanicId });
+      // Refresh details
+      dispatch(fetchNearbyWorkshops(serviceRequestId));
+      dispatch(fetchWorkshopMechanics());
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to remove mechanic");
+    }
+  }
+);
+
 
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
@@ -136,6 +178,7 @@ const serviceRequestSlice = createSlice({
     nearbyWorkshops: [],
     userRequests: [],
     workshopRequests: [],
+    mechanics: [], // Added for workshop mechanics
     loading: false,
     error: null,
   },
@@ -195,6 +238,10 @@ const serviceRequestSlice = createSlice({
       .addCase(fetchWorkshopRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      .addCase(fetchWorkshopMechanics.fulfilled, (state, action) => {
+        state.mechanics = action.payload;
       })
 
       .addCase(acceptRequest.fulfilled, (state, action) => {

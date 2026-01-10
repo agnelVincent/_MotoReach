@@ -3,6 +3,34 @@ from .models import ServiceRequest, WorkshopConnection
 from accounts.models import Workshop
 
 import cloudinary.uploader
+from .models import ServiceExecution
+from accounts.models import Mechanic
+
+class ServiceExecutionMechanicSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='user.full_name')
+    email = serializers.EmailField(source='user.email')
+    
+    class Meta:
+        model = Mechanic
+        fields = ['id', 'name', 'email', 'availability', 'contact_number']
+
+class ServiceExecutionSerializer(serializers.ModelSerializer):
+    lead_technician = serializers.SerializerMethodField()
+    mechanics = ServiceExecutionMechanicSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = ServiceExecution
+        fields = ['id', 'lead_technician', 'mechanics', 'estimate_amount', 'started_at', 'completed_at']
+        
+    def get_lead_technician(self, obj):
+        if obj.assigned_to:
+             return {
+                 "id": obj.assigned_to.id,
+                 "name": obj.assigned_to.full_name,
+                 "email": obj.assigned_to.email,
+                 "role": "Workshop Admin"
+             }
+        return None
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
     images = serializers.ListField(
@@ -16,12 +44,19 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vehicle_type', 'vehicle_model', 'issue_category', 
             'description', 'image_urls', 'user_latitude', 'user_longitude',
-            'images', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection', 'created_at'
+            'images', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection', 'created_at', 'execution'
         ]
-        read_only_fields = ['id', 'image_urls', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection']
+        read_only_fields = ['id', 'image_urls', 'status', 'platform_fee_paid', 'active_connection', 'latest_connection', 'execution']
 
     active_connection = serializers.SerializerMethodField()
     latest_connection = serializers.SerializerMethodField()
+    execution = serializers.SerializerMethodField()
+
+    def get_execution(self, obj):
+        try:
+            return ServiceExecutionSerializer(obj.execution).data
+        except Exception:
+            return None
 
     def get_latest_connection(self, obj):
         connection = WorkshopConnection.objects.filter(service_request=obj).order_by('-requested_at').first()
@@ -39,7 +74,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     def get_active_connection(self, obj):
         active_connection = WorkshopConnection.objects.filter(
             service_request=obj
-        ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED']).first()
+        ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED', 'WITHDRAWN']).first()
         
         if active_connection:
             return {

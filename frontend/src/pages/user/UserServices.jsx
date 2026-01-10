@@ -392,12 +392,21 @@ const UserServices = () => {
 
                                     {['CONNECTING', 'CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'].includes(request.status) && (
                                         <div className="flex gap-3 flex-wrap w-full sm:w-auto">
-                                            <button
-                                                disabled
-                                                className="flex-1 sm:flex-none px-6 py-2.5 bg-gray-100 text-gray-500 rounded-lg font-semibold cursor-not-allowed border-2 border-gray-200"
-                                            >
-                                                {request.status === 'CONNECTING' ? '⏳ Awaiting Response' : '✓ Connected to Workshop'}
-                                            </button>
+                                            {request.status === 'CONNECTING' ? (
+                                                <button
+                                                    disabled
+                                                    className="flex-1 sm:flex-none px-6 py-2.5 bg-gray-100 text-gray-500 rounded-lg font-semibold cursor-not-allowed border-2 border-gray-200"
+                                                >
+                                                    ⏳ Awaiting Response
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => navigate(`/user/service-flow/${request.id}`)}
+                                                    className="flex-1 sm:flex-none px-6 py-2.5 bg-green-50 text-green-700 rounded-lg font-semibold hover:bg-green-100 border-2 border-green-200 transition-all flex items-center gap-2"
+                                                >
+                                                    <CheckCircle className="w-4 h-4" /> Tracking Services
+                                                </button>
+                                            )}
 
                                             <button
                                                 onClick={() => handleCancelClick(request)}

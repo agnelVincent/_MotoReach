@@ -17,6 +17,7 @@ function UserRoute() {
             <Route path="request" element={<UserRequest />} />
             <Route path="workshops-nearby/:requestId" element={<UserWorkshopNearby />} />
             <Route path="services" element={<UserServices />} />
+            <Route path="service-flow/:requestId" element={<UserServiceFlow />} />
             <Route path="wallet" element={<UserWallet />} />
         </Route>
     );
