@@ -140,9 +140,6 @@ const WorkshopMechanicManager = () => {
                                                         {mechanic.mechanic_name.charAt(0)}
                                                     </div>
                                                     <div className="flex gap-2">
-                                                        <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-semibold rounded-full border border-green-100">
-                                                            Active
-                                                        </span>
                                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${mechanic.availability === 'AVAILABLE'
                                                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                                                 : 'bg-orange-50 text-orange-700 border-orange-100'

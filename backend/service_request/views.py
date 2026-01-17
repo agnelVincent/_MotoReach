@@ -240,11 +240,10 @@ class AcceptConnectionRequestView(APIView):
         connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
 
-        # Create Service Execution Record
         ServiceExecution.objects.create(
             service_request=connection.service_request,
             workshop=workshop,
-            assigned_to=request.user,  # Default assignment to Admin
+            assigned_to=request.user, 
             estimate_amount=0
         )
 
@@ -399,11 +398,9 @@ class AssignMechanicView(APIView):
         try:
             service_request = ServiceRequest.objects.get(pk=pk)
             
-            # Get execution
             try:
                 execution = service_request.execution
             except ServiceExecution.DoesNotExist:
-                 # Should fallback create if missing for some reason
                  execution = ServiceExecution.objects.create(
                     service_request=service_request,
                     workshop=request.user.workshop,

@@ -178,7 +178,7 @@ const serviceRequestSlice = createSlice({
     nearbyWorkshops: [],
     userRequests: [],
     workshopRequests: [],
-    mechanics: [], // Added for workshop mechanics
+    mechanics: [], 
     loading: false,
     error: null,
   },

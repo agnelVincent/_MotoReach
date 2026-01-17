@@ -106,12 +106,12 @@ const workshopMechanicSlice = createSlice({
         searchResults: [],
         mechanicRequests: [],
         myMechanics: [],
-        currentWorkshop: null, // For mechanic
-        loading: false, // General fallback
+        currentWorkshop: null, 
+        loading: false,
         searchLoading: false,
-        requestsLoading: false, // Workshop side requests fetch
-        actionLoading: false, // Joining, responding, leaving, removing
-        fetchLoading: false, // Initial fetch of mechanics/status
+        requestsLoading: false, 
+        actionLoading: false, 
+        fetchLoading: false, 
         error: null,
         successMessage: null,
     },
