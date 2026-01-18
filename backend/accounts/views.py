@@ -280,11 +280,9 @@ class LoginView(TokenObtainPairView):
         email = request.data.get('email', '')
         password = request.data.get('password', '')
         
-        # Check if user exists
         try:
             user = User.objects.get(email=email)
             
-            # Check if account is blocked
             if not user.is_active:
                 return Response(
                     {'error': 'Your account has been blocked. Please contact support for assistance.'},
@@ -296,7 +294,6 @@ class LoginView(TokenObtainPairView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-        # Validate credentials manually to provide specific error messages
         if not user.check_password(password):
              return Response(
                 {'error': 'Incorrect password. Please try again or use "Forgot Password" to reset.'},
@@ -308,10 +305,8 @@ class LoginView(TokenObtainPairView):
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            # Return the actual validation error
             error_detail = e.detail
             if isinstance(error_detail, dict):
-                # Get the first error message
                 first_error = next(iter(error_detail.values()))
                 if isinstance(first_error, list):
                     error_message = first_error[0]
@@ -323,7 +318,6 @@ class LoginView(TokenObtainPairView):
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"Login error: {e}")
-            # If AuthenticationFailed occurs here despite manual check, it's weird, but handle it
             return Response(
                 {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -636,7 +630,7 @@ class WorkshopSearchView(APIView):
         
         workshops = Workshop.objects.filter(
             Q(workshop_name__icontains=query) | Q(city__icontains=query)
-        ).exclude(verification_status='REJECTED') # Should we filter active?
+        ).exclude(verification_status='REJECTED') 
 
         serializer = WorkshopSearchSerializer(workshops, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -698,7 +692,7 @@ class WorkshopMechanicActionView(APIView):
              return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         
         mechanic_id = request.data.get('mechanic_id')
-        action = request.data.get('action') # APPROVE, REJECT
+        action = request.data.get('action') 
 
         if not mechanic_id or action not in ['APPROVE', 'REJECT']:
              return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
@@ -713,16 +707,7 @@ class WorkshopMechanicActionView(APIView):
                 return Response({'message': 'Mechanic approved successfully'}, status=status.HTTP_200_OK)
             elif action == 'REJECT':
                 mechanic.joining_status = 'REJECTED'
-                mechanic.workshop = None # Logic: unlink? Or keep history?
-                # If we unlink, the mechanic won't see "Rejected" status if we rely on getting by workshop.
-                # However, mechanic model has 'joining_status'. If workshop is None, status is meaningless?
-                # Better: Keep workshop as None but maybe we can't store status then?
-                # Logic: Set joining_status = REJECTED. Keep Workshop FK?
-                # If we keep Workshop FK, mechanic is linked to workshop as REJECTED.
-                # Then mechanic knows who rejected.
-                # But they should be able to apply elsewhere.
-                # If they apply elsewhere, FK changes.
-                # So keeping FK is fine for now until they apply elsewhere.
+                mechanic.workshop = None 
                 mechanic.save()
                 return Response({'message': 'Mechanic rejected'}, status=status.HTTP_200_OK)
         
@@ -805,7 +790,6 @@ class WorkshopRemoveMechanicView(APIView):
 
         try:
             workshop = request.user.workshop
-            # Only remove if they are indeed in this workshop
             mechanic = Mechanic.objects.get(id=mechanic_id, workshop=workshop)
             
             mechanic.workshop = None
