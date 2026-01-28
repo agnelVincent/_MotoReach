@@ -66,7 +66,7 @@ class CreateServiceRequestView(generics.CreateAPIView):
             dist = calculate_distance(u_lat,u_long, ws.latitude, ws.longitude)
             if dist <= 20:
                 ws.distance = round(dist, 2)
-                nearby_list.append(ws)
+                nearby_list.append(ws)  
 
         nearby_list.sort(key=lambda x : x.distance)
         print(nearby_list)
@@ -240,12 +240,21 @@ class AcceptConnectionRequestView(APIView):
         connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
 
-        ServiceExecution.objects.create(
+        # Use get_or_create to handle edge cases where execution might already exist
+        execution, created = ServiceExecution.objects.get_or_create(
             service_request=connection.service_request,
-            workshop=workshop,
-            assigned_to=request.user, 
-            estimate_amount=0
+            defaults={
+                'workshop': workshop,
+                'assigned_to': request.user,
+                'estimate_amount': 0
+            }
         )
+        
+        # If execution already existed, update it with current workshop/admin
+        if not created:
+            execution.workshop = workshop
+            execution.assigned_to = request.user
+            execution.save()
 
         return Response({"message": "Connection request accepted successfully"}, status=status.HTTP_200_OK)
 
@@ -305,6 +314,17 @@ class CancelConnectionRequestView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
         
+        # Delete ServiceExecution if it exists to allow re-connection
+        try:
+            execution = connection.service_request.execution
+            # Reset mechanic availability before deleting
+            for mechanic in execution.mechanics.all():
+                mechanic.availability = 'AVAILABLE'
+                mechanic.save()
+            execution.delete()
+        except ServiceExecution.DoesNotExist:
+            pass
+        
         connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
 
@@ -334,6 +354,16 @@ class UserCancelConnectionView(APIView):
         else:
              connection.status = 'CANCELLED'
              connection.cancelled_by = 'USER'
+             # Delete ServiceExecution if it exists to allow re-connection
+             try:
+                 execution = connection.service_request.execution
+                 # Reset mechanic availability before deleting
+                 for mechanic in execution.mechanics.all():
+                     mechanic.availability = 'AVAILABLE'
+                     mechanic.save()
+                 execution.delete()
+             except ServiceExecution.DoesNotExist:
+                 pass
 
         connection.responded_at = timezone.now()
         connection.save()
