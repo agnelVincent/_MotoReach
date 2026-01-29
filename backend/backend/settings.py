@@ -91,14 +91,19 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME' : timedelta(minutes=5),
-    'REFRESH_TOKEN_LIFETIME' : timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME' : timedelta(minutes=60),  # 1 hour
+    'REFRESH_TOKEN_LIFETIME' : timedelta(days=7),      # 7 days
 
     'AUTH_COOKIE' : 'refreshtoken',
     'AUTH_COOKIE_DOMAIN' : None,
     'AUTH_COOKIE_SECURE' : False,
     'AUTH_COOKIE_HTTP_ONLY' : True,
-    'AUTH_COOKIE_SAMESITE' : 'Lax'
+    'AUTH_COOKIE_SAMESITE' : 'Lax',
+    
+    # Additional security settings
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
 }
 
 CORS_ALLOWED_ORIGINS = [

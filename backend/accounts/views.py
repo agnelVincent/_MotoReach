@@ -347,6 +347,10 @@ class LoginView(TokenObtainPairView):
             path='/'
         )
 
+        print(response_data)
+        print('----------')
+        print(response.cookies)
+
         return response
     
 class LogoutView(APIView):

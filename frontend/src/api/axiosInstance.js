@@ -49,16 +49,16 @@ axiosInstance.interceptors.response.use(
   (response) => response,
 
   async (error) => {
-    console.log(error)
-    console.log(error.config)
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url && originalRequest.url.includes('login')) {
+      if (originalRequest.url && (
+        originalRequest.url.includes('login') ||
+        originalRequest.url.includes('register') ||
+        originalRequest.url.includes('verify-otp')
+      )) {
         return Promise.reject(error);
       }
-
-      originalRequest._retry = true;
 
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
@@ -71,22 +71,43 @@ axiosInstance.interceptors.response.use(
           .catch((err) => Promise.reject(err));
       }
 
+
+      originalRequest._retry = true;
       isRefreshing = true;
 
       try {
+        console.log('🔄 Attempting to refresh access token...');
+
         const refreshResponse = await refreshClient.post("accounts/auth/token/refresh/");
 
-        const newAccessToken = refreshResponse.data.access;
-        localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+        if (refreshResponse.data && refreshResponse.data.access) {
+          const newAccessToken = refreshResponse.data.access;
 
-        axiosInstance.defaults.headers["Authorization"] = "Bearer " + newAccessToken;
+          localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
 
-        processQueue(null, newAccessToken);
-        return axiosInstance(originalRequest);
+          axiosInstance.defaults.headers["Authorization"] = "Bearer " + newAccessToken;
+
+          originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;
+
+          console.log('✅ Token refreshed successfully');
+
+          processQueue(null, newAccessToken);
+
+          return axiosInstance(originalRequest);
+        } else {
+          throw new Error('No access token in refresh response');
+        }
       } catch (refreshError) {
+        console.error('❌ Token refresh failed:', refreshError);
+
         processQueue(refreshError, null);
 
         localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+        if (window.location.pathname !== '/login') {
+          console.log('🔐 Redirecting to login...');
+          window.location.href = '/login';
+        }
 
         return Promise.reject(refreshError);
       } finally {
@@ -97,6 +118,7 @@ axiosInstance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 
 export default axiosInstance;
