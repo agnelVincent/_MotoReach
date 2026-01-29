@@ -352,15 +352,17 @@ const UserServices = () => {
                                             </div>
                                         </div>
                                     </div>
-                                ) : request.latest_connection && request.latest_connection.status === 'AUTO_REJECTED' ? (
+                                ) : request.latest_connection && ['AUTO_REJECTED', 'REJECTED'].includes(request.latest_connection.status) ? (
                                     <div className="bg-red-50 p-5 rounded-xl mb-4 border border-red-200 shadow-sm">
                                         <h4 className="text-xs font-bold text-red-800 uppercase tracking-wide mb-3 flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4" /> Auto Rejected
+                                            <AlertCircle className="w-4 h-4" />
+                                            {request.latest_connection.status === 'AUTO_REJECTED' ? 'Auto Rejected' : 'Request Rejected'}
                                         </h4>
                                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                             <div className="flex-1">
                                                 <p className="text-gray-700 text-sm mb-1">
-                                                    Request to <span className="font-bold">{request.latest_connection.workshop_name}</span> was auto-rejected due to no response.
+                                                    Request to <span className="font-bold">{request.latest_connection.workshop_name}</span> was
+                                                    {request.latest_connection.status === 'AUTO_REJECTED' ? ' auto-rejected due to no response.' : ' rejected by the workshop.'}
                                                 </p>
                                                 <p className="text-sm text-gray-500">
                                                     Please try connecting to another workshop.

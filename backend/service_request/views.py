@@ -6,23 +6,13 @@ from accounts.models import Workshop, Mechanic
 from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer, ServiceExecutionMechanicSerializer
 from django.utils import timezone
 from datetime import timedelta
-from math import radians, cos, sin, asin, sqrt
-from .utils import check_request_expiration
+from .utils import check_request_expiration, get_nearby_workshops
 
 
-def calculate_distance(lat1, long1, lat2, long2):
-    if lat2 == None or long2 == None:
-        return float('inf')
-    R = 6371
-    dlat = radians(lat2 - lat2)
-    dlong = radians(long2 - long1)
-    a = sin(dlat/2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlong/2)**2
-    c = 2 * asin(sqrt(a))
 
-    return R * c
 
 def check_expired_connections(queryset):
-    expiration_threshold = timezone.now() - timedelta(hours=1) 
+    expiration_threshold = timezone.now() - timedelta(minutes=10) 
     
     expired_requests = queryset.filter(
         status='REQUESTED', 
@@ -59,16 +49,7 @@ class CreateServiceRequestView(generics.CreateAPIView):
         u_lat = serializer.data['user_latitude']
         u_long = serializer.data['user_longitude']
 
-        workshops = Workshop.objects.filter(verification_status = 'APPROVED')
-        nearby_list = []
-
-        for ws in workshops:
-            dist = calculate_distance(u_lat,u_long, ws.latitude, ws.longitude)
-            if dist <= 20:
-                ws.distance = round(dist, 2)
-                nearby_list.append(ws)  
-
-        nearby_list.sort(key=lambda x : x.distance)
+        nearby_list = get_nearby_workshops(u_lat, u_long)
         print(nearby_list)
         nearby_serializer = NearbyWorkshopSerializer(nearby_list, many = True)
     
@@ -92,18 +73,7 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
         u_lat = instance.user_latitude
         u_lon = instance.user_longitude
         
-        workshops = Workshop.objects.filter(
-            verification_status='APPROVED'
-        ).exclude(latitude__isnull=True)
-        
-        nearby_list = []
-        for ws in workshops:
-            dist = calculate_distance(u_lat, u_lon, ws.latitude, ws.longitude)
-            if dist <= 20:
-                ws.distance = round(dist, 2)
-                nearby_list.append(ws)
-        
-        nearby_list.sort(key=lambda x: x.distance)
+        nearby_list = get_nearby_workshops(u_lat, u_lon)
         
         req_serializer = self.get_serializer(instance)
         
@@ -240,7 +210,6 @@ class AcceptConnectionRequestView(APIView):
         connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
 
-        # Use get_or_create to handle edge cases where execution might already exist
         execution, created = ServiceExecution.objects.get_or_create(
             service_request=connection.service_request,
             defaults={
@@ -250,7 +219,6 @@ class AcceptConnectionRequestView(APIView):
             }
         )
         
-        # If execution already existed, update it with current workshop/admin
         if not created:
             execution.workshop = workshop
             execution.assigned_to = request.user
