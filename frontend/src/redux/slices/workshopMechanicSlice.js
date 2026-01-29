@@ -100,18 +100,30 @@ export const removeMechanic = createAsyncThunk(
     }
 );
 
+export const cancelJoinRequest = createAsyncThunk(
+    'workshopMechanic/cancelJoinRequest',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post('accounts/mechanic/cancel-join/');
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.error || 'Failed to cancel join request');
+        }
+    }
+);
+
 const workshopMechanicSlice = createSlice({
     name: 'workshopMechanic',
     initialState: {
         searchResults: [],
         mechanicRequests: [],
         myMechanics: [],
-        currentWorkshop: null, 
+        currentWorkshop: null,
         loading: false,
         searchLoading: false,
-        requestsLoading: false, 
-        actionLoading: false, 
-        fetchLoading: false, 
+        requestsLoading: false,
+        actionLoading: false,
+        fetchLoading: false,
         error: null,
         successMessage: null,
     },
@@ -126,7 +138,6 @@ const workshopMechanicSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Search Workshops
             .addCase(searchWorkshops.pending, (state) => {
                 state.searchLoading = true;
             })
@@ -139,7 +150,6 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Send Join Request
             .addCase(sendJoinRequest.pending, (state) => {
                 state.actionLoading = true;
             })
@@ -152,7 +162,6 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Fetch Requests (Workshop Side)
             .addCase(fetchMechanicRequests.pending, (state) => {
                 state.requestsLoading = true;
             })
@@ -165,14 +174,12 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Respond to Request
             .addCase(respondToRequest.pending, (state) => {
                 state.actionLoading = true;
             })
             .addCase(respondToRequest.fulfilled, (state, action) => {
                 state.actionLoading = false;
                 state.successMessage = action.payload.message;
-                // Remove from detailed list
                 state.mechanicRequests = state.mechanicRequests.filter(m => m.mechanic_id !== action.payload.mechanicId);
             })
             .addCase(respondToRequest.rejected, (state, action) => {
@@ -180,7 +187,6 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Fetch My Mechanics
             .addCase(fetchMyMechanics.pending, (state) => {
                 state.fetchLoading = true;
             })
@@ -193,7 +199,6 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Current Workshop
             .addCase(fetchCurrentWorkshop.pending, (state) => {
                 state.fetchLoading = true;
             })
@@ -220,7 +225,6 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Remove Mechanic
             .addCase(removeMechanic.pending, (state) => {
                 state.actionLoading = true;
             })
@@ -230,6 +234,19 @@ const workshopMechanicSlice = createSlice({
                 state.myMechanics = state.myMechanics.filter(m => m.mechanic_id !== action.payload.mechanicId);
             })
             .addCase(removeMechanic.rejected, (state, action) => {
+                state.actionLoading = false;
+                state.error = action.payload;
+            })
+
+            .addCase(cancelJoinRequest.pending, (state) => {
+                state.actionLoading = true;
+            })
+            .addCase(cancelJoinRequest.fulfilled, (state, action) => {
+                state.actionLoading = false;
+                state.successMessage = action.payload.message;
+                state.currentWorkshop = null;
+            })
+            .addCase(cancelJoinRequest.rejected, (state, action) => {
                 state.actionLoading = false;
                 state.error = action.payload;
             });

@@ -774,6 +774,17 @@ class MechanicLeaveWorkshopView(APIView):
             if not mechanic.workshop:
                  return Response({'error': 'You are not connected to any workshop'}, status=status.HTTP_400_BAD_REQUEST)
 
+            from service_request.models import ServiceExecution
+            ongoing_services = ServiceExecution.objects.filter(
+                mechanics=mechanic,
+                service_request__status__in=['CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS']
+            ).exists()
+            
+            if ongoing_services:
+                return Response({
+                    'error': 'You cannot leave the workshop while you have ongoing service assignments. Please complete or transfer your current services first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             mechanic.workshop = None
             mechanic.joining_status = 'PENDING' 
             mechanic.save()
@@ -802,3 +813,24 @@ class WorkshopRemoveMechanicView(APIView):
             return Response({'message': 'Mechanic removed successfully'}, status=status.HTTP_200_OK)
         except Mechanic.DoesNotExist:
              return Response({'error': 'Mechanic not found in your workshop'}, status=status.HTTP_404_NOT_FOUND)
+
+class MechanicCancelJoinRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != 'mechanic':
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            mechanic = request.user.mechanic
+            
+            if not mechanic.workshop or mechanic.joining_status != 'PENDING':
+                return Response({'error': 'No pending join request found'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            mechanic.workshop = None
+            mechanic.joining_status = 'PENDING'
+            mechanic.save()
+            
+            return Response({'message': 'Join request cancelled successfully'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

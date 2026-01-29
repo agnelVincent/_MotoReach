@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Search, MapPin, Star, Shield, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import { searchWorkshops, sendJoinRequest, clearMessages, clearSearchResults } from '../../redux/slices/workshopMechanicSlice';
+import { Search, MapPin, Star, Shield } from 'lucide-react';
+import { searchWorkshops, sendJoinRequest, clearSearchResults } from '../../redux/slices/workshopMechanicSlice';
 import { toast } from 'react-hot-toast';
 
-const MechanicFindWorkshop = ({ currentWorkshop }) => {
+const MechanicFindWorkshop = () => {
     const dispatch = useDispatch();
     const [searchTerm, setSearchTerm] = useState('');
-    const { searchResults, searchLoading, error, successMessage } = useSelector(state => state.workshopMechanic);
-    const { user } = useSelector(state => state.auth);
+    const { searchResults, searchLoading } = useSelector(state => state.workshopMechanic);
 
     useEffect(() => {
         if (searchTerm.trim().length > 2) {
@@ -21,38 +20,13 @@ const MechanicFindWorkshop = ({ currentWorkshop }) => {
         }
     }, [searchTerm, dispatch]);
 
-
-
     const handleConnect = (workshopId) => {
-        if (currentWorkshop?.joining_status === 'PENDING') {
-            toast.error(`You already have a pending request with ${currentWorkshop.workshop_name}`);
-            return;
-        }
         dispatch(sendJoinRequest(workshopId));
     };
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-4xl mx-auto space-y-8">
-                {/* Pending Request Banner */}
-                {currentWorkshop?.joining_status === 'PENDING' && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <Clock className="w-5 h-5 text-amber-600" />
-                            <div>
-                                <h3 className="font-semibold text-amber-900">Request Pending</h3>
-                                <p className="text-sm text-amber-700">
-                                    You have requested to join <span className="font-bold">{currentWorkshop.workshop_name}</span>.
-                                    Please wait for their approval.
-                                </p>
-                            </div>
-                        </div>
-                        <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full uppercase">
-                            Pending
-                        </span>
-                    </div>
-                )}
-
                 {/* Header */}
                 <div className="text-center space-y-3">
                     <h1 className="text-3xl font-bold text-gray-900">Find a Workshop</h1>

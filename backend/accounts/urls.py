@@ -24,7 +24,8 @@ from .views import (
     WorkshopMyMechanicsView,
     MechanicCurrentWorkshopView,
     MechanicLeaveWorkshopView,
-    WorkshopRemoveMechanicView
+    WorkshopRemoveMechanicView,
+    MechanicCancelJoinRequestView
 )
 
 
@@ -48,6 +49,7 @@ urlpatterns = [
     path("workshops/search/", WorkshopSearchView.as_view(), name="search-workshops"),
     path("mechanic/join/", MechanicJoinRequestView.as_view(), name="mechanic-join"),
     path("mechanic/leave/", MechanicLeaveWorkshopView.as_view(), name="mechanic-leave"),
+    path("mechanic/cancel-join/", MechanicCancelJoinRequestView.as_view(), name="mechanic-cancel-join"),
     path("mechanic/current-workshop/", MechanicCurrentWorkshopView.as_view(), name="mechanic-current-workshop"),
     
     path("workshop/mechanic-requests/", WorkshopMechanicRequestsView.as_view(), name="workshop-mechanic-requests"),
