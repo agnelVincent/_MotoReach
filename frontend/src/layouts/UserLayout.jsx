@@ -4,15 +4,14 @@ import { Outlet } from "react-router-dom";
 
 function UserLayout() {
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             <UserNavbar />
-            <Outlet />
+            <div className="flex-grow pt-16">
+                <Outlet />
+            </div>
             <Footer />
-        </>
+        </div>
     );
 }
 
 export default UserLayout;
-
-
-

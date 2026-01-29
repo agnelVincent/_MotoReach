@@ -17,6 +17,8 @@ import { useDispatch } from 'react-redux';
 import { createServiceRequest } from '../../redux/slices/serviceRequestSlice';
 import { useNavigate } from 'react-router-dom';
 
+import { toast } from 'react-hot-toast';
+
 const UserRequest = () => {
   const [formData, setFormData] = useState({
     vehicleType: '',
@@ -89,7 +91,7 @@ const UserRequest = () => {
       navigate(`/user/workshops-nearby/${newRequestId}`);
     } else {
       const errorMsg = resultAction.payload ? JSON.stringify(resultAction.payload) : "Failed to create request. Please try again.";
-      alert(`Error: ${errorMsg}`);
+      toast.error(`Error: ${errorMsg}`);
       console.error("Creation failed:", resultAction.payload);
     }
   };
@@ -138,7 +140,7 @@ const UserRequest = () => {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">
                   Vehicle Model <span className="text-red-500">*</span>
@@ -151,7 +153,7 @@ const UserRequest = () => {
                   required
                 />
               </div>
-              
+
               <div className="md:col-span-2 space-y-2">
                 <label className="block text-sm font-semibold text-slate-700">
                   Issue Category <span className="text-red-500">*</span>
@@ -172,10 +174,10 @@ const UserRequest = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="md:col-span-2 space-y-2">
                 <label className="block text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4" /> 
+                  <FileText className="w-4 h-4" />
                   Problem Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -269,7 +271,7 @@ const UserRequest = () => {
                   </>
                 )}
               </button>
-              
+
               <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
                 <div className="flex items-center gap-2 text-slate-500">
                   <div className="p-1.5 bg-emerald-100 rounded-full">

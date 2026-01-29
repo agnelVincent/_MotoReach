@@ -4,15 +4,14 @@ import UserNavbar from "../components/navbars/UserNavbar";
 
 function PublicLayout() {
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             <UserNavbar />
-            <Outlet />
+            <div className="flex-grow pt-16">
+                <Outlet />
+            </div>
             <Footer />
-        </>
+        </div>
     );
 }
 
 export default PublicLayout;
-
-
-

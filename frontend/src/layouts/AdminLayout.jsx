@@ -5,15 +5,14 @@ import { Toaster } from "react-hot-toast";
 
 function AdminLayout() {
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             <Toaster position="top-center" reverseOrder={false} />
-            
             <AdminNavbar />
-            <main className="min-h-screen">
+            <main className="flex-grow pt-16">
                 <Outlet />
             </main>
             <Footer />
-        </>
+        </div>
     );
 }
 

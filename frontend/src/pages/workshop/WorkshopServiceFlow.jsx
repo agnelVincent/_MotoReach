@@ -75,14 +75,40 @@ const WorkshopServiceFlow = () => {
   };
 
   const handleRemoveMechanic = async (mechanicId) => {
-    if (window.confirm("Are you sure you want to remove this mechanic?")) {
-      try {
-        await dispatch(removeMechanic({ serviceRequestId: requestId, mechanicId })).unwrap();
-        toast.success("Mechanic removed successfully");
-      } catch (error) {
-        toast.error(error.message || "Failed to remove");
-      }
-    }
+    toast((t) => (
+      <div className="flex flex-col gap-3">
+        <div className="font-medium text-gray-900">
+          Are you sure you want to remove this mechanic?
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              toast.dismiss(t.id);
+            }}
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await dispatch(removeMechanic({ serviceRequestId: requestId, mechanicId })).unwrap();
+                toast.success("Mechanic removed successfully");
+              } catch (error) {
+                toast.error(error.message || "Failed to remove");
+              }
+            }}
+            className="flex-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 5000,
+      position: 'top-center',
+    });
   };
 
   if (loading && !currentRequest) {

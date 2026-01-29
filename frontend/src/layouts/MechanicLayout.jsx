@@ -5,15 +5,14 @@ import MechanicNavbar from "../components/navbars/MechanicNavbar";
 
 function MechanicLayout() {
     return (
-        <>
+        <div className="flex flex-col min-h-screen">
             <MechanicNavbar />
-            <Outlet />
+            <div className="flex-grow pt-16">
+                <Outlet />
+            </div>
             <Footer />
-        </>
+        </div>
     );
 }
 
 export default MechanicLayout;
-
-
-

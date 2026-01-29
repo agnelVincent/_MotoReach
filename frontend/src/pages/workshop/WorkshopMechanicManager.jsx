@@ -33,9 +33,35 @@ const WorkshopMechanicManager = () => {
     };
 
     const handleRemove = (mechanicId) => {
-        if (window.confirm('Are you sure you want to remove this mechanic?')) {
-            dispatch(removeMechanic(mechanicId));
-        }
+        toast((t) => (
+            <div className="flex flex-col gap-3">
+                <div className="font-medium text-gray-900">
+                    Are you sure you want to remove this mechanic?
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => {
+                            dispatch(removeMechanic(mechanicId));
+                            toast.dismiss(t.id);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                    >
+                        Remove
+                    </button>
+                </div>
+            </div>
+        ), {
+            duration: 5000,
+            position: 'top-center',
+        });
     };
 
     const formatDate = (dateString) => {
@@ -141,8 +167,8 @@ const WorkshopMechanicManager = () => {
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${mechanic.availability === 'AVAILABLE'
-                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                                                : 'bg-orange-50 text-orange-700 border-orange-100'
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                            : 'bg-orange-50 text-orange-700 border-orange-100'
                                                             }`}>
                                                             {mechanic.availability === 'AVAILABLE' ? 'Available' : 'Busy'}
                                                         </span>
