@@ -116,9 +116,9 @@ const WorkshopRequestList = () => {
       REQUESTED: 'bg-yellow-100 text-yellow-700 border-yellow-300',
       ACCEPTED: 'bg-green-100 text-green-700 border-green-300',
       REJECTED: 'bg-red-100 text-red-700 border-red-300',
-      AUTO_REJECTED: 'bg-red-100 text-red-700 border-red-300',
+      AUTO_REJECTED: 'bg-orange-100 text-orange-700 border-orange-300',
       CANCELLED: 'bg-gray-100 text-gray-700 border-gray-300',
-      EXPIRED: 'bg-gray-100 text-gray-700 border-gray-300'
+      EXPIRED: 'bg-orange-100 text-orange-700 border-orange-300'
     };
     return styles[status] || 'bg-gray-100 text-gray-700 border-gray-300';
   };
@@ -128,9 +128,9 @@ const WorkshopRequestList = () => {
       REQUESTED: <Clock className="w-4 h-4" />,
       ACCEPTED: <CheckCircle className="w-4 h-4" />,
       REJECTED: <XCircle className="w-4 h-4" />,
-      AUTO_REJECTED: <XCircle className="w-4 h-4" />,
+      AUTO_REJECTED: <Clock className="w-4 h-4" />,
       CANCELLED: <Ban className="w-4 h-4" />,
-      EXPIRED: <Ban className="w-4 h-4" />
+      EXPIRED: <Clock className="w-4 h-4" />
     };
     return icons[status] || <Clock className="w-4 h-4" />;
   };
@@ -250,7 +250,7 @@ const WorkshopRequestList = () => {
                   <option value="REQUESTED">Pending</option>
                   <option value="ACCEPTED">Approved</option>
                   <option value="REJECTED">Rejected</option>
-                  <option value="AUTO_REJECTED">Auto Rejected</option>
+                  <option value="AUTO_REJECTED">Expired</option>
                   <option value="CANCELLED">Cancelled</option>
                 </select>
               </div>
@@ -290,9 +290,9 @@ const WorkshopRequestList = () => {
                         </div>
                       </div>
 
-                      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusStyle(request.status)}`}>
-                        {getStatusIcon(request.status)}
-                        {request.status.replace('_', ' ')}
+                      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusStyle(request.service_request.status === 'EXPIRED' ? 'EXPIRED' : request.status)}`}>
+                        {getStatusIcon(request.service_request.status === 'EXPIRED' ? 'EXPIRED' : request.status)}
+                        {request.service_request.status === 'EXPIRED' || request.status === 'AUTO_REJECTED' ? 'EXPIRED' : request.status.replace('_', ' ')}
                       </span>
                     </div>
 
@@ -427,7 +427,7 @@ const WorkshopRequestList = () => {
                 )}
 
                 <div className="flex gap-4 pt-4 border-t border-gray-200">
-                  {selectedRequest.status === 'REQUESTED' && (
+                  {selectedRequest.status === 'REQUESTED' && selectedRequest.service_request.status !== 'EXPIRED' && (
                     <>
                       <button
                         onClick={() => handleApprove(selectedRequest.id)}
@@ -446,7 +446,7 @@ const WorkshopRequestList = () => {
                     </>
                   )}
 
-                  {selectedRequest.status === 'ACCEPTED' && (
+                  {selectedRequest.status === 'ACCEPTED' && selectedRequest.service_request.status !== 'EXPIRED' && (
                     <>
                       <button
                         onClick={() => navigate(`/workshop/service-flow/${selectedRequest.service_request.id}`)}
@@ -465,10 +465,22 @@ const WorkshopRequestList = () => {
                     </>
                   )}
 
-                  {['REJECTED', 'CANCELLED', 'AUTO_REJECTED', 'EXPIRED'].includes(selectedRequest.status) && (
+                  {['REJECTED', 'CANCELLED'].includes(selectedRequest.status) && selectedRequest.service_request.status !== 'EXPIRED' && (
                     <div className="flex-1 text-center py-4 bg-gray-100 rounded-lg border-2 border-gray-300">
                       <p className="text-gray-600 font-semibold">No actions available</p>
                       <p className="text-sm text-gray-500 mt-1">This request has been {selectedRequest.status.toLowerCase()}</p>
+                    </div>
+                  )}
+
+                  {(['AUTO_REJECTED', 'EXPIRED'].includes(selectedRequest.status) || selectedRequest.service_request.status === 'EXPIRED') && (
+                    <div className="flex-1 text-center py-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <AlertCircle className="w-6 h-6 text-orange-600" />
+                        <p className="text-orange-800 font-bold">Request Expired</p>
+                      </div>
+                      <p className="text-sm text-orange-700 mt-1">
+                        This request expired after the time limit. No further actions can be taken.
+                      </p>
                     </div>
                   )}
                 </div>
