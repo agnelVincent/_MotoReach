@@ -9,8 +9,6 @@ from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops
 
 
-
-
 def check_expired_connections(queryset):
     expiration_threshold = timezone.now() - timedelta(minutes=10) 
     
@@ -282,10 +280,8 @@ class CancelConnectionRequestView(APIView):
         connection.responded_at = timezone.now()
         connection.save()
         
-        # Delete ServiceExecution if it exists to allow re-connection
         try:
             execution = connection.service_request.execution
-            # Reset mechanic availability before deleting
             for mechanic in execution.mechanics.all():
                 mechanic.availability = 'AVAILABLE'
                 mechanic.save()
@@ -322,10 +318,8 @@ class UserCancelConnectionView(APIView):
         else:
              connection.status = 'CANCELLED'
              connection.cancelled_by = 'USER'
-             # Delete ServiceExecution if it exists to allow re-connection
              try:
                  execution = connection.service_request.execution
-                 # Reset mechanic availability before deleting
                  for mechanic in execution.mechanics.all():
                      mechanic.availability = 'AVAILABLE'
                      mechanic.save()

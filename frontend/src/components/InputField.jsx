@@ -18,8 +18,8 @@ const InputField = ({
   const baseClasses = 'w-full';
     const paddingClasses = `${Icon ? 'pl-11' : 'px-4'} ${isPassword ? 'pr-12' : 'pr-4'} py-3`;
     const errorClasses = error 
-        ? 'border-red-500 ring-red-500 focus:ring-red-500' // Red if error exists
-        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'; // Blue otherwise
+        ? 'border-red-500 ring-red-500 focus:ring-red-500' 
+        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'; 
 
   return (
     <div>

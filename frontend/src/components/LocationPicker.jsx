@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { MapPin, Navigation, AlertCircle, CheckCircle2 } from 'lucide-react'; // Icons for professional look
-import 'leaflet/dist/leaflet.css';
+import { MapPin, Navigation, AlertCircle, CheckCircle2 } from 'lucide-react'; 
 import L from 'leaflet';
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';

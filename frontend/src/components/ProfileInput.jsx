@@ -1,5 +1,5 @@
-import React from 'react';
-import { Lock, Eye, EyeOff } from 'lucide-react';
+
+import { Eye, EyeOff } from 'lucide-react';
 
 const ProfileInput = ({
     label,
@@ -11,14 +11,13 @@ const ProfileInput = ({
     isPassword = false,
     showPassword,
     onTogglePassword,
-    passwordMatchError, // Specific error for password mismatch
-    errorMessage // General error message (e.g., from validation/API)
+    passwordMatchError, 
+    errorMessage 
 }) => {
     const inputType = isPassword ? (showPassword ? "text" : "password") : type;
     const errorText = errorMessage || passwordMatchError;
-    const isError = !!errorText; // Convert to boolean
+    const isError = !!errorText; 
 
-    // Determine if the field is in edit mode or is a password field (which is always editable)
     const canBeEdited = isEditMode || isPassword;
 
     return (
@@ -35,7 +34,6 @@ const ProfileInput = ({
                         type={inputType}
                         value={value}
                         onChange={onChange}
-                        // Disable fields that are in edit mode but should not be edited (e.g., email)
                         disabled={isEditMode && label.includes('(Read-only)')}
                         className={`w-full pl-11 ${isPassword ? "pr-12" : "pr-4"} py-3 border 
                             ${isError ? "border-red-500 focus:ring-red-500" : "border-gray-300 focus:ring-blue-500"} 

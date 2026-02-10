@@ -65,9 +65,6 @@ const Login = () => {
     dispatch(loginUser(formData));
   };
 
-  const handleGoogleLogin = () => {
-    console.log('Google login initiated');
-  };
 
   const isFormValid = formData.email && formData.password;
 

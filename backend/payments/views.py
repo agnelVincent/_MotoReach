@@ -274,11 +274,9 @@ class PayPlatformFeeWithWalletView(APIView):
             with transaction.atomic():
                 wallet, created = Wallet.objects.get_or_create(user=request.user)
                 
-                # Check balance
                 if wallet.balance < fee_amount:
                      return Response({'error': 'Insufficient wallet balance'}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Deduct balance
                 wallet.balance = F('balance') - fee_amount
                 wallet.save()
                 
@@ -291,13 +289,12 @@ class PayPlatformFeeWithWalletView(APIView):
                     description=f"Platform Fee for Service Request #{service_request.id}"
                 )
 
-                # Create Payment Record
                 Payment.objects.create(
                     user=request.user,
                     service_request=service_request,
                     amount=fee_amount,
                     currency=settings.STRIPE_CURRENCY,
-                    stripe_checkout_id=f"WALLET-PAY-{txn.id}", # Internal ID
+                    stripe_checkout_id=f"WALLET-PAY-{txn.id}", 
                     payment_type='PLATFORM_FEE',
                     status='COMPLETED'
                 )

@@ -187,7 +187,6 @@ class CookieTokenRefreshSerializer(TokenRefreshSerializer):
     refresh = serializers.CharField(required=False, allow_blank=True)
     
     def validate(self, attrs):
-        # Get refresh token from cookie
         refresh = self.context['request'].COOKIES.get(
             settings.SIMPLE_JWT['AUTH_COOKIE']
         )
@@ -198,14 +197,11 @@ class CookieTokenRefreshSerializer(TokenRefreshSerializer):
         attrs['refresh'] = refresh
         
         try:
-            # Call parent validate to generate new access token
             data = super().validate(attrs)
             return data
         except TokenError as e:
-            # Re-raise TokenError so the view can handle it properly
             raise InvalidToken(f'Token refresh failed: {str(e)}')
         except Exception as e:
-            # Log unexpected errors and re-raise
             print(f'Unexpected token refresh error: {str(e)}')
             raise
 

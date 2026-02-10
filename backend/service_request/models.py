@@ -26,7 +26,7 @@ class ServiceRequest(models.Model):
 
     vehicle_type = models.CharField(max_length=50)
     vehicle_model = models.CharField(max_length=50)
-    issue_category = models.CharField(max_length=50)
+    issue_category = models.CharField(max_length=50) 
     description = models.TextField()
 
     image_urls = models.JSONField(default=list, blank=True)
