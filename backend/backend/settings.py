@@ -27,6 +27,14 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
+# Django Channels / WebSocket configuration
+ASGI_APPLICATION = "backend.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 
 INSTALLED_APPS = [
@@ -42,10 +50,12 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'cloudinary',
     'cloudinary_storage',
+    'channels',
     'accounts',
     'admin_panel',
     'service_request',
     'payments',
+    'chat',
 ]
 
 

@@ -12,14 +12,13 @@ import {
   removeMechanic
 } from '../../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
+import Chat from '../../components/Chat';
 
 const WorkshopServiceFlow = () => {
   const { requestId } = useParams();
   const dispatch = useDispatch();
 
   const { currentRequest, mechanics: workshopMechanics, loading } = useSelector((state) => state.serviceRequest);
-
-  const [messageInput, setMessageInput] = useState('');
   const [estimateAmount, setEstimateAmount] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [showOtp, setShowOtp] = useState(false);
@@ -33,6 +32,7 @@ const WorkshopServiceFlow = () => {
   }, [dispatch, requestId]);
 
   const currentStatus = currentRequest?.status || 'CREATED';
+  const activeConnection = currentRequest?.active_connection;
 
   const statusFlow = [
     { key: 'CREATED', label: 'Request Created', icon: FileCheck },
@@ -166,36 +166,22 @@ const WorkshopServiceFlow = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Messages Section - Placeholder */}
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" style={{ height: '600px' }}>
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">In-App Chat</h3>
-                  <p className="text-purple-100 text-xs">Communication Channel</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <p className="text-gray-400 italic">Chat feature coming soon...</p>
-            </div>
-            <div className="border-t border-gray-200 p-4">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                  <Send className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+          {/* Messages Section */}
+          <div className="lg:col-span-2">
+            <Chat
+              serviceRequestId={requestId}
+              canChat={!!activeConnection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
+              headerTitle={
+                currentRequest?.user_name
+                  ? `Chat with ${currentRequest.user_name}`
+                  : 'In-App Chat'
+              }
+              headerSubtitle="Communication Channel"
+              headerIcon={User}
+              gradientFrom="from-purple-600"
+              gradientTo="to-pink-600"
+              disabledMessage="Chat will be available when this service has an accepted, active connection."
+            />
           </div>
 
           {/* Side Panel */}

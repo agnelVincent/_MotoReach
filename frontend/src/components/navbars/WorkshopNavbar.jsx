@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Wallet, Users, CreditCard, LogOut, ChevronDown } from 'lucide-react';
 import { useLogout } from '../../hooks/useLogout';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useNotifications } from '../../hooks/useNotifications';
 
 const WorkshopNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -25,10 +26,25 @@ const WorkshopNavbar = () => {
 
   const { logout } = useLogout()
 
+  const { notifications, hasUnread } = useNotifications();
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const notificationRef = useRef(null);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsNotificationOpen(false);
       }
     };
 
@@ -100,10 +116,47 @@ const WorkshopNavbar = () => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
             {/* Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => notifications.length && setIsNotificationOpen((v) => !v)}
+                className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
+              >
+                <Bell className="w-5 h-5" />
+                {hasUnread && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
+              </button>
+              {isNotificationOpen && notifications.length > 0 && (
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Messages
+                  </p>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.map((n) => (
+                      <button
+                        key={n.service_request_id}
+                        onClick={() => {
+                          navigate(`/workshop/service-flow/${n.service_request_id}`);
+                          setIsNotificationOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+                      >
+                        <span className="text-sm font-medium text-gray-800">
+                          {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                          from {n.counterpart_name || 'user'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          Request #{n.service_request_id}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {notifications.length === 0 && (
+                    <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Profile Dropdown */}
             <div className="relative" ref={profileRef}>
@@ -150,7 +203,9 @@ const WorkshopNavbar = () => {
             {/* Mobile Notification Bell */}
             <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {hasUnread && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
             </button>
 
             <button
