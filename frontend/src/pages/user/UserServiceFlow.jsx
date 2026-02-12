@@ -5,21 +5,55 @@ import {
   CheckCircle, Phone, Send, Star, MapPin, Mail, AlertCircle, Ban,
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
-import { fetchNearbyWorkshops } from '../../redux/slices/serviceRequestSlice';
+import { fetchNearbyWorkshops, userCancelConnection } from '../../redux/slices/serviceRequestSlice';
 import Chat from '../../components/Chat';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const { currentRequest, loading } = useSelector((state) => state.serviceRequest);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
 
   useEffect(() => {
     if (requestId) {
+      // Initial fetch
       dispatch(fetchNearbyWorkshops(requestId));
+
+      // Poll for updates every 5 seconds
+      const intervalId = setInterval(() => {
+        dispatch(fetchNearbyWorkshops(requestId));
+      }, 5000);
+
+      return () => clearInterval(intervalId);
     }
   }, [dispatch, requestId]);
+
+  const handleCancelConnection = async () => {
+    if (!requestId) return;
+
+    // Optimistic check: if already cancelled, just notify
+    if (currentRequest?.status === 'PLATFORM_FEE_PAID' && !currentRequest?.active_connection) {
+      toast.success("Connection already cancelled");
+      return;
+    }
+
+    try {
+      const result = await dispatch(userCancelConnection(requestId)).unwrap();
+      if (result) {
+        toast.success("Connection cancelled successfully");
+        dispatch(fetchNearbyWorkshops(requestId));
+      }
+    } catch (error) {
+      // If backend returns 200 "Connection already cancelled", unwrap handles it as success if payload is right.
+      // But if it was an error, we catch it.
+      console.error(error);
+      toast.error(typeof error === 'string' ? error : "Failed to cancel connection");
+    }
+  };
 
   const currentStatus = currentRequest?.status || 'CREATED';
   const connection = currentRequest?.active_connection;
@@ -237,7 +271,9 @@ const UserServiceFlow = () => {
 
             <div className="space-y-3">
               {showCancelButton && (
-                <button className="w-full py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
+                <button
+                  onClick={handleCancelConnection}
+                  className="w-full py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
                   <Ban className="w-5 h-5" />
                   Cancel Connection
                 </button>

@@ -53,6 +53,8 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     execution = serializers.SerializerMethodField()
 
     def get_execution(self, obj):
+        if obj.status in ['CREATED', 'PLATFORM_FEE_PAID', 'CONNECTING', 'EXPIRED', 'CANCELLED']:
+             return None
         try:
             return ServiceExecutionSerializer(obj.execution).data
         except Exception:

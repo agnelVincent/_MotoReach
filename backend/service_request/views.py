@@ -285,7 +285,20 @@ class CancelConnectionRequestView(APIView):
             for mechanic in execution.mechanics.all():
                 mechanic.availability = 'AVAILABLE'
                 mechanic.save()
-            execution.delete()
+            
+            # Clear mechanics and reset execution details instead of deletion
+            # This prevents IntegrityError due to legacy ServiceMessage references
+            execution.mechanics.clear()
+            execution.assigned_to = None
+            execution.estimate_amount = 0
+            execution.escrow_paid = False
+            execution.escrow_txn_id = None
+            execution.otp_code = None
+            execution.cancelled_at = timezone.now()
+            execution.started_at = None
+            execution.completed_at = None
+            execution.save()
+            
         except ServiceExecution.DoesNotExist:
             pass
         
@@ -306,7 +319,10 @@ class UserCancelConnectionView(APIView):
             ).first()
             
             if not connection:
-
+                # Check if it was already cancelled (race condition or UI lag)
+                service_request = ServiceRequest.objects.filter(pk=pk, user=request.user).first()
+                if service_request and service_request.status == 'PLATFORM_FEE_PAID':
+                     return Response({"message": "Connection already cancelled"}, status=status.HTTP_200_OK)
                 return Response({"error": "No active connection found to cancel"}, status=status.HTTP_404_NOT_FOUND)
                 
         except Exception as e:
@@ -323,7 +339,19 @@ class UserCancelConnectionView(APIView):
                  for mechanic in execution.mechanics.all():
                      mechanic.availability = 'AVAILABLE'
                      mechanic.save()
-                 execution.delete()
+                 
+                 # Clear mechanics and reset execution details instead of deletion
+                 execution.mechanics.clear()
+                 execution.assigned_to = None
+                 execution.estimate_amount = 0
+                 execution.escrow_paid = False
+                 execution.escrow_txn_id = None
+                 execution.otp_code = None
+                 execution.cancelled_at = timezone.now()
+                 execution.started_at = None
+                 execution.completed_at = None
+                 execution.save()
+
              except ServiceExecution.DoesNotExist:
                  pass
 
