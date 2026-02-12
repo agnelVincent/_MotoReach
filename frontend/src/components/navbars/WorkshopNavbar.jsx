@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Wallet, Users, CreditCard, LogOut, ChevronDown } from 'lucide-react';
 import { useLogout } from '../../hooks/useLogout';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useChatNotifications } from '../../hooks/useChatNotifications';
 
 const WorkshopNavbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -9,6 +10,8 @@ const WorkshopNavbar = () => {
   const profileRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { totalUnread, items } = useChatNotifications();
 
   const navLinks = [
     { name: 'Dashboard', path: '/workshop', icon: LayoutDashboard },
@@ -57,6 +60,18 @@ const WorkshopNavbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  const handleNotificationsClick = () => {
+    if (totalUnread > 0 && items.length > 0) {
+      const target = items[0];
+      if (target?.service_request_id) {
+        navigate(`/workshop/service-flow/${target.service_request_id}`);
+        return;
+      }
+    }
+    // Fallback to requests list
+    navigate('/workshop/requests');
+  };
+
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,9 +115,17 @@ const WorkshopNavbar = () => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
             {/* Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
+            <button
+              onClick={handleNotificationsClick}
+              className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
+              aria-label="Chat notifications"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {totalUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full border-2 border-white flex items-center justify-center">
+                  {totalUnread > 9 ? '9+' : totalUnread}
+                </span>
+              )}
             </button>
 
             {/* Profile Dropdown */}
@@ -148,9 +171,17 @@ const WorkshopNavbar = () => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-3">
             {/* Mobile Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
+            <button
+              onClick={handleNotificationsClick}
+              className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
+              aria-label="Chat notifications"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {totalUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full border-2 border-white flex items-center justify-center">
+                  {totalUnread > 9 ? '9+' : totalUnread}
+                </span>
+              )}
             </button>
 
             <button

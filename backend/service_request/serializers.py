@@ -1,10 +1,8 @@
 from rest_framework import serializers
-from .models import ServiceRequest, WorkshopConnection
-from accounts.models import Workshop
+from .models import ServiceRequest, WorkshopConnection, ServiceExecution, ServiceMessage
+from accounts.models import Workshop, Mechanic
 
 import cloudinary.uploader
-from .models import ServiceExecution
-from accounts.models import Mechanic
 
 class ServiceExecutionMechanicSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.full_name')
@@ -124,3 +122,40 @@ class WorkshopConnectionSerializer(serializers.ModelSerializer):
             'requested_at', 'responded_at', 'user_name', 'user_email'
         ]
         read_only_fields = ['id', 'requested_at', 'responded_at']
+
+
+class ServiceMessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.SerializerMethodField()
+    service_request_id = serializers.IntegerField(source='service_request.id', read_only=True)
+
+    class Meta:
+        model = ServiceMessage
+        fields = [
+            'id',
+            'service_request',
+            'service_request_id',
+            'sender_type',
+            'sender_user',
+            'sender_workshop',
+            'sender_name',
+            'content',
+            'read_by_user',
+            'read_by_workshop',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id',
+            'service_request_id',
+            'sender_user',
+            'sender_workshop',
+            'created_at',
+            'read_by_user',
+            'read_by_workshop',
+        ]
+
+    def get_sender_name(self, obj):
+        if obj.sender_type == 'USER' and obj.sender_user:
+            return obj.sender_user.full_name
+        elif obj.sender_type == 'WORKSHOP' and obj.sender_workshop:
+            return obj.sender_workshop.workshop_name
+        return 'Unknown'

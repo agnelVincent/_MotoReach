@@ -1,8 +1,21 @@
 from django.urls import path
 from .views import (
-    CreateServiceRequestView, ServiceRequestDetailView, UserServiceRequestListView, ConnectWorkshopView,
-    WorkshopConnectionRequestsView, AcceptConnectionRequestView, RejectConnectionRequestView, CancelConnectionRequestView,
-    UserCancelConnectionView, DeleteServiceRequestView, WorkshopMechanicsView, AssignMechanicView, RemoveMechanicView
+    CreateServiceRequestView,
+    ServiceRequestDetailView,
+    UserServiceRequestListView,
+    ConnectWorkshopView,
+    WorkshopConnectionRequestsView,
+    AcceptConnectionRequestView,
+    RejectConnectionRequestView,
+    CancelConnectionRequestView,
+    UserCancelConnectionView,
+    DeleteServiceRequestView,
+    WorkshopMechanicsView,
+    AssignMechanicView,
+    RemoveMechanicView,
+    ServiceMessageListCreateView,
+    MarkServiceMessagesReadView,
+    UnreadMessagesSummaryView,
 )
 
 urlpatterns = [
@@ -16,9 +29,14 @@ urlpatterns = [
     path('workshop/connection-requests/<int:pk>/accept/', AcceptConnectionRequestView.as_view(), name='accept-connection'),
     path('workshop/connection-requests/<int:pk>/reject/', RejectConnectionRequestView.as_view(), name='reject-connection'),
     path('workshop/connection-requests/<int:pk>/cancel/', CancelConnectionRequestView.as_view(), name='cancel-connection'),
-    
+
     # Mechanic Assignment
     path('workshop/my-mechanics/', WorkshopMechanicsView.as_view(), name='workshop-my-mechanics'),
     path('execution/<int:pk>/assign/', AssignMechanicView.as_view(), name='assign-mechanic'),
     path('execution/<int:pk>/remove/', RemoveMechanicView.as_view(), name='remove-mechanic'),
+
+    # Chat REST endpoints
+    path('<int:pk>/messages/', ServiceMessageListCreateView.as_view(), name='service-messages'),
+    path('<int:pk>/messages/mark-read/', MarkServiceMessagesReadView.as_view(), name='service-messages-mark-read'),
+    path('messages/unread-summary/', UnreadMessagesSummaryView.as_view(), name='unread-message-summary'),
 ]

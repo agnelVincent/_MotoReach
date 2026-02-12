@@ -3,6 +3,7 @@ import { Bell, Menu, X, Car, User, LogOut, Settings } from 'lucide-react';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLogout } from '../../hooks/useLogout';
+import { useChatNotifications } from '../../hooks/useChatNotifications';
 
 const UserNavbar = () => {
   const { isAuthenticated } = useAuthStatus();
@@ -11,6 +12,8 @@ const UserNavbar = () => {
   const profileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { totalUnread, items } = useChatNotifications();
 
   const navLinks = [
     { name: 'Home', path: '/user' },
@@ -131,6 +134,24 @@ const UserNavbar = () => {
     </div>
   );
 
+  const handleNotificationsClick = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (totalUnread > 0 && items.length > 0) {
+      const target = items[0];
+      if (target?.service_request_id) {
+        navigate(`/user/service-flow/${target.service_request_id}`);
+        return;
+      }
+    }
+
+    // Fallback: navigate to services overview
+    navigate('/user/services');
+  };
+
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -170,9 +191,17 @@ const UserNavbar = () => {
           {/* Desktop Auth/Profile & Notifications */}
           <div className="hidden md:flex items-center space-x-4">
             {/* Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300">
+            <button
+              onClick={handleNotificationsClick}
+              className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
+              aria-label="Chat notifications"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {isAuthenticated && totalUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full border-2 border-white flex items-center justify-center">
+                  {totalUnread > 9 ? '9+' : totalUnread}
+                </span>
+              )}
             </button>
 
             {/* Conditional Rendering for Login/Register or Profile Menu */}
@@ -186,9 +215,17 @@ const UserNavbar = () => {
           {/* Mobile Buttons (Bell & Menu) */}
           <div className="md:hidden flex items-center space-x-3">
             {/* Notification Bell (Mobile) */}
-            <button className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300">
+            <button
+              onClick={handleNotificationsClick}
+              className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
+              aria-label="Chat notifications"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {isAuthenticated && totalUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full border-2 border-white flex items-center justify-center">
+                  {totalUnread > 9 ? '9+' : totalUnread}
+                </span>
+              )}
             </button>
 
             {/* Mobile Menu Toggle */}

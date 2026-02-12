@@ -30,6 +30,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'cloudinary',
     'cloudinary_storage',
+    'channels',
     'accounts',
     'admin_panel',
     'service_request',
@@ -78,6 +80,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
+ASGI_APPLICATION = 'backend.asgi.application'
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -207,3 +210,9 @@ STRIPE_PLATFORM_FEE_AMOUNT = float(os.environ.get("STRIPE_PLATFORM_FEE_AMOUNT", 
 PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS = int(os.environ.get("PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS", "3")) 
 
 stripe.api_key = STRIPE_SECRET_KEY
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}

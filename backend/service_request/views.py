@@ -1,9 +1,9 @@
 from rest_framework import status, generics, permissions, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ServiceRequest, WorkshopConnection, ServiceExecution
+from .models import ServiceRequest, WorkshopConnection, ServiceExecution, ServiceMessage
 from accounts.models import Workshop, Mechanic
-from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer, ServiceExecutionMechanicSerializer
+from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer, ServiceExecutionMechanicSerializer, ServiceMessageSerializer
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops
@@ -448,3 +448,265 @@ class RemoveMechanicView(APIView):
              
         except Exception as e:
              return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ServiceMessageListCreateView(generics.ListCreateAPIView):
+    serializer_class = ServiceMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        service_request_id = self.kwargs['pk']
+        service_request = generics.get_object_or_404(ServiceRequest, id=service_request_id)
+        
+        # Check permissions
+        if not self._has_chat_access(service_request):
+            return ServiceMessage.objects.none()
+        
+        return ServiceMessage.objects.filter(service_request=service_request).order_by('created_at')
+
+    def perform_create(self, serializer):
+        service_request_id = self.kwargs['pk']
+        service_request = generics.get_object_or_404(ServiceRequest, id=service_request_id)
+        
+        if not self._has_chat_access(service_request):
+            raise permissions.PermissionDenied("You don't have access to this chat")
+        
+        # Determine sender type and set appropriate fields
+        if self.request.user.role == 'user':
+            serializer.save(
+                service_request=service_request,
+                sender_type='USER',
+                sender_user=self.request.user,
+                sender_workshop=None
+            )
+        elif self.request.user.role == 'workshop_admin':
+            try:
+                workshop = self.request.user.workshop
+                serializer.save(
+                    service_request=service_request,
+                    sender_type='WORKSHOP',
+                    sender_user=None,
+                    sender_workshop=workshop
+                )
+            except AttributeError:
+                raise permissions.PermissionDenied("Workshop not found")
+        else:
+            raise permissions.PermissionDenied("Invalid role for sending messages")
+
+    def _has_chat_access(self, service_request):
+        user = self.request.user
+        
+        # User side: must be the service request owner
+        if user.role == 'user':
+            return service_request.user == user
+        
+        # Workshop side: must be connected to this service request
+        elif user.role == 'workshop_admin':
+            try:
+                workshop = user.workshop
+                # Check if workshop has an active connection or execution for this request
+                return WorkshopConnection.objects.filter(
+                    service_request=service_request,
+                    workshop=workshop,
+                    status='ACCEPTED'
+                ).exists() or ServiceExecution.objects.filter(
+                    service_request=service_request,
+                    workshop=workshop
+                ).exists()
+            except AttributeError:
+                return False
+        
+        return False
+
+
+class MarkServiceMessagesReadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            service_request = ServiceRequest.objects.get(id=pk)
+            
+            # Check permissions (same logic as chat access)
+            view = ServiceMessageListCreateView()
+            view.request = request
+            if not view._has_chat_access(service_request):
+                return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+            
+            messages = ServiceMessage.objects.filter(service_request=service_request)
+            updated_count = 0
+            
+            if request.user.role == 'user':
+                # Mark messages as read by user
+                updated_count = messages.filter(read_by_user=False).update(read_by_user=True)
+            elif request.user.role == 'workshop_admin':
+                # Mark messages as read by workshop
+                updated_count = messages.filter(read_by_workshop=False).update(read_by_workshop=True)
+            
+            return Response({
+                "message": f"Marked {updated_count} messages as read",
+                "updated_count": updated_count
+            }, status=status.HTTP_200_OK)
+            
+        except ServiceRequest.DoesNotExist:
+            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class UnreadMessagesSummaryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        
+        if user.role == 'user':
+            # Get all unread messages for user's service requests
+            unread_messages = ServiceMessage.objects.filter(
+                service_request__user=user,
+                read_by_user=False
+            ).select_related('service_request', 'sender_workshop')
+            
+            # Group by service request
+            summary = {}
+            for message in unread_messages:
+                sr_id = message.service_request.id
+                if sr_id not in summary:
+                    summary[sr_id] = {
+                        'service_request_id': sr_id,
+                        'other_party_name': message.sender_workshop.workshop_name if message.sender_workshop else 'Unknown',
+                        'unread_count': 0,
+                        'last_message_excerpt': message.content[:50] + '...' if len(message.content) > 50 else message.content,
+                        'last_message_time': message.created_at
+                    }
+                summary[sr_id]['unread_count'] += 1
+                
+                # Update last message if this is more recent
+                if message.created_at > summary[sr_id]['last_message_time']:
+                    summary[sr_id]['last_message_excerpt'] = message.content[:50] + '...' if len(message.content) > 50 else message.content
+                    summary[sr_id]['last_message_time'] = message.created_at
+        
+        elif user.role == 'workshop_admin':
+            try:
+                workshop = user.workshop
+                
+                # Get all service requests where this workshop is connected
+                from django.db import models
+                connected_requests = ServiceRequest.objects.filter(
+                    models.Q(connections__workshop=workshop, connections__status='ACCEPTED') |
+                    models.Q(execution__workshop=workshop)
+                ).distinct()
+                
+                # Get unread messages for those requests
+                unread_messages = ServiceMessage.objects.filter(
+                    service_request__in=connected_requests,
+                    read_by_workshop=False
+                ).select_related('service_request', 'sender_user')
+                
+                # Group by service request
+                summary = {}
+                for message in unread_messages:
+                    sr_id = message.service_request.id
+                    if sr_id not in summary:
+                        summary[sr_id] = {
+                            'service_request_id': sr_id,
+                            'other_party_name': message.sender_user.full_name if message.sender_user else 'Unknown',
+                            'unread_count': 0,
+                            'last_message_excerpt': message.content[:50] + '...' if len(message.content) > 50 else message.content,
+                            'last_message_time': message.created_at
+                        }
+                    summary[sr_id]['unread_count'] += 1
+                    
+                    # Update last message if this is more recent
+                    if message.created_at > summary[sr_id]['last_message_time']:
+                        summary[sr_id]['last_message_excerpt'] = message.content[:50] + '...' if len(message.content) > 50 else message.content
+                        summary[sr_id]['last_message_time'] = message.created_at
+                        
+            except AttributeError:
+                summary = {}
+        else:
+            summary = {}
+        
+        items = list(summary.values())
+        total_unread_count = sum(item['unread_count'] for item in items)
+        
+        # Sort by last message time (most recent first)
+        items.sort(key=lambda x: x['last_message_time'], reverse=True)
+        
+        return Response({
+            'total_unread_count': total_unread_count,
+            'items': items
+        })
+
+    @staticmethod
+    def _get_unread_summary_for_user(user):
+        """Helper method to get unread summary for a specific user"""
+        unread_messages = ServiceMessage.objects.filter(
+            service_request__user=user,
+            read_by_user=False
+        ).select_related('service_request', 'sender_workshop')
+        
+        summary = {}
+        for message in unread_messages:
+            sr_id = message.service_request.id
+            if sr_id not in summary:
+                summary[sr_id] = {
+                    'service_request_id': sr_id,
+                    'other_party_name': message.sender_workshop.workshop_name if message.sender_workshop else 'Unknown',
+                    'unread_count': 0,
+                    'last_message_excerpt': message.content[:50] + '...' if len(message.content) > 50 else message.content,
+                    'last_message_time': message.created_at
+                }
+            summary[sr_id]['unread_count'] += 1
+            
+            # Update last message if this is more recent
+            if message.created_at > summary[sr_id]['last_message_time']:
+                summary[sr_id]['last_message_excerpt'] = message.content[:50] + '...' if len(message.content) > 50 else message.content
+                summary[sr_id]['last_message_time'] = message.created_at
+        
+        items = list(summary.values())
+        total_unread_count = sum(item['unread_count'] for item in items)
+        items.sort(key=lambda x: x['last_message_time'], reverse=True)
+        
+        return {
+            'total_unread_count': total_unread_count,
+            'items': items
+        }
+
+    @staticmethod
+    def _get_unread_summary_for_workshop(workshop):
+        """Helper method to get unread summary for a specific workshop"""
+        from django.db import models
+        connected_requests = ServiceRequest.objects.filter(
+            models.Q(connections__workshop=workshop, connections__status='ACCEPTED') |
+            models.Q(execution__workshop=workshop)
+        ).distinct()
+        
+        unread_messages = ServiceMessage.objects.filter(
+            service_request__in=connected_requests,
+            read_by_workshop=False
+        ).select_related('service_request', 'sender_user')
+        
+        summary = {}
+        for message in unread_messages:
+            sr_id = message.service_request.id
+            if sr_id not in summary:
+                summary[sr_id] = {
+                    'service_request_id': sr_id,
+                    'other_party_name': message.sender_user.full_name if message.sender_user else 'Unknown',
+                    'unread_count': 0,
+                    'last_message_excerpt': message.content[:50] + '...' if len(message.content) > 50 else message.content,
+                    'last_message_time': message.created_at
+                }
+            summary[sr_id]['unread_count'] += 1
+            
+            # Update last message if this is more recent
+            if message.created_at > summary[sr_id]['last_message_time']:
+                summary[sr_id]['last_message_excerpt'] = message.content[:50] + '...' if len(message.content) > 50 else message.content
+                summary[sr_id]['last_message_time'] = message.created_at
+        
+        items = list(summary.values())
+        total_unread_count = sum(item['unread_count'] for item in items)
+        items.sort(key=lambda x: x['last_message_time'], reverse=True)
+        
+        return {
+            'total_unread_count': total_unread_count,
+            'items': items
+        }

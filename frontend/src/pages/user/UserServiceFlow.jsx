@@ -6,6 +6,7 @@ import {
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
 import { fetchNearbyWorkshops } from '../../redux/slices/serviceRequestSlice';
+import Chat from '../../components/Chat';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
@@ -108,41 +109,13 @@ const UserServiceFlow = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" style={{ height: '600px' }}>
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                  <Wrench className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">{connection ? connection.workshop_name : 'Finding Workshop...'}</h3>
-                  <p className="text-blue-100 text-xs">{connection ? 'Connected' : 'Pending'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center bg-gray-50">
-              <p className="text-gray-400 italic">Messages will appear here once connected.</p>
-            </div>
-
-            <div className="border-t border-gray-200 p-4">
-              <div className="flex gap-3">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-                  disabled={!connection}
-                />
-                <button
-                  disabled={!connection}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 disabled:bg-gray-400"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+          <div className="lg:col-span-2">
+            <Chat 
+              serviceRequestId={requestId}
+              currentRole="user"
+              otherPartyName={connection?.workshop_name}
+              disabled={!connection}
+            />
           </div>
 
           <div className="space-y-6">

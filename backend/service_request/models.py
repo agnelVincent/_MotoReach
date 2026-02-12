@@ -109,3 +109,49 @@ class ServiceExecution(models.Model):
 
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+
+class ServiceMessage(models.Model):
+    """
+    Chat message exchanged between the service request user and the workshop
+    team during the lifecycle of a service execution.
+    """
+    SENDER_TYPE_CHOICES = [
+        ('USER', 'User'),
+        ('WORKSHOP', 'Workshop'),
+    ]
+
+    service_request = models.ForeignKey(
+        ServiceRequest,
+        on_delete=models.CASCADE,
+        related_name='messages'
+    )
+
+    sender_type = models.CharField(max_length=10, choices=SENDER_TYPE_CHOICES)
+    
+    sender_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sent_messages',
+        null=True,
+        blank=True
+    )
+
+    sender_workshop = models.ForeignKey(
+        'accounts.Workshop',
+        on_delete=models.CASCADE,
+        related_name='sent_messages',
+        null=True,
+        blank=True
+    )
+
+    content = models.TextField()
+
+    # Read flags for each party in the conversation
+    read_by_user = models.BooleanField(default=False)
+    read_by_workshop = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
