@@ -25,7 +25,7 @@ def JWTAuthMiddlewareStack(inner):
     Simple wrapper that applies JWT authentication on top of the
     default AuthMiddlewareStack for WebSocket connections.
     """
-    return JWTAuthMiddleware(AuthMiddlewareStack(inner))
+    return AuthMiddlewareStack(JWTAuthMiddleware(inner))
 
 
 application = ProtocolTypeRouter(

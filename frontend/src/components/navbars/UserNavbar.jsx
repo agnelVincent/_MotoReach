@@ -12,6 +12,7 @@ const UserNavbar = () => {
   const profileMenuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
+  const mobileNotificationRef = useRef(null);
 
   const navLinks = [
     { name: 'Home', path: '/user' },
@@ -41,7 +42,12 @@ const UserNavbar = () => {
 
   const { logout } = useLogout();
 
-  const { notifications, hasUnread } = useNotifications();
+  // Detect if user is currently on a specific service flow page
+  // e.g. /user/service-flow/:requestId
+  const serviceFlowMatch = location.pathname.match(/^\/user\/service-flow\/(\d+)/);
+  const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
+
+  const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
 
@@ -61,7 +67,10 @@ const UserNavbar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      const isOutsideDesktop = notificationRef.current && !notificationRef.current.contains(event.target);
+      const isOutsideMobile = mobileNotificationRef.current && !mobileNotificationRef.current.contains(event.target);
+
+      if (isOutsideDesktop && isOutsideMobile) {
         setIsNotificationOpen(false);
       }
     };
@@ -187,9 +196,65 @@ const UserNavbar = () => {
           {/* Desktop Auth/Profile & Notifications */}
           <div className="hidden md:flex items-center space-x-4">
             {/* Notification Bell */}
-            <div className="relative" ref={notificationRef}>
+            {isAuthenticated && (
+              <div className="relative" ref={notificationRef}>
+                <button
+                  onClick={() => setIsNotificationOpen((v) => !v)}
+                  className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
+                >
+                  <Bell className="w-5 h-5" />
+                  {hasUnread && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                  )}
+                </button>
+                {isNotificationOpen && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50">
+                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Messages
+                    </p>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <button
+                            key={n.service_request_id}
+                            onClick={() => {
+                              navigate(`/user/service-flow/${n.service_request_id}`);
+                              setIsNotificationOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+                          >
+                            <span className="text-sm font-medium text-gray-800">
+                              {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                              from {n.counterpart_name || 'workshop'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Request #{n.service_request_id}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Conditional Rendering for Login/Register or Profile Menu */}
+            {isAuthenticated ? (
+              <ProfileMenu onNavClick={handleNavClick} />
+            ) : (
+              <AuthButtons onNavClick={handleNavClick} />
+            )}
+          </div>
+
+          {/* Mobile Buttons (Bell & Menu) */}
+          <div className="md:hidden flex items-center space-x-3">
+            {/* Notification Bell (Mobile) */}
+            <div className="relative" ref={mobileNotificationRef}>
               <button
-                onClick={() => notifications.length && setIsNotificationOpen((v) => !v)}
+                onClick={() => setIsNotificationOpen((v) => !v)}
                 className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300"
               >
                 <Bell className="w-5 h-5" />
@@ -197,7 +262,7 @@ const UserNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && notifications.length > 0 && (
+              {isNotificationOpen && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl ring-1 ring-black ring-opacity-5 py-2 z-50">
                   <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Messages
@@ -228,24 +293,6 @@ const UserNavbar = () => {
                 </div>
               )}
             </div>
-
-            {/* Conditional Rendering for Login/Register or Profile Menu */}
-            {isAuthenticated ? (
-              <ProfileMenu onNavClick={handleNavClick} />
-            ) : (
-              <AuthButtons onNavClick={handleNavClick} />
-            )}
-          </div>
-
-          {/* Mobile Buttons (Bell & Menu) */}
-          <div className="md:hidden flex items-center space-x-3">
-            {/* Notification Bell (Mobile) */}
-            <button className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300">
-              <Bell className="w-5 h-5" />
-              {hasUnread && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
 
             {/* Mobile Menu Toggle */}
             <button

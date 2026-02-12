@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 
@@ -7,31 +8,40 @@ const getWebSocketBase = () => {
   return `${protocol}://${window.location.host}`;
 };
 
-export const useNotifications = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [hasUnread, setHasUnread] = useState(false);
+export const useNotifications = (currentServiceRequestId) => {
+  // Store raw items from the server (may include entries for the
+  // currently open service request; we will filter those out for UI).
+  const [items, setItems] = useState([]);
+
+  const { accessToken, isAuthenticated } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) return;
+    // Only connect when the user is authenticated and we have a token.
+    if (!isAuthenticated || !accessToken) {
+      setItems([]);
+      return;
+    }
 
     const wsBase = getWebSocketBase();
-    const wsUrl = `${wsBase}/ws/notifications/?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${wsBase}/ws/notifications/?token=${encodeURIComponent(accessToken)}`;
     const socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+      // Connection established
+    };
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
 
         if (data.type === 'notifications.initial') {
-          const items = data.items || [];
-          setNotifications(items.filter((n) => n.unread_count > 0));
-          setHasUnread(items.some((n) => n.unread_count > 0));
+          const serverItems = data.items || [];
+          setItems(serverItems);
         } else if (data.type === 'notifications.update') {
           const item = data.item;
           if (!item) return;
 
-          setNotifications((prev) => {
+          setItems((prev) => {
             const others = prev.filter(
               (n) => n.service_request_id !== item.service_request_id
             );
@@ -42,8 +52,6 @@ export const useNotifications = () => {
 
             return [...others, item];
           });
-
-          setHasUnread(item.unread_count > 0);
         }
       } catch (error) {
         console.error('Failed to parse notification message', error);
@@ -51,34 +59,40 @@ export const useNotifications = () => {
     };
 
     socket.onclose = () => {
-      // Silent close; hook will be re-run on next mount/login if needed
+      // Connection closed; will reconnect if still authenticated
     };
 
-    socket.onerror = () => {
-      // Ignore errors for now; notifications are a progressive enhancement
+    socket.onerror = (error) => {
+      console.error('Notification WebSocket error:', error);
     };
 
     return () => {
-      socket.close();
+      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        socket.close();
+      }
     };
-  }, []);
+  }, [isAuthenticated, accessToken]);
 
-  const clearForServiceRequest = (serviceRequestId) => {
-    setNotifications((prev) =>
-      prev.filter((n) => n.service_request_id !== Number(serviceRequestId))
-    );
-    setHasUnread((prev) => {
-      const remaining = notifications.filter(
-        (n) => n.service_request_id !== Number(serviceRequestId)
-      );
-      return remaining.some((n) => n.unread_count > 0);
-    });
-  };
+  // Derive the visible notifications for the current UI context:
+  // - Only keep entries with unread_count > 0
+  // - Hide entries for the service request that is currently open in a chat view
+  const visibleNotifications = items.filter((n) => {
+    if (!n || typeof n.unread_count === 'undefined') return false;
+    if (n.unread_count <= 0) return false;
+
+    if (currentServiceRequestId) {
+      const currentIdNum = Number(currentServiceRequestId);
+      if (Number(n.service_request_id) === currentIdNum) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   return {
-    notifications,
-    hasUnread,
-    clearForServiceRequest,
+    notifications: visibleNotifications,
+    hasUnread: visibleNotifications.length > 0,
   };
 };
 

@@ -9,6 +9,7 @@ const WorkshopNavbar = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
   const navigate = useNavigate();
+  const mobileNotificationRef = useRef(null);
   const location = useLocation();
 
   const navLinks = [
@@ -26,7 +27,12 @@ const WorkshopNavbar = () => {
 
   const { logout } = useLogout()
 
-  const { notifications, hasUnread } = useNotifications();
+  // Detect if workshop is currently on a specific service flow page
+  // e.g. /workshop/service-flow/:requestId
+  const serviceFlowMatch = location.pathname.match(/^\/workshop\/service-flow\/(\d+)/);
+  const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
+
+  const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
 
@@ -43,7 +49,10 @@ const WorkshopNavbar = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      const isOutsideDesktop = notificationRef.current && !notificationRef.current.contains(event.target);
+      const isOutsideMobile = mobileNotificationRef.current && !mobileNotificationRef.current.contains(event.target);
+
+      if (isOutsideDesktop && isOutsideMobile) {
         setIsNotificationOpen(false);
       }
     };
@@ -118,7 +127,8 @@ const WorkshopNavbar = () => {
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
-                onClick={() => notifications.length && setIsNotificationOpen((v) => !v)}
+                onClick={() => setIsNotificationOpen((v) => !v)}
+
                 className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
               >
                 <Bell className="w-5 h-5" />
@@ -126,34 +136,35 @@ const WorkshopNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && notifications.length > 0 && (
+              {isNotificationOpen && (
                 <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                   <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Messages
                   </p>
                   <div className="max-h-64 overflow-y-auto">
-                    {notifications.map((n) => (
-                      <button
-                        key={n.service_request_id}
-                        onClick={() => {
-                          navigate(`/workshop/service-flow/${n.service_request_id}`);
-                          setIsNotificationOpen(false);
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-                      >
-                        <span className="text-sm font-medium text-gray-800">
-                          {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
-                          from {n.counterpart_name || 'user'}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Request #{n.service_request_id}
-                        </span>
-                      </button>
-                    ))}
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <button
+                          key={n.service_request_id}
+                          onClick={() => {
+                            navigate(`/workshop/service-flow/${n.service_request_id}`);
+                            setIsNotificationOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+                        >
+                          <span className="text-sm font-medium text-gray-800">
+                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                            from {n.counterpart_name || 'user'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Request #{n.service_request_id}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+                    )}
                   </div>
-                  {notifications.length === 0 && (
-                    <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-                  )}
                 </div>
               )}
             </div>
@@ -201,12 +212,48 @@ const WorkshopNavbar = () => {
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-3">
             {/* Mobile Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300">
-              <Bell className="w-5 h-5" />
-              {hasUnread && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            <div className="relative" ref={mobileNotificationRef}>
+              <button
+                onClick={() => setIsNotificationOpen((v) => !v)}
+                className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
+              >
+                <Bell className="w-5 h-5" />
+                {hasUnread && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                )}
+              </button>
+              {isNotificationOpen && (
+                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Messages
+                  </p>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <button
+                          key={n.service_request_id}
+                          onClick={() => {
+                            navigate(`/workshop/service-flow/${n.service_request_id}`);
+                            setIsNotificationOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+                        >
+                          <span className="text-sm font-medium text-gray-800">
+                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                            from {n.counterpart_name || 'user'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Request #{n.service_request_id}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+                    )}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}

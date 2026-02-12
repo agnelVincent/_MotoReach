@@ -35,8 +35,6 @@ class JWTAuthMiddleware:
         query_string = scope.get("query_string", b"").decode()
         query_params = parse_qs(query_string)
 
-        scope["user"] = AnonymousUser()
-
         token_list = query_params.get("token")
         if token_list:
             token = token_list[0]
@@ -44,9 +42,8 @@ class JWTAuthMiddleware:
                 user = await _get_user_from_token(token)
                 scope["user"] = user
             except Exception:
-                # Invalid or expired tokens fall back to AnonymousUser
-                scope["user"] = AnonymousUser()
+                # Invalid or expired tokens fall back to AnonymousUser if previously set, or stay as is
+                pass
 
-        inner = AuthMiddlewareStack(self.inner)
-        return await inner(scope, receive, send)
+        return await self.inner(scope, receive, send)
 

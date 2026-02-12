@@ -127,8 +127,7 @@ def _mark_messages_as_read(user: User, service_request: ServiceRequest) -> None:
     ).update(is_read=True)
 
 
-@database_sync_to_async
-def _build_unread_summary_item(
+def _build_unread_summary_item_sync(
     receiver: User, service_request: ServiceRequest
 ) -> Dict[str, Any]:
     """
@@ -161,6 +160,16 @@ def _build_unread_summary_item(
 
 
 @database_sync_to_async
+def _build_unread_summary_item(
+    receiver: User, service_request: ServiceRequest
+) -> Dict[str, Any]:
+    """
+    Async wrapper around the sync summary builder for a single service request.
+    """
+    return _build_unread_summary_item_sync(receiver, service_request)
+
+
+@database_sync_to_async
 def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
     """
     Aggregate unread messages per service request for a given user.
@@ -176,7 +185,7 @@ def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
             sr = ServiceRequest.objects.get(pk=sr_id)
         except ServiceRequest.DoesNotExist:
             continue
-        item = _build_unread_summary_item.__wrapped__(user, sr)  # type: ignore
+        item = _build_unread_summary_item_sync(user, sr)
         summaries.append(item)
     return summaries
 
