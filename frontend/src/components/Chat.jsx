@@ -5,9 +5,10 @@ import { Send } from 'lucide-react';
 const ACCESS_TOKEN_KEY = 'accessToken';
 
 const getWebSocketBase = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.host}`;
+  return import.meta.env.VITE_WS_BASE;
 };
+
+
 
 const Chat = ({
   serviceRequestId,
