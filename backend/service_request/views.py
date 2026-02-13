@@ -423,6 +423,38 @@ class WorkshopMechanicsView(APIView):
         except Exception as e:
              return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+class MechanicAssignedServicesView(APIView):
+    """
+    List services assigned to the logged-in mechanic.
+
+    We reuse ServiceRequestSerializer so the frontend gets:
+    - service_request fields
+    - active_connection info
+    - execution info (with estimate_amount, escrow_paid, started_at, completed_at, mechanics, lead_technician).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'mechanic':
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            mechanic = request.user.mechanic
+        except Mechanic.DoesNotExist:
+            return Response({"error": "Mechanic profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # All ServiceRequests where this mechanic is part of the execution.mechanics
+        qs = ServiceRequest.objects.filter(
+            execution__mechanics=mechanic
+        ).select_related('user').order_by('-created_at')
+
+        # Optionally filter to "current" services if needed:
+        # qs = qs.filter(status__in=['CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'])
+
+        serializer = ServiceRequestSerializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 class AssignMechanicView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 

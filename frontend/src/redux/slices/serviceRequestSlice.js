@@ -306,6 +306,19 @@ export const generateServiceOTP = createAsyncThunk(
   }
 );
 
+// Mechanic: fetch services assigned to the logged-in mechanic
+export const fetchMechanicAssignedServices = createAsyncThunk(
+  'serviceRequest/fetchMechanicAssignedServices',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get('service-request/mechanic/assigned-services/');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch assigned services");
+    }
+  }
+);
+
 export const verifyServiceOTP = createAsyncThunk(
   'serviceRequest/verifyServiceOTP',
   async ({ executionId, otp, requestId }, { dispatch, rejectWithValue }) => {
@@ -327,6 +340,7 @@ const serviceRequestSlice = createSlice({
     nearbyWorkshops: [],
     userRequests: [],
     workshopRequests: [],
+    mechanicAssignedRequests: [],
     mechanics: [],
     estimates: [],
     currentEstimate: null,
@@ -401,6 +415,20 @@ const serviceRequestSlice = createSlice({
         state.workshopRequests = action.payload;
       })
       .addCase(fetchWorkshopRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Mechanic assigned services
+      .addCase(fetchMechanicAssignedServices.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMechanicAssignedServices.fulfilled, (state, action) => {
+        state.loading = false;
+        state.mechanicAssignedRequests = action.payload || [];
+      })
+      .addCase(fetchMechanicAssignedServices.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

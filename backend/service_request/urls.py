@@ -1,12 +1,30 @@
 from django.urls import path
 from .views import (
-    CreateServiceRequestView, ServiceRequestDetailView, UserServiceRequestListView, ConnectWorkshopView,
-    WorkshopConnectionRequestsView, AcceptConnectionRequestView, RejectConnectionRequestView, CancelConnectionRequestView,
-    UserCancelConnectionView, DeleteServiceRequestView, WorkshopMechanicsView, AssignMechanicView, RemoveMechanicView,
-    CreateEstimateView, UpdateEstimateView, SendEstimateView, ResendEstimateView,
-    ApproveEstimateView, RejectEstimateView,
-    GetEstimateView, ListEstimatesView, DeleteEstimateView,
-    GenerateServiceOTPView, VerifyServiceOTPView,
+    CreateServiceRequestView,
+    ServiceRequestDetailView,
+    UserServiceRequestListView,
+    ConnectWorkshopView,
+    WorkshopConnectionRequestsView,
+    AcceptConnectionRequestView,
+    RejectConnectionRequestView,
+    CancelConnectionRequestView,
+    UserCancelConnectionView,
+    DeleteServiceRequestView,
+    WorkshopMechanicsView,
+    AssignMechanicView,
+    RemoveMechanicView,
+    MechanicAssignedServicesView,
+    CreateEstimateView,
+    UpdateEstimateView,
+    SendEstimateView,
+    ResendEstimateView,
+    ApproveEstimateView,
+    RejectEstimateView,
+    GetEstimateView,
+    ListEstimatesView,
+    DeleteEstimateView,
+    GenerateServiceOTPView,
+    VerifyServiceOTPView,
 )
 
 urlpatterns = [
@@ -26,6 +44,8 @@ urlpatterns = [
     path('workshop/my-mechanics/', WorkshopMechanicsView.as_view(), name='workshop-my-mechanics'),
     path('execution/<int:pk>/assign/', AssignMechanicView.as_view(), name='assign-mechanic'),
     path('execution/<int:pk>/remove/', RemoveMechanicView.as_view(), name='remove-mechanic'),
+    # Mechanic assigned services
+    path('mechanic/assigned-services/', MechanicAssignedServicesView.as_view(), name='mechanic-assigned-services'),
     
     # Estimate Management
     path('connection/<int:connection_id>/estimates/', ListEstimatesView.as_view(), name='list-estimates'),
