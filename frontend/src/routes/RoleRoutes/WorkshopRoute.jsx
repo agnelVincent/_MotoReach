@@ -6,6 +6,7 @@ import WorkshopPendingPage from "../../pages/workshop/WorkshopPendingPage";
 import WorkshopRequestList from "../../pages/workshop/WorkshopRequestList";
 import WorkshopMechanicManager from "../../pages/workshop/WorkshopMechanicManager";
 import WorkshopServiceFlow from "../../pages/workshop/WorkshopServiceFlow";
+import WorkshopWallet from "../../pages/workshop/WorkshopWallet";
 
 function WorkshopRoute() {
     return (
@@ -15,6 +16,7 @@ function WorkshopRoute() {
             <Route path="pending" element={<WorkshopPendingPage />} />
             <Route path="requests" element={<WorkshopRequestList />} />
             <Route path="team" element={<WorkshopMechanicManager />} />
+            <Route path="wallet" element={<WorkshopWallet />} />
             <Route path="service-flow/:requestId" element={<WorkshopServiceFlow />} />
         </Route>
     );
