@@ -22,7 +22,7 @@ class ServiceExecutionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = ServiceExecution
-        fields = ['id', 'lead_technician', 'mechanics', 'estimate_amount', 'started_at', 'completed_at']
+        fields = ['id', 'lead_technician', 'mechanics', 'estimate_amount', 'escrow_paid', 'started_at', 'completed_at']
         
     def get_lead_technician(self, obj):
         if obj.assigned_to:
@@ -156,9 +156,35 @@ class EstimateSerializer(serializers.ModelSerializer):
         ]
 
 
+class EstimateLineItemCreateSerializer(serializers.ModelSerializer):
+    """For create/update: only writable fields; total is computed."""
+    class Meta:
+        model = EstimateLineItem
+        fields = ['item_type', 'description', 'quantity', 'unit_price']
+        read_only_fields = []
+
+    def _to_non_negative_float(self, value, field_name):
+        if value is None or value == '':
+            return 0
+        try:
+            n = float(value)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError(f'{field_name} must be a non-negative number.')
+        if n < 0:
+            raise serializers.ValidationError(f'{field_name} must be a non-negative number.')
+        return n
+
+    def validate_quantity(self, value):
+        return self._to_non_negative_float(value, 'Quantity')
+
+    def validate_unit_price(self, value):
+        return self._to_non_negative_float(value, 'Unit price')
+
+
 class EstimateCreateSerializer(serializers.ModelSerializer):
-    line_items = EstimateLineItemSerializer(many=True, required=False)
-    
+    line_items = EstimateLineItemCreateSerializer(many=True, required=False)
+    workshop_connection = serializers.PrimaryKeyRelatedField(queryset=WorkshopConnection.objects.all(), required=False)
+
     class Meta:
         model = Estimate
         fields = [
@@ -169,27 +195,27 @@ class EstimateCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         line_items_data = validated_data.pop('line_items', [])
-        
-        # Set default expiry (7 days from now)
         if not validated_data.get('expires_at'):
             validated_data['expires_at'] = timezone.now() + timedelta(days=7)
-        
         estimate = Estimate.objects.create(**validated_data)
-        
-        # Create line items
         for item_data in line_items_data:
-            EstimateLineItem.objects.create(estimate=estimate, **item_data)
-        
-        # Recalculate totals
+            q = item_data.get('quantity', 1)
+            u = item_data.get('unit_price', 0)
+            EstimateLineItem.objects.create(
+                estimate=estimate,
+                item_type=item_data.get('item_type', 'LABOR'),
+                description=item_data.get('description', ''),
+                quantity=q,
+                unit_price=u,
+            )
         estimate.calculate_totals()
         estimate.save()
-        
         return estimate
 
 
 class EstimateUpdateSerializer(serializers.ModelSerializer):
-    line_items = EstimateLineItemSerializer(many=True, required=False)
-    
+    line_items = EstimateLineItemCreateSerializer(many=True, required=False)
+
     class Meta:
         model = Estimate
         fields = [
@@ -198,21 +224,18 @@ class EstimateUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         line_items_data = validated_data.pop('line_items', None)
-        
-        # Update estimate fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
-        # Update line items if provided
         if line_items_data is not None:
-            # Delete existing line items
             instance.line_items.all().delete()
-            # Create new line items
             for item_data in line_items_data:
-                EstimateLineItem.objects.create(estimate=instance, **item_data)
-        
-        # Recalculate totals
+                EstimateLineItem.objects.create(
+                    estimate=instance,
+                    item_type=item_data.get('item_type', 'LABOR'),
+                    description=item_data.get('description', ''),
+                    quantity=item_data.get('quantity', 1),
+                    unit_price=item_data.get('unit_price', 0),
+                )
         instance.calculate_totals()
         instance.save()
-        
         return instance

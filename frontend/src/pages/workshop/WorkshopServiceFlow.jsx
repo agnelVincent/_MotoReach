@@ -3,13 +3,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import {
   CheckCircle, Phone, Send, User, Mail, UserMinus, UserPlus, DollarSign,
-  Shield, AlertCircle, FileCheck, CreditCard, Wrench, Link2, Key, Eye, EyeOff, X
+  Shield, AlertCircle, FileCheck, CreditCard, Wrench, Link2, Key, Eye, EyeOff, X, Ban
 } from 'lucide-react';
 import {
   fetchNearbyWorkshops,
   fetchWorkshopMechanics,
   assignMechanic,
-  removeMechanic
+  removeMechanic,
+  generateServiceOTP,
+  cancelRequestWorkshop,
 } from '../../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
@@ -58,10 +60,20 @@ const WorkshopServiceFlow = () => {
     return index === getCurrentStatusIndex();
   };
 
-  const handleGenerateOtp = () => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(otp);
-    setShowOtp(true);
+  const handleGenerateOtp = async () => {
+    const executionId = currentRequest?.execution?.id;
+    if (!executionId) {
+      toast.error('No execution found');
+      return;
+    }
+    try {
+      const result = await dispatch(generateServiceOTP(executionId)).unwrap();
+      setGeneratedOtp(result.otp || '');
+      setShowOtp(true);
+      toast.success('OTP generated. Share it with the customer to verify completion.');
+    } catch (e) {
+      toast.error(e?.error || e?.message || 'Failed to generate OTP');
+    }
   };
 
   const handleAssignMechanic = async (mechanicId) => {
@@ -258,12 +270,14 @@ const WorkshopServiceFlow = () => {
               />
             )}
 
-            {/* OTP Section */}
+            {/* OTP Section - only after escrow is paid */}
+            {execution?.escrow_paid && (
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <Key className="w-5 h-5 text-purple-600" />
                 Completion OTP
               </h3>
+              <p className="text-sm text-gray-600 mb-3">Generate OTP after service is done. Customer will enter it to confirm and release payment.</p>
               {!generatedOtp ? (
                 <button
                   onClick={handleGenerateOtp}
@@ -284,6 +298,27 @@ const WorkshopServiceFlow = () => {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Cancel connection - only before customer pays */}
+            {activeConnection && !['SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus) && (
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Cancel this connection? The customer will need to connect to another workshop.')) return;
+                  try {
+                    await dispatch(cancelRequestWorkshop(activeConnection.id)).unwrap();
+                    toast.success('Connection cancelled');
+                    if (requestId) dispatch(fetchNearbyWorkshops(requestId));
+                  } catch (e) {
+                    toast.error(e?.error || 'Failed to cancel connection');
+                  }
+                }}
+                className="w-full py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-2 font-semibold mt-4"
+              >
+                <Ban className="w-5 h-5" />
+                Cancel connection
+              </button>
+            )}
           </div>
         </div>
       </div>

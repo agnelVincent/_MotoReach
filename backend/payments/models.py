@@ -31,6 +31,9 @@ class Payment(models.Model):
     is_refunded = models.BooleanField(default=False)
     refund_txn_id = models.CharField(max_length=255, null=True, blank=True)
 
+    # Escrow: when True, amount was released to workshop wallet after OTP verification
+    escrow_released = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

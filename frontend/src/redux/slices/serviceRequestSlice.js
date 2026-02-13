@@ -281,6 +281,44 @@ export const deleteEstimate = createAsyncThunk(
   }
 );
 
+export const resendEstimate = createAsyncThunk(
+  'serviceRequest/resendEstimate',
+  async ({ estimateId, requestId }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/estimates/${estimateId}/resend/`);
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Failed to resend estimate");
+    }
+  }
+);
+
+export const generateServiceOTP = createAsyncThunk(
+  'serviceRequest/generateServiceOTP',
+  async (executionId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${executionId}/generate-otp/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Failed to generate OTP");
+    }
+  }
+);
+
+export const verifyServiceOTP = createAsyncThunk(
+  'serviceRequest/verifyServiceOTP',
+  async ({ executionId, otp, requestId }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${executionId}/verify-otp/`, { otp });
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Invalid OTP");
+    }
+  }
+);
+
 
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',

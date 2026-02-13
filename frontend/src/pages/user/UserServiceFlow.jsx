@@ -1,22 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import {
   CheckCircle, Phone, Send, Star, MapPin, Mail, AlertCircle, Ban,
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
-import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates } from '../../redux/slices/serviceRequestSlice';
+import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates, approveEstimate, rejectEstimate, verifyServiceOTP } from '../../redux/slices/serviceRequestSlice';
+import { createEscrowCheckout, resetPaymentState } from '../../redux/slices/paymentSlice';
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const { currentRequest, loading, estimates } = useSelector((state) => state.serviceRequest);
+  const { checkoutUrl: escrowCheckoutUrl, loading: escrowLoading } = useSelector((state) => state.payment);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   useEffect(() => {
     if (requestId) {
@@ -38,6 +42,29 @@ const UserServiceFlow = () => {
       dispatch(fetchEstimates(currentRequest.active_connection.id));
     }
   }, [dispatch, currentRequest?.active_connection?.id]);
+
+  // Handle escrow success/cancel from Stripe redirect
+  useEffect(() => {
+    const escrowSuccess = searchParams.get('escrow_success');
+    const escrowCanceled = searchParams.get('escrow_canceled');
+    if (escrowSuccess === 'true') {
+      toast.success('Payment successful. Amount is held in escrow until service completion.');
+      setSearchParams({}, { replace: true });
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+    }
+    if (escrowCanceled === 'true') {
+      toast.error('Payment was canceled.');
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, dispatch, requestId]);
+
+  // Redirect to Stripe when escrow checkout URL is set
+  useEffect(() => {
+    if (escrowCheckoutUrl) {
+      window.location.href = escrowCheckoutUrl;
+      dispatch(resetPaymentState());
+    }
+  }, [escrowCheckoutUrl, dispatch]);
 
   const handleCancelConnection = async () => {
     if (!requestId) return;
@@ -98,6 +125,60 @@ const UserServiceFlow = () => {
     }
   };
 
+  const handleApproveEstimate = async (estimateId) => {
+    try {
+      await dispatch(approveEstimate({ estimateId })).unwrap();
+      toast.success('Estimate approved. Please pay to proceed.');
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+      if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
+    } catch (e) {
+      toast.error(e?.error || 'Failed to approve estimate');
+    }
+  };
+
+  const handleRejectEstimate = async (estimateId) => {
+    try {
+      await dispatch(rejectEstimate({ estimateId })).unwrap();
+      toast.success('Estimate rejected. Workshop can send a new one.');
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+      if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
+    } catch (e) {
+      toast.error(e?.error || 'Failed to reject estimate');
+    }
+  };
+
+  const handlePayEscrow = async (estimateId) => {
+    try {
+      await dispatch(createEscrowCheckout({ estimateId })).unwrap();
+    } catch (e) {
+      toast.error(typeof e === 'string' ? e : e?.error || 'Failed to start payment');
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const otp = otpValues.join('');
+    if (otp.length !== 6) {
+      toast.error('Enter 6-digit OTP');
+      return;
+    }
+    const executionId = currentRequest?.execution?.id;
+    if (!executionId) {
+      toast.error('No service execution found');
+      return;
+    }
+    setVerifyingOtp(true);
+    try {
+      await dispatch(verifyServiceOTP({ executionId, otp, requestId })).unwrap();
+      toast.success('Service verified. Payment has been released to the workshop.');
+      setOtpValues(['', '', '', '', '', '']);
+      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+    } catch (e) {
+      toast.error(e?.error || 'Invalid OTP');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
   if (loading && !currentRequest) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -106,7 +187,7 @@ const UserServiceFlow = () => {
     );
   }
 
-  const showCancelButton = !['IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus);
+  const showCancelButton = !['SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 sm:p-6">
@@ -339,25 +420,42 @@ const UserServiceFlow = () => {
 
                       {/* Action Buttons for SENT estimates */}
                       {activeEstimate.status === 'SENT' && (
-                        <div className="flex gap-3 pt-2">
+                        <div className="space-y-2 pt-2">
+                          {activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date() && (
+                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                              This estimate has expired. You can still reject it or ask the workshop for a new one.
+                            </p>
+                          )}
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleApproveEstimate(activeEstimate.id)}
+                              disabled={!!(activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date())}
+                              className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Approve Estimate
+                            </button>
+                            <button
+                              onClick={() => handleRejectEstimate(activeEstimate.id)}
+                              className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 font-semibold"
+                            >
+                              Reject Estimate
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pay escrow: approved but not yet paid */}
+                      {activeEstimate.status === 'APPROVED' && currentRequest?.execution && !currentRequest.execution.escrow_paid && (
+                        <div className="pt-2">
                           <button
-                            onClick={() => {
-                              // TODO: Implement approve estimate
-                              toast.success('Estimate approval feature coming soon!');
-                            }}
-                            className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-semibold"
+                            onClick={() => handlePayEscrow(activeEstimate.id)}
+                            disabled={escrowLoading}
+                            className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-semibold disabled:opacity-70 flex items-center justify-center gap-2"
                           >
-                            Approve Estimate
+                            <CreditCard className="w-5 h-5" />
+                            {escrowLoading ? 'Redirecting to payment...' : `Pay ₹${parseFloat(activeEstimate.total_amount).toFixed(2)} (Escrow)`}
                           </button>
-                          <button
-                            onClick={() => {
-                              // TODO: Implement reject estimate
-                              toast.error('Estimate rejection feature coming soon!');
-                            }}
-                            className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 font-semibold"
-                          >
-                            Reject Estimate
-                          </button>
+                          <p className="text-xs text-gray-500 mt-2 text-center">Amount is held securely until you verify service completion.</p>
                         </div>
                       )}
                     </div>
@@ -423,9 +521,16 @@ const UserServiceFlow = () => {
                 ))}
               </div>
 
-              <button className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl">
-                Verify & Complete Service
+              <button
+                onClick={handleVerifyOtp}
+                disabled={verifyingOtp || currentRequest?.status === 'VERIFIED' || !currentRequest?.execution?.escrow_paid}
+                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-60"
+              >
+                {verifyingOtp ? 'Verifying...' : 'Verify & Complete Service'}
               </button>
+              {currentRequest?.status === 'VERIFIED' && (
+                <p className="text-center text-green-600 font-medium mt-2">Service verified. Payment released to workshop.</p>
+              )}
             </div>
           </div>
         </div>

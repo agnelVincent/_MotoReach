@@ -7,7 +7,7 @@ from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer
-from service_request.models import ServiceRequest
+from service_request.models import ServiceRequest, ServiceExecution, Estimate
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
@@ -74,6 +74,73 @@ class CreateCheckoutSessionView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class CreateServiceEscrowCheckoutView(APIView):
+    """Create Stripe Checkout for approved estimate (escrow). Money held until OTP verification."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        estimate_id = request.data.get('estimate_id')
+        if not estimate_id:
+            return Response({'error': 'estimate_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            estimate = Estimate.objects.get(pk=estimate_id)
+        except Estimate.DoesNotExist:
+            return Response({'error': 'Estimate not found'}, status=status.HTTP_404_NOT_FOUND)
+        if estimate.service_request.user != request.user:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        if estimate.status != 'APPROVED':
+            return Response({'error': 'Only approved estimates can be paid'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            execution = estimate.service_request.execution
+        except ServiceExecution.DoesNotExist:
+            return Response({'error': 'Service execution not found'}, status=status.HTTP_400_BAD_REQUEST)
+        if execution.escrow_paid:
+            return Response({'error': 'Service amount already paid'}, status=status.HTTP_400_BAD_REQUEST)
+        amount = float(estimate.total_amount)
+        if amount <= 0:
+            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+        sr_id = estimate.service_request.id
+        base_url = 'http://localhost:5173'
+        success_url = f'{base_url}/user/service-flow/{sr_id}?escrow_success=true'
+        cancel_url = f'{base_url}/user/service-flow/{sr_id}?escrow_canceled=true'
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': settings.STRIPE_CURRENCY,
+                        'unit_amount': int(round(amount * 100)),
+                        'product_data': {
+                            'name': 'Service Amount (Escrow)',
+                            'description': f'Service request #{sr_id} – amount held until completion',
+                        },
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=success_url,
+                cancel_url=cancel_url,
+                metadata={
+                    'payment_type': 'SERVICE_ESCROW',
+                    'service_request_id': sr_id,
+                    'estimate_id': str(estimate_id),
+                    'user_id': str(request.user.id),
+                },
+            )
+            Payment.objects.create(
+                user=request.user,
+                service_request=estimate.service_request,
+                amount=estimate.total_amount,
+                currency=settings.STRIPE_CURRENCY,
+                stripe_checkout_id=checkout_session.id,
+                payment_type='SERVICE_ESCROW',
+                status='PENDING',
+            )
+            return Response({'url': checkout_session.url})
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -126,7 +193,13 @@ class StripeWebhookView(APIView):
         payment.save()
         print(f"Payment updated to COMPLETED")
 
-        if session.get('metadata', {}).get('payment_type') == 'WALLET_TOPUP':
+        metadata = session.get('metadata', {}) or {}
+        payment_type = metadata.get('payment_type')
+
+        if payment_type == 'SERVICE_ESCROW':
+            self._handle_service_escrow_completed(payment)
+            return
+        if payment_type == 'WALLET_TOPUP':
             print(f"Processing wallet topup for user {payment.user.id}")
             
 
@@ -146,7 +219,7 @@ class StripeWebhookView(APIView):
             print(f"Wallet balance updated (Atomic)")
             return
 
-        if payment.service_request:
+        if payment_type == 'PLATFORM_FEE' and payment.service_request:
             print(f"Updating ServiceRequest {payment.service_request.id}")
             print(f"Before - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
             payment.service_request.platform_fee_paid = True
@@ -156,9 +229,27 @@ class StripeWebhookView(APIView):
             print(f"After - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
             print("ServiceRequest updated successfully!")
         else:
-            print("WARNING: Payment has no associated service_request")
+            print("WARNING: Payment has no associated service_request or not PLATFORM_FEE")
         
         print("=" * 50)
+
+    def _handle_service_escrow_completed(self, payment):
+        """Mark execution as escrow paid and set service request status to SERVICE_AMOUNT_PAID."""
+        if not payment.service_request_id:
+            print("WARNING: SERVICE_ESCROW payment has no service_request")
+            return
+        try:
+            execution = ServiceExecution.objects.get(service_request_id=payment.service_request_id)
+        except ServiceExecution.DoesNotExist:
+            print("WARNING: No ServiceExecution for escrow payment")
+            return
+        with transaction.atomic():
+            execution.escrow_paid = True
+            execution.escrow_txn_id = payment.stripe_checkout_id
+            execution.save()
+            payment.service_request.status = 'SERVICE_AMOUNT_PAID'
+            payment.service_request.save()
+        print("SERVICE_ESCROW: execution updated, service request status = SERVICE_AMOUNT_PAID")
 
 
 class WalletView(APIView):

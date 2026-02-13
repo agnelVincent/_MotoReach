@@ -1,8 +1,17 @@
 from django.urls import path
-from .views import CreateCheckoutSessionView, StripeWebhookView, WalletView, WalletTransactionListView, AddMoneyCheckoutView, PayPlatformFeeWithWalletView
+from .views import (
+    CreateCheckoutSessionView,
+    CreateServiceEscrowCheckoutView,
+    StripeWebhookView,
+    WalletView,
+    WalletTransactionListView,
+    AddMoneyCheckoutView,
+    PayPlatformFeeWithWalletView,
+)
 
 urlpatterns = [
     path('create-checkout-session/', CreateCheckoutSessionView.as_view(), name='create-checkout-session'),
+    path('create-escrow-checkout/', CreateServiceEscrowCheckoutView.as_view(), name='create-escrow-checkout'),
     path('webhook/', StripeWebhookView.as_view(), name='stripe-webhook'),
     path('wallet/', WalletView.as_view(), name='wallet'),
     path('wallet/transactions/', WalletTransactionListView.as_view(), name='wallet-transactions'),

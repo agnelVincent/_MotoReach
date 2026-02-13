@@ -280,6 +280,13 @@ class CancelConnectionRequestView(APIView):
         if connection.status != 'ACCEPTED':
             return Response({"error": "Only accepted connections can be cancelled"}, status=status.HTTP_400_BAD_REQUEST)
 
+        sr = connection.service_request
+        if sr.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
+            return Response(
+                {"error": "Cannot cancel connection after the customer has paid. Contact support if needed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         connection.status = 'CANCELLED'
         connection.cancelled_by = 'WORKSHOP'
         connection.responded_at = timezone.now()
@@ -324,7 +331,6 @@ class UserCancelConnectionView(APIView):
             ).first()
             
             if not connection:
-                # Check if it was already cancelled (race condition or UI lag)
                 service_request = ServiceRequest.objects.filter(pk=pk, user=request.user).first()
                 if service_request and service_request.status == 'PLATFORM_FEE_PAID':
                      return Response({"message": "Connection already cancelled"}, status=status.HTTP_200_OK)
@@ -332,6 +338,12 @@ class UserCancelConnectionView(APIView):
                 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if connection.service_request.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
+            return Response(
+                {"error": "Cannot cancel connection after payment has been made."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
              
         if connection.status == 'REQUESTED':
             connection.status = 'WITHDRAWN'
@@ -520,7 +532,10 @@ class CreateEstimateView(APIView):
         serializer = EstimateCreateSerializer(data=request.data)
         if serializer.is_valid():
             with transaction.atomic():
-                estimate = serializer.save(workshop_connection=connection)
+                estimate = serializer.save(
+                    workshop_connection=connection,
+                    service_request=connection.service_request,
+                )
                 return Response(EstimateSerializer(estimate).data, status=status.HTTP_201_CREATED)
         print(serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -547,9 +562,9 @@ class UpdateEstimateView(APIView):
         except Estimate.DoesNotExist:
             return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if estimate.status != 'DRAFT':
+        if estimate.status not in ('DRAFT', 'REJECTED'):
             return Response(
-                {"error": f"Cannot update estimate with status: {estimate.status}. Only DRAFT estimates can be updated."},
+                {"error": f"Cannot update estimate with status: {estimate.status}. Only DRAFT or REJECTED estimates can be updated."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -557,6 +572,10 @@ class UpdateEstimateView(APIView):
         if serializer.is_valid():
             with transaction.atomic():
                 estimate = serializer.save()
+                if estimate.status == 'REJECTED':
+                    estimate.status = 'DRAFT'
+                    estimate.rejected_at = None
+                    estimate.save()
                 return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -693,6 +712,41 @@ class RejectEstimateView(APIView):
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
 
+class ResendEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, estimate_id):
+        """Workshop re-sends a rejected estimate to the user (status REJECTED -> SENT)"""
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Only workshop admins can resend estimates"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            workshop = request.user.workshop
+        except AttributeError:
+            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            estimate = Estimate.objects.get(
+                pk=estimate_id,
+                workshop_connection__workshop=workshop
+            )
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+        if estimate.status != 'REJECTED':
+            return Response(
+                {"error": f"Can only resend REJECTED estimates. Current status: {estimate.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        with transaction.atomic():
+            estimate.status = 'SENT'
+            estimate.sent_at = timezone.now()
+            estimate.rejected_at = None
+            estimate.save()
+            service_request = estimate.service_request
+            if service_request.status != 'ESTIMATE_SHARED':
+                service_request.status = 'ESTIMATE_SHARED'
+                service_request.save()
+        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
 class GetEstimateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -770,3 +824,88 @@ class DeleteEstimateView(APIView):
 
         estimate.delete()
         return Response({"message": "Estimate deleted successfully"}, status=status.HTTP_200_OK)
+
+
+def _can_generate_service_otp(user, execution):
+    """True if user is workshop admin or an assigned mechanic for this execution."""
+    if user.role == 'workshop_admin':
+        try:
+            return execution.workshop == user.workshop
+        except AttributeError:
+            return False
+    if user.role == 'mechanic':
+        try:
+            return execution.mechanics.filter(user=user).exists()
+        except Exception:
+            return False
+    return False
+
+
+class GenerateServiceOTPView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        """Generate OTP for service completion. Callable by workshop admin or assigned mechanic."""
+        try:
+            execution = ServiceExecution.objects.get(pk=pk)
+        except ServiceExecution.DoesNotExist:
+            return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not _can_generate_service_otp(request.user, execution):
+            return Response({"error": "Only workshop admin or assigned mechanic can generate OTP"}, status=status.HTTP_403_FORBIDDEN)
+        if not execution.escrow_paid:
+            return Response({"error": "Service amount must be paid (escrowed) before generating OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        import random
+        otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        execution.otp_code = otp
+        execution.save()
+        return Response({"message": "OTP generated", "otp": otp}, status=status.HTTP_200_OK)
+
+
+class VerifyServiceOTPView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        """User (service request owner) verifies OTP. On success: mark completed and release escrow to workshop."""
+        otp = (request.data.get('otp') or '').strip()
+        if not otp or len(otp) != 6:
+            return Response({"error": "Valid 6-digit OTP required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            execution = ServiceExecution.objects.get(pk=pk)
+        except ServiceExecution.DoesNotExist:
+            return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+        if execution.service_request.user != request.user:
+            return Response({"error": "Only the service request owner can verify OTP"}, status=status.HTTP_403_FORBIDDEN)
+        if execution.otp_code != otp:
+            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        from payments.models import Payment, Wallet, WalletTransaction
+        from django.db.models import F
+        with transaction.atomic():
+            execution.completed_at = timezone.now()
+            execution.otp_code = None  # one-time use
+            execution.save()
+            execution.service_request.status = 'COMPLETED'
+            execution.service_request.save()
+            # Release escrow to workshop wallet
+            escrow_payment = Payment.objects.filter(
+                service_request=execution.service_request,
+                payment_type='SERVICE_ESCROW',
+                status='COMPLETED',
+                escrow_released=False
+            ).first()
+            if escrow_payment:
+                workshop_user = execution.workshop.user
+                wallet, _ = Wallet.objects.get_or_create(user=workshop_user)
+                wallet.balance = F('balance') + escrow_payment.amount
+                wallet.save()
+                wallet.refresh_from_db()
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    amount=escrow_payment.amount,
+                    transaction_type='CREDIT',
+                    description=f"Service completion payout for request #{execution.service_request.id}"
+                )
+                escrow_payment.escrow_released = True
+                escrow_payment.save()
+            execution.service_request.status = 'VERIFIED'
+            execution.service_request.save()
+        return Response({"message": "Service verified. Payment released to workshop."}, status=status.HTTP_200_OK)

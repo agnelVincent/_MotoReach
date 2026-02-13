@@ -37,6 +37,24 @@ export const payPlatformFeeWithWallet = createAsyncThunk(
     }
 );
 
+export const createEscrowCheckout = createAsyncThunk(
+    "payment/createEscrowCheckout",
+    async ({ estimateId }, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post("payments/create-escrow-checkout/", {
+                estimate_id: estimateId,
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(
+                error.response?.data?.error ||
+                error.response?.data?.message ||
+                "Failed to start payment"
+            );
+        }
+    }
+);
+
 const paymentSlice = createSlice({
     name: "payment",
     initialState: {
@@ -81,6 +99,22 @@ const paymentSlice = createSlice({
                 state.paymentStatus = 'succeeded';
             })
             .addCase(payPlatformFeeWithWallet.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+                state.paymentStatus = 'failed';
+            })
+
+            .addCase(createEscrowCheckout.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+                state.paymentStatus = 'loading';
+            })
+            .addCase(createEscrowCheckout.fulfilled, (state, action) => {
+                state.loading = false;
+                state.checkoutUrl = action.payload.url;
+                state.paymentStatus = 'succeeded';
+            })
+            .addCase(createEscrowCheckout.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
                 state.paymentStatus = 'failed';

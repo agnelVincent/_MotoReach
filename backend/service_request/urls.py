@@ -3,8 +3,10 @@ from .views import (
     CreateServiceRequestView, ServiceRequestDetailView, UserServiceRequestListView, ConnectWorkshopView,
     WorkshopConnectionRequestsView, AcceptConnectionRequestView, RejectConnectionRequestView, CancelConnectionRequestView,
     UserCancelConnectionView, DeleteServiceRequestView, WorkshopMechanicsView, AssignMechanicView, RemoveMechanicView,
-    CreateEstimateView, UpdateEstimateView, SendEstimateView, ApproveEstimateView, RejectEstimateView,
-    GetEstimateView, ListEstimatesView, DeleteEstimateView
+    CreateEstimateView, UpdateEstimateView, SendEstimateView, ResendEstimateView,
+    ApproveEstimateView, RejectEstimateView,
+    GetEstimateView, ListEstimatesView, DeleteEstimateView,
+    GenerateServiceOTPView, VerifyServiceOTPView,
 )
 
 urlpatterns = [
@@ -33,5 +35,9 @@ urlpatterns = [
     path('estimates/<int:estimate_id>/send/', SendEstimateView.as_view(), name='send-estimate'),
     path('estimates/<int:estimate_id>/approve/', ApproveEstimateView.as_view(), name='approve-estimate'),
     path('estimates/<int:estimate_id>/reject/', RejectEstimateView.as_view(), name='reject-estimate'),
+    path('estimates/<int:estimate_id>/resend/', ResendEstimateView.as_view(), name='resend-estimate'),
     path('estimates/<int:estimate_id>/delete/', DeleteEstimateView.as_view(), name='delete-estimate'),
+    # Service OTP (workshop/mechanic generates, user verifies)
+    path('execution/<int:pk>/generate-otp/', GenerateServiceOTPView.as_view(), name='generate-service-otp'),
+    path('execution/<int:pk>/verify-otp/', VerifyServiceOTPView.as_view(), name='verify-service-otp'),
 ]
