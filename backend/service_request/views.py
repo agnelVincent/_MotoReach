@@ -902,7 +902,6 @@ class GenerateServiceOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Generate a 6‑digit OTP and store it on the execution
         from accounts.utils import generate_otp_code
 
         otp = generate_otp_code(length=6)
