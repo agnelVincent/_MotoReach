@@ -122,6 +122,33 @@ const UserServiceFlow = () => {
       const newOtp = [...otpValues];
       newOtp[index] = value;
       setOtpValues(newOtp);
+
+      // Auto-focus next input
+      if (value && index < 5) {
+        const nextInput = document.getElementById(`otp-input-${index + 1}`);
+        if (nextInput) nextInput.focus();
+      }
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    // Handle backspace to move to previous input
+    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
+      const prevInput = document.getElementById(`otp-input-${index - 1}`);
+      if (prevInput) prevInput.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').slice(0, 6);
+    if (/^\d+$/.test(pastedData)) {
+      const newOtp = pastedData.split('').concat(Array(6 - pastedData.length).fill(''));
+      setOtpValues(newOtp.slice(0, 6));
+      // Focus the last filled input or the first empty one
+      const nextIndex = Math.min(pastedData.length, 5);
+      const nextInput = document.getElementById(`otp-input-${nextIndex}`);
+      if (nextInput) nextInput.focus();
     }
   };
 
@@ -190,40 +217,80 @@ const UserServiceFlow = () => {
   const showCancelButton = !['SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-            Service Tracking
-          </h1>
-          <p className="text-gray-600">Request ID: #{requestId}</p>
+        {/* Page Header */}
+        <div className="mb-8 bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-blue-100">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+                Service Tracking
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 font-medium">Request ID:</span>
+                <span className="text-sm font-mono bg-blue-50 text-blue-700 px-3 py-1 rounded-lg font-semibold">
+                  #{requestId}
+                </span>
+              </div>
+            </div>
+            {currentRequest?.created_at && (
+              <div className="text-right">
+                <p className="text-xs text-gray-500 mb-1">Created on</p>
+                <p className="text-sm font-semibold text-gray-700">
+                  {new Date(currentRequest.created_at).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Status Flow */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 overflow-x-auto">
-          <h2 className="text-xl font-bold text-gray-800 mb-6">Service Progress</h2>
-          <div className="min-w-[800px] md:min-w-0">
-            <div className="flex items-center justify-between relative">
-              <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-200 -z-0" />
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8 border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl md:text-2xl font-bold text-gray-800">Service Progress</h2>
+            <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
+              Step {getCurrentStatusIndex() + 1} of {statusFlow.length}
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[800px] md:min-w-0">
+              <div className="flex items-center justify-between relative pb-2">
+                {/* Progress Bar Background */}
+                <div className="absolute top-5 md:top-7 left-0 w-full h-2 bg-gray-200 rounded-full -z-0" />
 
-              {statusFlow.map((status, index) => {
-                const Icon = status.icon;
-                const completed = isStatusCompleted(index);
-                const current = isStatusCurrent(index);
+                {/* Progress Bar Fill */}
+                <div
+                  className="absolute top-5 md:top-7 left-0 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500 -z-0"
+                  style={{ width: `${(getCurrentStatusIndex() / (statusFlow.length - 1)) * 100}%` }}
+                />
 
-                return (
-                  <div key={status.key} className="relative z-10 flex flex-col items-center flex-1">
-                    <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-white ${completed ? 'bg-green-500' : current ? 'bg-blue-600 shadow-lg scale-110' : 'bg-gray-300'
-                      }`}>
-                      <Icon className={`w-5 h-5 md:w-7 md:h-7 text-white`} />
+                {statusFlow.map((status, index) => {
+                  const Icon = status.icon;
+                  const completed = isStatusCompleted(index);
+                  const current = isStatusCurrent(index);
+
+                  return (
+                    <div key={status.key} className="relative z-10 flex flex-col items-center flex-1">
+                      <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-white shadow-md ${completed
+                        ? 'bg-gradient-to-br from-green-500 to-emerald-600'
+                        : current
+                          ? 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg scale-110 ring-4 ring-blue-200'
+                          : 'bg-gray-300'
+                        }`}>
+                        <Icon className={`w-5 h-5 md:w-7 md:h-7 text-white ${current ? 'animate-pulse' : ''}`} />
+                      </div>
+                      <p className={`text-[10px] md:text-xs text-center mt-3 font-bold px-1 max-w-[80px] md:max-w-none ${completed || current ? 'text-gray-900' : 'text-gray-400'
+                        }`}>
+                        {status.label}
+                      </p>
                     </div>
-                    <p className={`text-[10px] md:text-xs text-center mt-2 font-bold px-1 ${completed || current ? 'text-gray-900' : 'text-gray-400'
-                      }`}>
-                      {status.label}
-                    </p>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -244,29 +311,44 @@ const UserServiceFlow = () => {
 
           <div className="space-y-6">
             {connection && (
-              <div className="bg-white rounded-2xl shadow-xl p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Workshop Details</h3>
+              <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-xl p-6 border border-blue-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <Wrench className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800">Workshop Details</h3>
+                </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-2xl font-bold text-gray-800">{connection.workshop_name}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                  <div className="bg-white rounded-xl p-4 border border-blue-100">
+                    <p className="text-2xl font-bold text-gray-800 mb-2">{connection.workshop_name}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full text-sm font-semibold shadow-md">
                         <CheckCircle className="w-4 h-4" />
                         Connected
                       </span>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3 bg-white rounded-xl p-4 border border-gray-100">
                     <div className="flex items-start gap-3">
-                      <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-gray-600">{connection.address}</p>
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-gray-500 mb-1">Address</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{connection.address}</p>
+                      </div>
                     </div>
                     {connection.workshop_phone && (
-                      <div className="flex items-center gap-3">
-                        <Phone className="w-5 h-5 text-gray-400" />
-                        <p className="text-sm text-gray-600">{connection.workshop_phone}</p>
+                      <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Phone className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-gray-500 mb-1">Contact</p>
+                          <p className="text-sm font-semibold text-gray-700">{connection.workshop_phone}</p>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -276,25 +358,27 @@ const UserServiceFlow = () => {
 
             {/* Service Personnel Section */}
             {currentRequest?.execution && (
-              <div className="bg-white rounded-2xl shadow-xl p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Service Personnel
-                </h3>
+              <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-xl p-6 border border-purple-100">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-800">Service Personnel</h3>
+                </div>
 
                 <div className="space-y-3">
                   {/* Lead Technician */}
                   {currentRequest.execution.lead_technician && (
-                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border-2 border-blue-200">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
                           {currentRequest.execution.lead_technician.name.charAt(0)}
                         </div>
                         <div className="flex-1">
-                          <p className="font-bold text-gray-800">{currentRequest.execution.lead_technician.name}</p>
-                          <p className="text-xs text-blue-600 font-semibold uppercase">Lead Technician</p>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                            <Mail className="w-3 h-3" />
+                          <p className="font-bold text-gray-800 text-lg">{currentRequest.execution.lead_technician.name}</p>
+                          <p className="text-xs text-blue-700 font-bold uppercase tracking-wide mb-2">Lead Technician</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-600 bg-white rounded-lg px-3 py-1.5 inline-flex">
+                            <Mail className="w-3.5 h-3.5 text-blue-600" />
                             {currentRequest.execution.lead_technician.email}
                           </div>
                         </div>
@@ -306,17 +390,17 @@ const UserServiceFlow = () => {
                   {currentRequest.execution.mechanics && currentRequest.execution.mechanics.length > 0 && (
                     <>
                       {currentRequest.execution.mechanics.map((mechanic) => (
-                        <div key={mechanic.id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <div key={mechanic.id} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
                           <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-gray-700 font-bold flex-shrink-0">
+                            <div className="w-12 h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
                               {mechanic.name.charAt(0)}
                             </div>
                             <div className="flex-1">
                               <p className="font-bold text-gray-800">{mechanic.name}</p>
-                              <p className="text-xs text-gray-600 font-semibold uppercase">Mechanic</p>
+                              <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide mb-2">Mechanic</p>
                               {mechanic.contact_number && (
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                  <Phone className="w-3 h-3" />
+                                <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5 inline-flex">
+                                  <Phone className="w-3.5 h-3.5 text-gray-600" />
                                   {mechanic.contact_number}
                                 </div>
                               )}
@@ -329,20 +413,25 @@ const UserServiceFlow = () => {
 
                   {/* No Personnel Assigned */}
                   {!currentRequest.execution.lead_technician && (!currentRequest.execution.mechanics || currentRequest.execution.mechanics.length === 0) && (
-                    <div className="text-center py-6 text-gray-500">
-                      <User className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                      <p className="text-sm">No personnel assigned yet</p>
+                    <div className="text-center py-8 bg-white rounded-xl border-2 border-dashed border-gray-200">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <User className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600">No personnel assigned yet</p>
+                      <p className="text-xs text-gray-400 mt-1">The workshop will assign technicians soon</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-600" />
-                Service Estimate
-              </h3>
+            <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-xl p-6 border border-green-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">Service Estimate</h3>
+              </div>
 
               {estimates && estimates.length > 0 ? (
                 (() => {
@@ -354,9 +443,9 @@ const UserServiceFlow = () => {
                       {/* Estimate Status */}
                       <div className="flex items-center justify-between">
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${activeEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                            activeEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                              activeEstimate.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-700'
+                          activeEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                            activeEstimate.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
                           }`}>
                           {activeEstimate.status === 'APPROVED' && <CheckCircle className="w-4 h-4" />}
                           {activeEstimate.status}
@@ -478,13 +567,13 @@ const UserServiceFlow = () => {
               {showCancelButton && (
                 <button
                   onClick={handleCancelConnection}
-                  className="w-full py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
+                  className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
                   <Ban className="w-5 h-5" />
                   Cancel Connection
                 </button>
               )}
 
-              <button className="w-full py-3 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-all duration-300 flex items-center justify-center gap-2 font-semibold">
+              <button className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:from-orange-600 hover:to-amber-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
                 <AlertCircle className="w-5 h-5" />
                 Report a Problem
               </button>
@@ -492,48 +581,115 @@ const UserServiceFlow = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-6">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <Shield className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Service Completion Verification</h3>
-              <p className="text-gray-600">
-                Service provider will share an OTP after service completion. Enter OTP to confirm completion.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-6">
-              <label className="block text-sm font-semibold text-gray-700 mb-4 text-center">
-                Enter 6-Digit OTP
-              </label>
-              <div className="flex gap-3 justify-center mb-6">
-                {otpValues.map((value, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    maxLength={1}
-                    value={value}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                  />
-                ))}
+        {/* Service Completion Verification */}
+        {currentRequest?.execution?.escrow_paid && currentRequest?.status !== 'VERIFIED' && (
+          <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-2xl p-8 md:p-10 border border-blue-100">
+            <div className="max-w-xl mx-auto">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+                  <Shield className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
+                  Service Completion Verification
+                </h3>
+                <p className="text-gray-600 text-sm md:text-base leading-relaxed max-w-md mx-auto">
+                  Once the service is completed, the workshop will provide you with a 6-digit OTP. Enter it below to verify and release payment.
+                </p>
               </div>
 
-              <button
-                onClick={handleVerifyOtp}
-                disabled={verifyingOtp || currentRequest?.status === 'VERIFIED' || !currentRequest?.execution?.escrow_paid}
-                className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold text-lg shadow-lg hover:shadow-xl disabled:opacity-60"
-              >
-                {verifyingOtp ? 'Verifying...' : 'Verify & Complete Service'}
-              </button>
-              {currentRequest?.status === 'VERIFIED' && (
-                <p className="text-center text-green-600 font-medium mt-2">Service verified. Payment released to workshop.</p>
-              )}
+              {/* OTP Input Section */}
+              <div className="bg-white rounded-xl p-6 md:p-8 shadow-lg border border-gray-100">
+                <label className="block text-sm font-bold text-gray-700 mb-6 text-center uppercase tracking-wide">
+                  Enter 6-Digit OTP
+                </label>
+
+                {/* OTP Input Boxes */}
+                <div className="flex gap-2 md:gap-3 justify-center mb-6" onPaste={handleOtpPaste}>
+                  {otpValues.map((value, index) => (
+                    <input
+                      key={index}
+                      id={`otp-input-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={value}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      disabled={verifyingOtp || currentRequest?.status === 'VERIFIED'}
+                      className="w-12 h-12 md:w-16 md:h-16 text-center text-xl md:text-2xl font-bold border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-400"
+                      autoComplete="off"
+                    />
+                  ))}
+                </div>
+
+                {/* Verify Button */}
+                <button
+                  onClick={handleVerifyOtp}
+                  disabled={verifyingOtp || currentRequest?.status === 'VERIFIED' || otpValues.join('').length !== 6}
+                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                >
+                  {verifyingOtp ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Verify & Complete Service
+                    </>
+                  )}
+                </button>
+
+                {/* Helper Text */}
+                <div className="mt-4 text-center">
+                  <p className="text-xs text-gray-500">
+                    💡 Tip: You can paste the OTP directly into the first box
+                  </p>
+                </div>
+              </div>
+
+              {/* Security Note */}
+              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-900 mb-1">Secure Payment Release</p>
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      Your payment is held securely in escrow. It will only be released to the workshop after you verify the service completion with the OTP.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Service Verified Message */}
+        {currentRequest?.status === 'VERIFIED' && (
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-xl p-8 border border-green-200">
+            <div className="text-center max-w-xl mx-auto">
+              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-4 shadow-lg">
+                <CheckCircle className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
+                Service Verified Successfully!
+              </h3>
+              <p className="text-gray-600 text-sm md:text-base mb-6">
+                Payment has been released to the workshop. Thank you for using our service!
+              </p>
+              <div className="bg-white rounded-xl p-4 inline-block">
+                <p className="text-sm text-gray-600 mb-2">Rate your experience</p>
+                <div className="flex gap-2 justify-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className="w-8 h-8 text-yellow-400 fill-yellow-400 cursor-pointer hover:scale-110 transition-transform" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
