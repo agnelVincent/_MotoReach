@@ -22,15 +22,21 @@ const WorkshopServiceFlow = () => {
   const dispatch = useDispatch();
 
   const { currentRequest, mechanics: workshopMechanics, loading } = useSelector((state) => state.serviceRequest);
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [showOtp, setShowOtp] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
-    if (requestId) {
+    if (!requestId) return;
+
+    // Initial fetch
+    dispatch(fetchNearbyWorkshops(requestId));
+    dispatch(fetchWorkshopMechanics());
+
+    // Lightweight polling to keep status in sync while the page is open
+    const intervalId = setInterval(() => {
       dispatch(fetchNearbyWorkshops(requestId));
-      dispatch(fetchWorkshopMechanics());
-    }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
   }, [dispatch, requestId]);
 
   const currentStatus = currentRequest?.status || 'CREATED';
@@ -67,10 +73,8 @@ const WorkshopServiceFlow = () => {
       return;
     }
     try {
-      const result = await dispatch(generateServiceOTP(executionId)).unwrap();
-      setGeneratedOtp(result.otp || '');
-      setShowOtp(true);
-      toast.success('OTP generated. Share it with the customer to verify completion.');
+      await dispatch(generateServiceOTP(executionId)).unwrap();
+      toast.success('OTP generated and sent to the customer via email.');
     } catch (e) {
       toast.error(e?.error || e?.message || 'Failed to generate OTP');
     }
@@ -272,32 +276,21 @@ const WorkshopServiceFlow = () => {
 
             {/* OTP Section - only after escrow is paid */}
             {execution?.escrow_paid && (
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <Key className="w-5 h-5 text-purple-600" />
-                Completion OTP
-              </h3>
-              <p className="text-sm text-gray-600 mb-3">Generate OTP after service is done. Customer will enter it to confirm and release payment.</p>
-              {!generatedOtp ? (
+              <div className="bg-white rounded-2xl shadow-xl p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-purple-600" />
+                  Completion OTP
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  After the service is completed, generate an OTP. The customer will receive it by email and must enter it in their app to confirm completion and release payment.
+                </p>
                 <button
                   onClick={handleGenerateOtp}
                   className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all font-semibold shadow-md"
                 >
-                  Generate OTP
+                  Send OTP to Customer
                 </button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 flex justify-between items-center">
-                    <p className="text-2xl font-bold text-purple-900 tracking-widest">
-                      {showOtp ? generatedOtp : '••••••'}
-                    </p>
-                    <button onClick={() => setShowOtp(!showOtp)}>
-                      {showOtp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
             )}
 
             {/* Cancel connection - only before customer pays */}

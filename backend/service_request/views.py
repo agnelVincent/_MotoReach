@@ -2,6 +2,8 @@ from rest_framework import status, generics, permissions, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import transaction
+from django.core.mail import send_mail
+from django.conf import settings
 from .models import ServiceRequest, WorkshopConnection, ServiceExecution, Estimate, EstimateLineItem
 from accounts.models import Workshop, Mechanic
 from .serializers import (
@@ -845,20 +847,78 @@ class GenerateServiceOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        """Generate OTP for service completion. Callable by workshop admin or assigned mechanic."""
+        """
+        Generate OTP for service completion.
+
+        Can be called by the workshop admin or any mechanic assigned to this execution.
+        The OTP is emailed to the service request owner and NOT returned in the response.
+        """
         try:
             execution = ServiceExecution.objects.get(pk=pk)
         except ServiceExecution.DoesNotExist:
             return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+
         if not _can_generate_service_otp(request.user, execution):
-            return Response({"error": "Only workshop admin or assigned mechanic can generate OTP"}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"error": "Only workshop admin or assigned mechanic can generate OTP"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if not execution.escrow_paid:
-            return Response({"error": "Service amount must be paid (escrowed) before generating OTP"}, status=status.HTTP_400_BAD_REQUEST)
-        import random
-        otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+            return Response(
+                {"error": "Service amount must be paid (escrowed) before generating OTP"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Generate a 6‑digit OTP and store it on the execution
+        from accounts.utils import generate_otp_code
+
+        otp = generate_otp_code(length=6)
         execution.otp_code = otp
         execution.save()
-        return Response({"message": "OTP generated", "otp": otp}, status=status.HTTP_200_OK)
+
+        # Email OTP to the service request owner
+        user = execution.service_request.user
+        subject = f"Service completion OTP for request #{execution.service_request.id}"
+        message_lines = [
+            f"Hello {getattr(user, 'full_name', user.email)},",
+            "",
+            "Your service provider has marked the service as ready for completion.",
+            "Please use the following One-Time Password (OTP) in the app to verify",
+            "that the service has been completed. Once verified, the payment held",
+            "in escrow will be released to the workshop.",
+            "",
+            f"OTP: {otp}",
+            "",
+            "If you did not request this or believe this is a mistake, please contact support.",
+            "",
+            f"Thanks,",
+            f"{settings.DEFAULT_FROM_EMAIL} Team",
+        ]
+        message = "\n".join(message_lines)
+
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False,
+            )
+            print(otp)
+        except Exception as e:
+            # Roll back OTP so a new code can be generated cleanly if email fails
+            execution.otp_code = None
+            execution.save(update_fields=["otp_code"])
+            return Response(
+                {"error": "Failed to send OTP email. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            {"message": "OTP generated and sent to the customer's email."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class VerifyServiceOTPView(APIView):
