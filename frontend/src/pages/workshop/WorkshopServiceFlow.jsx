@@ -13,13 +13,13 @@ import {
 } from '../../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
+import EstimateManager from '../../components/EstimateManager';
 
 const WorkshopServiceFlow = () => {
   const { requestId } = useParams();
   const dispatch = useDispatch();
 
   const { currentRequest, mechanics: workshopMechanics, loading } = useSelector((state) => state.serviceRequest);
-  const [estimateAmount, setEstimateAmount] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [showOtp, setShowOtp] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -247,30 +247,16 @@ const WorkshopServiceFlow = () => {
               </div>
             </div>
 
-            {/* Estimate - Placeholder Logic */}
-            <div className="bg-white rounded-2xl shadow-xl p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-600" />
-                Service Estimate
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estimate Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={estimateAmount}
-                    onChange={(e) => setEstimateAmount(e.target.value)}
-                    placeholder="Enter amount"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <button className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all font-semibold shadow-md">
-                  Share Estimate
-                </button>
-              </div>
-            </div>
+            {/* Estimate Manager */}
+            {activeConnection && activeConnection.status === 'ACCEPTED' && (
+              <EstimateManager
+                connectionId={activeConnection.id}
+                requestId={requestId}
+                onEstimateSent={() => {
+                  dispatch(fetchNearbyWorkshops(requestId));
+                }}
+              />
+            )}
 
             {/* OTP Section */}
             <div className="bg-white rounded-2xl shadow-xl p-6">

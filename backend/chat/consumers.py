@@ -230,7 +230,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self._notify_unread_update(user)
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive_json(self, content: Dict[str, Any], **kwargs):
         msg_type = content.get("type")
@@ -336,7 +337,8 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
+        if hasattr(self, 'user_group_name'):
+            await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
 
     async def notification_update(self, event: Dict[str, Any]):
         """

@@ -1,10 +1,12 @@
 from rest_framework import serializers
-from .models import ServiceRequest, WorkshopConnection
+from .models import ServiceRequest, WorkshopConnection, Estimate, EstimateLineItem
 from accounts.models import Workshop
 
 import cloudinary.uploader
 from .models import ServiceExecution
 from accounts.models import Mechanic
+from django.utils import timezone
+from datetime import timedelta
 
 class ServiceExecutionMechanicSerializer(serializers.ModelSerializer):
     name = serializers.CharField(source='user.full_name')
@@ -126,3 +128,91 @@ class WorkshopConnectionSerializer(serializers.ModelSerializer):
             'requested_at', 'responded_at', 'user_name', 'user_email'
         ]
         read_only_fields = ['id', 'requested_at', 'responded_at']
+
+
+class EstimateLineItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EstimateLineItem
+        fields = ['id', 'item_type', 'description', 'quantity', 'unit_price', 'total', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'total', 'created_at', 'updated_at']
+
+
+class EstimateSerializer(serializers.ModelSerializer):
+    line_items = EstimateLineItemSerializer(many=True, read_only=True)
+    workshop_name = serializers.CharField(source='workshop_connection.workshop.workshop_name', read_only=True)
+    service_request_id = serializers.IntegerField(source='service_request.id', read_only=True)
+    
+    class Meta:
+        model = Estimate
+        fields = [
+            'id', 'service_request_id', 'workshop_connection', 'workshop_name', 'status',
+            'subtotal', 'tax_rate', 'tax_amount', 'discount_amount', 'total_amount',
+            'notes', 'expires_at', 'line_items',
+            'created_at', 'updated_at', 'sent_at', 'approved_at', 'rejected_at'
+        ]
+        read_only_fields = [
+            'id', 'subtotal', 'tax_amount', 'total_amount',
+            'created_at', 'updated_at', 'sent_at', 'approved_at', 'rejected_at'
+        ]
+
+
+class EstimateCreateSerializer(serializers.ModelSerializer):
+    line_items = EstimateLineItemSerializer(many=True, required=False)
+    
+    class Meta:
+        model = Estimate
+        fields = [
+            'id', 'workshop_connection', 'status', 'tax_rate', 'discount_amount',
+            'notes', 'expires_at', 'line_items'
+        ]
+        read_only_fields = ['id']
+
+    def create(self, validated_data):
+        line_items_data = validated_data.pop('line_items', [])
+        
+        # Set default expiry (7 days from now)
+        if not validated_data.get('expires_at'):
+            validated_data['expires_at'] = timezone.now() + timedelta(days=7)
+        
+        estimate = Estimate.objects.create(**validated_data)
+        
+        # Create line items
+        for item_data in line_items_data:
+            EstimateLineItem.objects.create(estimate=estimate, **item_data)
+        
+        # Recalculate totals
+        estimate.calculate_totals()
+        estimate.save()
+        
+        return estimate
+
+
+class EstimateUpdateSerializer(serializers.ModelSerializer):
+    line_items = EstimateLineItemSerializer(many=True, required=False)
+    
+    class Meta:
+        model = Estimate
+        fields = [
+            'status', 'tax_rate', 'discount_amount', 'notes', 'expires_at', 'line_items'
+        ]
+
+    def update(self, instance, validated_data):
+        line_items_data = validated_data.pop('line_items', None)
+        
+        # Update estimate fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Update line items if provided
+        if line_items_data is not None:
+            # Delete existing line items
+            instance.line_items.all().delete()
+            # Create new line items
+            for item_data in line_items_data:
+                EstimateLineItem.objects.create(estimate=instance, **item_data)
+        
+        # Recalculate totals
+        instance.calculate_totals()
+        instance.save()
+        
+        return instance

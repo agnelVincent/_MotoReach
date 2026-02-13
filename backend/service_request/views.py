@@ -1,9 +1,14 @@
 from rest_framework import status, generics, permissions, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import ServiceRequest, WorkshopConnection, ServiceExecution
+from django.db import transaction
+from .models import ServiceRequest, WorkshopConnection, ServiceExecution, Estimate, EstimateLineItem
 from accounts.models import Workshop, Mechanic
-from .serializers import ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer, ServiceExecutionMechanicSerializer
+from .serializers import (
+    ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer,
+    ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
+    EstimateUpdateSerializer, EstimateLineItemSerializer
+)
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops
@@ -476,3 +481,292 @@ class RemoveMechanicView(APIView):
              
         except Exception as e:
              return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CreateEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, connection_id):
+        """Create a new estimate for an accepted connection"""
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Only workshop admins can create estimates"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = request.user.workshop
+        except AttributeError:
+            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            connection = WorkshopConnection.objects.get(
+                pk=connection_id,
+                workshop=workshop,
+                status='ACCEPTED'
+            )
+        except WorkshopConnection.DoesNotExist:
+            return Response({"error": "Connection not found or not accepted"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Check if estimate already exists
+        existing_estimate = Estimate.objects.filter(
+            workshop_connection=connection,
+            status__in=['DRAFT', 'SENT']
+        ).first()
+        
+        if existing_estimate:
+            return Response(
+                {"error": "An active estimate already exists. Please update or delete it first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = EstimateCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            with transaction.atomic():
+                estimate = serializer.save(workshop_connection=connection)
+                return Response(EstimateSerializer(estimate).data, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, estimate_id):
+        """Update an existing estimate (only DRAFT status)"""
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Only workshop admins can update estimates"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = request.user.workshop
+        except AttributeError:
+            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            estimate = Estimate.objects.get(
+                pk=estimate_id,
+                workshop_connection__workshop=workshop
+            )
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if estimate.status != 'DRAFT':
+            return Response(
+                {"error": f"Cannot update estimate with status: {estimate.status}. Only DRAFT estimates can be updated."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = EstimateUpdateSerializer(estimate, data=request.data, partial=True)
+        if serializer.is_valid():
+            with transaction.atomic():
+                estimate = serializer.save()
+                return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SendEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, estimate_id):
+        """Send estimate to user (change status from DRAFT to SENT)"""
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Only workshop admins can send estimates"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = request.user.workshop
+        except AttributeError:
+            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            estimate = Estimate.objects.get(
+                pk=estimate_id,
+                workshop_connection__workshop=workshop
+            )
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if estimate.status != 'DRAFT':
+            return Response(
+                {"error": f"Can only send DRAFT estimates. Current status: {estimate.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if estimate.line_items.count() == 0:
+            return Response(
+                {"error": "Cannot send estimate without line items"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if estimate.total_amount <= 0:
+            return Response(
+                {"error": "Cannot send estimate with zero or negative total amount"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            estimate.status = 'SENT'
+            estimate.sent_at = timezone.now()
+            estimate.save()
+
+            # Update service request status
+            service_request = estimate.service_request
+            if service_request.status == 'CONNECTED':
+                service_request.status = 'ESTIMATE_SHARED'
+                service_request.save()
+
+        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
+class ApproveEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, estimate_id):
+        """User approves an estimate"""
+        try:
+            estimate = Estimate.objects.get(pk=estimate_id)
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify user owns the service request
+        if estimate.service_request.user != request.user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        if estimate.status != 'SENT':
+            return Response(
+                {"error": f"Can only approve SENT estimates. Current status: {estimate.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if estimate.expires_at and timezone.now() > estimate.expires_at:
+            return Response(
+                {"error": "This estimate has expired"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            estimate.status = 'APPROVED'
+            estimate.approved_at = timezone.now()
+            estimate.save()
+
+            # Update ServiceExecution with estimate amount
+            try:
+                execution = estimate.service_request.execution
+                execution.estimate_amount = estimate.total_amount
+                execution.estimate = estimate
+                execution.save()
+            except ServiceExecution.DoesNotExist:
+                # Create execution if it doesn't exist
+                connection = estimate.workshop_connection
+                ServiceExecution.objects.create(
+                    service_request=estimate.service_request,
+                    workshop=connection.workshop,
+                    assigned_to=connection.workshop.user,
+                    estimate_amount=estimate.total_amount,
+                    estimate=estimate
+                )
+
+        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
+class RejectEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, estimate_id):
+        """User rejects an estimate"""
+        try:
+            estimate = Estimate.objects.get(pk=estimate_id)
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify user owns the service request
+        if estimate.service_request.user != request.user:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        if estimate.status != 'SENT':
+            return Response(
+                {"error": f"Can only reject SENT estimates. Current status: {estimate.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        with transaction.atomic():
+            estimate.status = 'REJECTED'
+            estimate.rejected_at = timezone.now()
+            estimate.save()
+
+        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
+class GetEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, estimate_id):
+        """Get estimate details"""
+        try:
+            estimate = Estimate.objects.get(pk=estimate_id)
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify user has access (either workshop admin or service request owner)
+        is_workshop_admin = (
+            request.user.role == 'workshop_admin' and
+            estimate.workshop_connection.workshop == request.user.workshop
+        )
+        is_service_owner = estimate.service_request.user == request.user
+
+        if not (is_workshop_admin or is_service_owner):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
+class ListEstimatesView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, connection_id):
+        """List all estimates for a connection"""
+        try:
+            connection = WorkshopConnection.objects.get(pk=connection_id)
+        except WorkshopConnection.DoesNotExist:
+            return Response({"error": "Connection not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Verify user has access
+        is_workshop_admin = (
+            request.user.role == 'workshop_admin' and
+            connection.workshop == request.user.workshop
+        )
+        is_service_owner = connection.service_request.user == request.user
+
+        if not (is_workshop_admin or is_service_owner):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+
+        estimates = Estimate.objects.filter(workshop_connection=connection).order_by('-created_at')
+        serializer = EstimateSerializer(estimates, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DeleteEstimateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, estimate_id):
+        """Delete an estimate (only DRAFT status)"""
+        if request.user.role != 'workshop_admin':
+            return Response({"error": "Only workshop admins can delete estimates"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            workshop = request.user.workshop
+        except AttributeError:
+            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            estimate = Estimate.objects.get(
+                pk=estimate_id,
+                workshop_connection__workshop=workshop
+            )
+        except Estimate.DoesNotExist:
+            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if estimate.status != 'DRAFT':
+            return Response(
+                {"error": f"Cannot delete estimate with status: {estimate.status}. Only DRAFT estimates can be deleted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        estimate.delete()
+        return Response({"message": "Estimate deleted successfully"}, status=status.HTTP_200_OK)

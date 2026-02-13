@@ -30,6 +30,18 @@ export const fetchNearbyWorkshops = createAsyncThunk(
   }
 );
 
+export const fetchServiceRequestDetails = createAsyncThunk(
+  'serviceRequest/fetchDetails',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`service-request/${requestId}/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch request details");
+    }
+  }
+);
+
 export const fetchUserServiceRequests = createAsyncThunk(
   'serviceRequest/fetchUserRequests',
   async (_, { rejectWithValue }) => {
@@ -170,6 +182,105 @@ export const removeMechanic = createAsyncThunk(
   }
 );
 
+// Estimate Actions
+export const createEstimate = createAsyncThunk(
+  'serviceRequest/createEstimate',
+  async ({ connectionId, estimateData }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/connection/${connectionId}/estimates/create/`, estimateData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to create estimate");
+    }
+  }
+);
+
+export const updateEstimate = createAsyncThunk(
+  'serviceRequest/updateEstimate',
+  async ({ estimateId, estimateData }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put(`service-request/estimates/${estimateId}/update/`, estimateData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to update estimate");
+    }
+  }
+);
+
+export const sendEstimate = createAsyncThunk(
+  'serviceRequest/sendEstimate',
+  async ({ estimateId, requestId }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/estimates/${estimateId}/send/`);
+      dispatch(fetchNearbyWorkshops(requestId));
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to send estimate");
+    }
+  }
+);
+
+export const approveEstimate = createAsyncThunk(
+  'serviceRequest/approveEstimate',
+  async ({ estimateId }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/estimates/${estimateId}/approve/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to approve estimate");
+    }
+  }
+);
+
+export const rejectEstimate = createAsyncThunk(
+  'serviceRequest/rejectEstimate',
+  async ({ estimateId }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/estimates/${estimateId}/reject/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to reject estimate");
+    }
+  }
+);
+
+export const fetchEstimates = createAsyncThunk(
+  'serviceRequest/fetchEstimates',
+  async (connectionId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`service-request/connection/${connectionId}/estimates/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch estimates");
+    }
+  }
+);
+
+export const getEstimate = createAsyncThunk(
+  'serviceRequest/getEstimate',
+  async (estimateId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get(`service-request/estimates/${estimateId}/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to fetch estimate");
+    }
+  }
+);
+
+export const deleteEstimate = createAsyncThunk(
+  'serviceRequest/deleteEstimate',
+  async ({ estimateId, connectionId }, { dispatch, rejectWithValue }) => {
+    try {
+      await axiosInstance.delete(`service-request/estimates/${estimateId}/delete/`);
+      dispatch(fetchEstimates(connectionId));
+      return { estimateId };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || "Failed to delete estimate");
+    }
+  }
+);
+
 
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
@@ -178,7 +289,9 @@ const serviceRequestSlice = createSlice({
     nearbyWorkshops: [],
     userRequests: [],
     workshopRequests: [],
-    mechanics: [], 
+    mechanics: [],
+    estimates: [],
+    currentEstimate: null,
     loading: false,
     error: null,
   },
@@ -212,6 +325,20 @@ const serviceRequestSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchNearbyWorkshops.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchServiceRequestDetails.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchServiceRequestDetails.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentRequest = action.payload.request;
+        state.error = null;
+      })
+      .addCase(fetchServiceRequestDetails.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -283,6 +410,55 @@ const serviceRequestSlice = createSlice({
       .addCase(deleteServiceRequest.fulfilled, (state, action) => {
         state.loading = false;
         state.userRequests = state.userRequests.filter(r => r.id !== action.payload.requestId);
+      })
+
+      // Estimate reducers
+      .addCase(createEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+        state.estimates = [action.payload, ...state.estimates];
+      })
+      .addCase(updateEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+        const index = state.estimates.findIndex(e => e.id === action.payload.id);
+        if (index !== -1) {
+          state.estimates[index] = action.payload;
+        }
+      })
+      .addCase(sendEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+        const index = state.estimates.findIndex(e => e.id === action.payload.id);
+        if (index !== -1) {
+          state.estimates[index] = action.payload;
+        }
+      })
+      .addCase(approveEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+        const index = state.estimates.findIndex(e => e.id === action.payload.id);
+        if (index !== -1) {
+          state.estimates[index] = action.payload;
+        }
+      })
+      .addCase(rejectEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+        const index = state.estimates.findIndex(e => e.id === action.payload.id);
+        if (index !== -1) {
+          state.estimates[index] = action.payload;
+        }
+      })
+      .addCase(fetchEstimates.fulfilled, (state, action) => {
+        state.estimates = action.payload;
+        if (action.payload.length > 0) {
+          state.currentEstimate = action.payload.find(e => e.status === 'DRAFT' || e.status === 'SENT') || action.payload[0];
+        }
+      })
+      .addCase(getEstimate.fulfilled, (state, action) => {
+        state.currentEstimate = action.payload;
+      })
+      .addCase(deleteEstimate.fulfilled, (state, action) => {
+        state.estimates = state.estimates.filter(e => e.id !== action.payload.estimateId);
+        if (state.currentEstimate?.id === action.payload.estimateId) {
+          state.currentEstimate = null;
+        }
       });
   }
 });

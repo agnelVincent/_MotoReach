@@ -5,7 +5,7 @@ import {
   CheckCircle, Phone, Send, Star, MapPin, Mail, AlertCircle, Ban,
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
-import { fetchNearbyWorkshops, userCancelConnection } from '../../redux/slices/serviceRequestSlice';
+import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates } from '../../redux/slices/serviceRequestSlice';
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
@@ -15,22 +15,29 @@ const UserServiceFlow = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { currentRequest, loading } = useSelector((state) => state.serviceRequest);
+  const { currentRequest, loading, estimates } = useSelector((state) => state.serviceRequest);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
 
   useEffect(() => {
     if (requestId) {
       // Initial fetch
-      dispatch(fetchNearbyWorkshops(requestId));
+      dispatch(fetchServiceRequestDetails(requestId));
 
       // Poll for updates every 5 seconds
       const intervalId = setInterval(() => {
-        dispatch(fetchNearbyWorkshops(requestId));
+        dispatch(fetchServiceRequestDetails(requestId));
       }, 5000);
 
       return () => clearInterval(intervalId);
     }
   }, [dispatch, requestId]);
+
+  // Fetch estimates when there's an active connection
+  useEffect(() => {
+    if (currentRequest?.active_connection?.id) {
+      dispatch(fetchEstimates(currentRequest.active_connection.id));
+    }
+  }, [dispatch, currentRequest?.active_connection?.id]);
 
   const handleCancelConnection = async () => {
     if (!requestId) return;
@@ -253,20 +260,120 @@ const UserServiceFlow = () => {
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-600" />
-                Service Cost
+                Service Estimate
               </h3>
 
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 border-dashed min-h-[120px] flex items-center justify-center">
-                <div className="text-center">
-                  <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">
-                    {currentRequest?.execution?.estimate_amount > 0
-                      ? `Estimate: ₹${currentRequest.execution.estimate_amount}`
-                      : "Estimated amount will be shared here"}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">Pending verification</p>
+              {estimates && estimates.length > 0 ? (
+                (() => {
+                  // Find the most recent SENT or APPROVED estimate
+                  const activeEstimate = estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0];
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Estimate Status */}
+                      <div className="flex items-center justify-between">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${activeEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                            activeEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
+                              activeEstimate.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
+                          }`}>
+                          {activeEstimate.status === 'APPROVED' && <CheckCircle className="w-4 h-4" />}
+                          {activeEstimate.status}
+                        </span>
+                        {activeEstimate.expires_at && (
+                          <span className="text-xs text-gray-500">
+                            Expires: {new Date(activeEstimate.expires_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Line Items */}
+                      {activeEstimate.line_items && activeEstimate.line_items.length > 0 && (
+                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                          <h4 className="font-semibold text-gray-700 text-sm">Cost Breakdown</h4>
+                          {activeEstimate.line_items.map((item, index) => (
+                            <div key={index} className="flex justify-between items-start border-b border-gray-200 pb-2 last:border-0">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-800">{item.description}</p>
+                                <p className="text-xs text-gray-500">
+                                  {item.item_type} • {item.quantity} × ₹{parseFloat(item.unit_price).toFixed(2)}
+                                </p>
+                              </div>
+                              <p className="font-semibold text-gray-800">₹{parseFloat(item.total).toFixed(2)}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Financial Summary */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Subtotal</span>
+                          <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
+                        </div>
+                        {parseFloat(activeEstimate.tax_amount) > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Tax ({activeEstimate.tax_rate}%)</span>
+                            <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {parseFloat(activeEstimate.discount_amount) > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Discount</span>
+                            <span className="font-medium text-green-600">-₹{parseFloat(activeEstimate.discount_amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-2 border-t border-blue-200">
+                          <span className="font-bold text-gray-800">Total Amount</span>
+                          <span className="font-bold text-xl text-blue-600">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      {/* Notes */}
+                      {activeEstimate.notes && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                          <p className="text-xs font-semibold text-yellow-800 mb-1">Workshop Notes</p>
+                          <p className="text-sm text-gray-700">{activeEstimate.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons for SENT estimates */}
+                      {activeEstimate.status === 'SENT' && (
+                        <div className="flex gap-3 pt-2">
+                          <button
+                            onClick={() => {
+                              // TODO: Implement approve estimate
+                              toast.success('Estimate approval feature coming soon!');
+                            }}
+                            className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-semibold"
+                          >
+                            Approve Estimate
+                          </button>
+                          <button
+                            onClick={() => {
+                              // TODO: Implement reject estimate
+                              toast.error('Estimate rejection feature coming soon!');
+                            }}
+                            className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 font-semibold"
+                          >
+                            Reject Estimate
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 border-dashed min-h-[120px] flex items-center justify-center">
+                  <div className="text-center">
+                    <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-700">
+                      Waiting for workshop to share estimate
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">You'll be notified once the estimate is ready</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="space-y-3">
