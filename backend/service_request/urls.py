@@ -40,14 +40,11 @@ urlpatterns = [
     path('workshop/connection-requests/<int:pk>/reject/', RejectConnectionRequestView.as_view(), name='reject-connection'),
     path('workshop/connection-requests/<int:pk>/cancel/', CancelConnectionRequestView.as_view(), name='cancel-connection'),
     
-    # Mechanic Assignment
     path('workshop/my-mechanics/', WorkshopMechanicsView.as_view(), name='workshop-my-mechanics'),
     path('execution/<int:pk>/assign/', AssignMechanicView.as_view(), name='assign-mechanic'),
     path('execution/<int:pk>/remove/', RemoveMechanicView.as_view(), name='remove-mechanic'),
-    # Mechanic assigned services
     path('mechanic/assigned-services/', MechanicAssignedServicesView.as_view(), name='mechanic-assigned-services'),
     
-    # Estimate Management
     path('connection/<int:connection_id>/estimates/', ListEstimatesView.as_view(), name='list-estimates'),
     path('connection/<int:connection_id>/estimates/create/', CreateEstimateView.as_view(), name='create-estimate'),
     path('estimates/<int:estimate_id>/', GetEstimateView.as_view(), name='get-estimate'),
@@ -57,7 +54,6 @@ urlpatterns = [
     path('estimates/<int:estimate_id>/reject/', RejectEstimateView.as_view(), name='reject-estimate'),
     path('estimates/<int:estimate_id>/resend/', ResendEstimateView.as_view(), name='resend-estimate'),
     path('estimates/<int:estimate_id>/delete/', DeleteEstimateView.as_view(), name='delete-estimate'),
-    # Service OTP (workshop/mechanic generates, user verifies)
     path('execution/<int:pk>/generate-otp/', GenerateServiceOTPView.as_view(), name='generate-service-otp'),
     path('execution/<int:pk>/verify-otp/', VerifyServiceOTPView.as_view(), name='verify-service-otp'),
 ]

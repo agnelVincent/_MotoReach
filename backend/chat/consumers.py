@@ -20,22 +20,15 @@ def _get_service_request(service_request_id: int) -> ServiceRequest | None:
 
 @database_sync_to_async
 def _user_has_active_connection(user: User, service_request: ServiceRequest) -> bool:
-    """
-    Check that the given user is either the service request owner or the
-    connected workshop admin for this request, and that the connection
-    is active (not cancelled / expired).
-    """
     if service_request.status in ["EXPIRED", "CANCELLED"]:
         return False
 
-    # Primary user on the request
     if service_request.user_id == user.id:
         return WorkshopConnection.objects.filter(
             service_request=service_request,
             status="ACCEPTED",
         ).exists()
 
-    # Workshop admin side
     if user.role == "workshop_admin" and hasattr(user, "workshop"):
         return WorkshopConnection.objects.filter(
             service_request=service_request,
@@ -55,7 +48,6 @@ def _get_chat_history(
         .select_related("sender")
         .order_by("-created_at")[:limit]
     )
-    # Return in chronological order
     messages = list(reversed(messages))
 
     return [
@@ -75,11 +67,6 @@ def _get_chat_history(
 def _create_message(
     user: User, service_request: ServiceRequest, content: str
 ) -> Tuple[Dict[str, Any], int]:
-    """
-    Persist a new chat message and return its serialized representation
-    plus the receiver's user ID.
-    """
-    # Validate that there is an active accepted connection
     connection = WorkshopConnection.objects.filter(
         service_request=service_request,
         status="ACCEPTED",
@@ -130,10 +117,6 @@ def _mark_messages_as_read(user: User, service_request: ServiceRequest) -> None:
 def _build_unread_summary_item_sync(
     receiver: User, service_request: ServiceRequest
 ) -> Dict[str, Any]:
-    """
-    Build a notification summary item for a single service request:
-    how many unread messages the receiver has and who the counterpart is.
-    """
     unread_qs = ChatMessage.objects.filter(
         service_request=service_request,
         receiver=receiver,
@@ -148,7 +131,7 @@ def _build_unread_summary_item_sync(
             "counterpart_name": "",
         }
 
-    # Use the last sender as the counterpart for display
+
     last_msg = unread_qs.order_by("-created_at").first()
     counterpart_name = last_msg.sender.full_name
 
@@ -163,17 +146,11 @@ def _build_unread_summary_item_sync(
 def _build_unread_summary_item(
     receiver: User, service_request: ServiceRequest
 ) -> Dict[str, Any]:
-    """
-    Async wrapper around the sync summary builder for a single service request.
-    """
     return _build_unread_summary_item_sync(receiver, service_request)
 
 
 @database_sync_to_async
 def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
-    """
-    Aggregate unread messages per service request for a given user.
-    """
     service_request_ids = (
         ChatMessage.objects.filter(receiver=user, is_read=False)
         .values_list("service_request_id", flat=True)
@@ -191,9 +168,6 @@ def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
-    """
-    WebSocket consumer handling real-time chat for a single ServiceRequest.
-    """
 
     async def connect(self):
         self.service_request_id = int(
@@ -201,7 +175,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
         self.room_group_name = f"chat_{self.service_request_id}"
 
-        user: User = self.scope.get("user")  # type: ignore[assignment]
+        user: User = self.scope.get("user")  
         if not user or not user.is_authenticated:
             await self.close()
             return
@@ -221,11 +195,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-        # Send recent history on connect
         history = await _get_chat_history(service_request)
         await self.send_json({"type": "chat.history", "messages": history})
 
-        # Mark messages as read for this user once they open the chat
         await _mark_messages_as_read(user, service_request)
         await self._notify_unread_update(user)
 
@@ -235,7 +207,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content: Dict[str, Any], **kwargs):
         msg_type = content.get("type")
-        user: User = self.scope.get("user")  # type: ignore[assignment]
+        user: User = self.scope.get("user") 
 
         if msg_type == "message":
             raw_message = (content.get("message") or "").strip()
@@ -247,13 +219,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                     user, self.service_request, raw_message
                 )
             except PermissionError:
-                # Silently close or notify client about invalid state
                 await self.send_json(
                     {"type": "chat.error", "message": "Chat not available."}
                 )
                 return
 
-            # Broadcast to everyone in this chat room
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {

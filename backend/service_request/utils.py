@@ -35,10 +35,8 @@ def get_nearby_workshops(user_lat, user_lon, radius_km=20):
     # 1 degree latitude ~= 111 km
     lat_change = radius_km / 111.0
     
-    # 1 degree longitude ~= 111 km * cos(latitude)
-    # Avoid division by zero at poles
     if abs(user_lat) > 89: 
-        lon_change = 360 # Search all longitudes
+        lon_change = 360 
     else:
         lon_change = radius_km / (111.0 * abs(cos(radians(user_lat))))
 
@@ -47,8 +45,7 @@ def get_nearby_workshops(user_lat, user_lon, radius_km=20):
     min_lon = user_lon - lon_change
     max_lon = user_lon + lon_change
 
-    # 2. Database Filter (The "Wise" Optimization)
-    # This reduces search from N records to a small local subset using DB index
+
     candidates = Workshop.objects.filter(
         verification_status='APPROVED',
         latitude__range=(min_lat, max_lat),

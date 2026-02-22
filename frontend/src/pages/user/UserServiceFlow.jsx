@@ -9,13 +9,11 @@ import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails,
 import { createEscrowCheckout, resetPaymentState } from '../../redux/slices/paymentSlice';
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
 
   const { currentRequest, loading, estimates } = useSelector((state) => state.serviceRequest);
   const { checkoutUrl: escrowCheckoutUrl, loading: escrowLoading } = useSelector((state) => state.payment);
@@ -24,7 +22,6 @@ const UserServiceFlow = () => {
 
   useEffect(() => {
     if (requestId) {
-      // Initial fetch
       dispatch(fetchServiceRequestDetails(requestId));
 
       // Poll for updates every 5 seconds
@@ -36,14 +33,12 @@ const UserServiceFlow = () => {
     }
   }, [dispatch, requestId]);
 
-  // Fetch estimates when there's an active connection
   useEffect(() => {
     if (currentRequest?.active_connection?.id) {
       dispatch(fetchEstimates(currentRequest.active_connection.id));
     }
   }, [dispatch, currentRequest?.active_connection?.id]);
 
-  // Handle escrow success/cancel from Stripe redirect
   useEffect(() => {
     const escrowSuccess = searchParams.get('escrow_success');
     const escrowCanceled = searchParams.get('escrow_canceled');

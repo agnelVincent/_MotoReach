@@ -9,7 +9,7 @@ from accounts.models import Workshop, Mechanic
 from .serializers import (
     ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer,
     ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
-    EstimateUpdateSerializer, EstimateLineItemSerializer
+    EstimateUpdateSerializer
 )
 from django.utils import timezone
 from datetime import timedelta
@@ -972,11 +972,10 @@ class VerifyServiceOTPView(APIView):
         from django.db.models import F
         with transaction.atomic():
             execution.completed_at = timezone.now()
-            execution.otp_code = None  # one-time use
+            execution.otp_code = None 
             execution.save()
             execution.service_request.status = 'COMPLETED'
             execution.service_request.save()
-            # Release escrow to workshop wallet
             escrow_payment = Payment.objects.filter(
                 service_request=execution.service_request,
                 payment_type='SERVICE_ESCROW',
