@@ -6,7 +6,7 @@ import {
   Shield, AlertCircle, FileCheck, CreditCard, Wrench, Link2, Key, Eye, EyeOff, X, Ban
 } from 'lucide-react';
 import {
-  fetchNearbyWorkshops,
+  fetchServiceRequestDetails,
   fetchWorkshopMechanics,
   assignMechanic,
   removeMechanic,
@@ -16,6 +16,7 @@ import {
 import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
 import EstimateManager from '../../components/EstimateManager';
+import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 
 const WorkshopServiceFlow = () => {
   const { requestId } = useParams();
@@ -26,18 +27,13 @@ const WorkshopServiceFlow = () => {
 
   useEffect(() => {
     if (!requestId) return;
-
-    // Initial fetch
-    dispatch(fetchNearbyWorkshops(requestId));
+    dispatch(fetchServiceRequestDetails(requestId));
     dispatch(fetchWorkshopMechanics());
-
-    // Lightweight polling to keep status in sync while the page is open
-    const intervalId = setInterval(() => {
-      dispatch(fetchNearbyWorkshops(requestId));
-    }, 5000);
-
-    return () => clearInterval(intervalId);
   }, [dispatch, requestId]);
+
+  useServiceFlowSocket(requestId, () => {
+    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+  });
 
   const currentStatus = currentRequest?.status || 'CREATED';
   const activeConnection = currentRequest?.active_connection;
@@ -269,7 +265,7 @@ const WorkshopServiceFlow = () => {
                 connectionId={activeConnection.id}
                 requestId={requestId}
                 onEstimateSent={() => {
-                  dispatch(fetchNearbyWorkshops(requestId));
+                  dispatch(fetchServiceRequestDetails(requestId));
                 }}
               />
             )}
@@ -301,7 +297,7 @@ const WorkshopServiceFlow = () => {
                   try {
                     await dispatch(cancelRequestWorkshop(activeConnection.id)).unwrap();
                     toast.success('Connection cancelled');
-                    if (requestId) dispatch(fetchNearbyWorkshops(requestId));
+                    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
                   } catch (e) {
                     toast.error(e?.error || 'Failed to cancel connection');
                   }

@@ -20,6 +20,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 
 const MechanicServiceFlow = () => {
   const { requestId } = useParams();
@@ -28,17 +29,12 @@ const MechanicServiceFlow = () => {
 
   useEffect(() => {
     if (!requestId) return;
-
-    // Initial fetch
     dispatch(fetchServiceRequestDetails(requestId));
-
-    // Poll for status updates while mechanic is on the page
-    const intervalId = setInterval(() => {
-      dispatch(fetchServiceRequestDetails(requestId));
-    }, 5000);
-
-    return () => clearInterval(intervalId);
   }, [dispatch, requestId]);
+
+  useServiceFlowSocket(requestId, () => {
+    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+  });
 
   const currentStatus = currentRequest?.status || 'CREATED';
   const execution = currentRequest?.execution;

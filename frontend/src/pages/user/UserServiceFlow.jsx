@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
-  CheckCircle, Phone, Send, Star, MapPin, Mail, AlertCircle, Ban,
+  CheckCircle, Phone, Star, MapPin, Mail, AlertCircle, Ban,
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
 import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates, approveEstimate, rejectEstimate, verifyServiceOTP } from '../../redux/slices/serviceRequestSlice';
 import { createEscrowCheckout, resetPaymentState } from '../../redux/slices/paymentSlice';
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
+import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
@@ -23,15 +24,12 @@ const UserServiceFlow = () => {
   useEffect(() => {
     if (requestId) {
       dispatch(fetchServiceRequestDetails(requestId));
-
-      // Poll for updates every 5 seconds
-      const intervalId = setInterval(() => {
-        dispatch(fetchServiceRequestDetails(requestId));
-      }, 5000);
-
-      return () => clearInterval(intervalId);
     }
   }, [dispatch, requestId]);
+
+  useServiceFlowSocket(requestId, () => {
+    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+  });
 
   useEffect(() => {
     if (currentRequest?.active_connection?.id) {

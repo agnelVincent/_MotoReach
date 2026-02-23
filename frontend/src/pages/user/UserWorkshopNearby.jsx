@@ -39,7 +39,7 @@ const UserWorkshopNearby = () => {
       dispatch(fetchNearbyWorkshops(requestId));
     }
     dispatch(fetchWallet());
-  }, [dispatch, requestId, currentRequest]);
+  }, [dispatch, requestId]);
 
   useEffect(() => {
     if (paymentCanceled && !urlParamsCleared) {

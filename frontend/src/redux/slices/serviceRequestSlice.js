@@ -158,7 +158,7 @@ export const assignMechanic = createAsyncThunk(
     try {
       const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/assign/`, { mechanic_id: mechanicId });
       // Refresh request details to show update
-      dispatch(fetchNearbyWorkshops(serviceRequestId));
+      dispatch(fetchServiceRequestDetails(serviceRequestId));
       dispatch(fetchWorkshopMechanics());
       return response.data;
     } catch (error) {
@@ -173,7 +173,7 @@ export const removeMechanic = createAsyncThunk(
     try {
       const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/remove/`, { mechanic_id: mechanicId });
       // Refresh details
-      dispatch(fetchNearbyWorkshops(serviceRequestId));
+      dispatch(fetchServiceRequestDetails(serviceRequestId));
       dispatch(fetchWorkshopMechanics());
       return response.data;
     } catch (error) {
@@ -212,7 +212,7 @@ export const sendEstimate = createAsyncThunk(
   async ({ estimateId, requestId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/estimates/${estimateId}/send/`);
-      dispatch(fetchNearbyWorkshops(requestId));
+      dispatch(fetchServiceRequestDetails(requestId));
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || "Failed to send estimate");

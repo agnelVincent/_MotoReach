@@ -13,7 +13,7 @@ from .serializers import (
 )
 from django.utils import timezone
 from datetime import timedelta
-from .utils import check_request_expiration, get_nearby_workshops
+from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
 
 
 def check_expired_connections(queryset):
@@ -33,6 +33,7 @@ def check_expired_connections(queryset):
         if conn.service_request.status == 'CONNECTING':
             conn.service_request.status = 'PLATFORM_FEE_PAID'
             conn.service_request.save()
+            notify_service_flow_update(conn.service_request_id)
         updated_count += 1
     
     return updated_count
@@ -214,6 +215,7 @@ class AcceptConnectionRequestView(APIView):
 
         connection.service_request.status = 'CONNECTED'
         connection.service_request.save()
+        notify_service_flow_update(connection.service_request_id)
 
         execution, created = ServiceExecution.objects.get_or_create(
             service_request=connection.service_request,
@@ -258,6 +260,7 @@ class RejectConnectionRequestView(APIView):
 
         connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
+        notify_service_flow_update(connection.service_request_id)
 
         return Response({"message": "Connection request rejected successfully"}, status=status.HTTP_200_OK)
 
@@ -318,6 +321,7 @@ class CancelConnectionRequestView(APIView):
         
         connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
+        notify_service_flow_update(connection.service_request_id)
 
         return Response({"message": "Connection cancelled successfully"}, status=status.HTTP_200_OK)
 
@@ -379,7 +383,8 @@ class UserCancelConnectionView(APIView):
         
         connection.service_request.status = 'PLATFORM_FEE_PAID'
         connection.service_request.save()
-        
+        notify_service_flow_update(connection.service_request_id)
+
         return Response({"message": "Connection cancelled"}, status=status.HTTP_200_OK)
         
 class DeleteServiceRequestView(APIView):
@@ -490,7 +495,7 @@ class AssignMechanicView(APIView):
             execution.mechanics.add(mechanic)
             mechanic.availability = 'BUSY'
             mechanic.save()
-            
+            notify_service_flow_update(pk)
             return Response({"message": "Mechanic assigned successfully"})
             
         except ServiceRequest.DoesNotExist:
@@ -498,6 +503,7 @@ class AssignMechanicView(APIView):
         except Mechanic.DoesNotExist:
              return Response({"error": "Mechanic not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+             print(e)
              return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class RemoveMechanicView(APIView):
@@ -522,7 +528,7 @@ class RemoveMechanicView(APIView):
                   execution.mechanics.remove(mechanic)
                   mechanic.availability = 'AVAILABLE'
                   mechanic.save()
-                  
+                  notify_service_flow_update(execution.service_request_id)
              return Response({"message": "Mechanic removed successfully"})
              
         except Exception as e:
@@ -663,6 +669,7 @@ class SendEstimateView(APIView):
             if service_request.status == 'CONNECTED':
                 service_request.status = 'ESTIMATE_SHARED'
                 service_request.save()
+            notify_service_flow_update(service_request.id)
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -714,6 +721,7 @@ class ApproveEstimateView(APIView):
                     estimate_amount=estimate.total_amount,
                     estimate=estimate
                 )
+            notify_service_flow_update(estimate.service_request_id)
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -742,6 +750,7 @@ class RejectEstimateView(APIView):
             estimate.status = 'REJECTED'
             estimate.rejected_at = timezone.now()
             estimate.save()
+            notify_service_flow_update(estimate.service_request_id)
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -778,6 +787,7 @@ class ResendEstimateView(APIView):
             if service_request.status != 'ESTIMATE_SHARED':
                 service_request.status = 'ESTIMATE_SHARED'
                 service_request.save()
+            notify_service_flow_update(service_request.id)
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
 
@@ -907,6 +917,7 @@ class GenerateServiceOTPView(APIView):
         otp = generate_otp_code(length=6)
         execution.otp_code = otp
         execution.save()
+        notify_service_flow_update(execution.service_request_id)
 
         # Email OTP to the service request owner
         user = execution.service_request.user
@@ -998,4 +1009,5 @@ class VerifyServiceOTPView(APIView):
                 escrow_payment.save()
             execution.service_request.status = 'VERIFIED'
             execution.service_request.save()
+            notify_service_flow_update(execution.service_request_id)
         return Response({"message": "Service verified. Payment released to workshop."}, status=status.HTTP_200_OK)

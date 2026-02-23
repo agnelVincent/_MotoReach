@@ -2,6 +2,26 @@ from django.utils import timezone
 from payments.utils import check_and_process_refund
 from math import radians, cos, sin, asin, sqrt
 
+
+def notify_service_flow_update(service_request_id: int) -> None:
+    """
+    Notify all clients subscribed to this service request's flow (via WebSocket)
+    that data has changed, so they can refetch. Called from views after mutations.
+    """
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f"service_flow_{service_request_id}",
+            {"type": "service_flow.update"},
+        )
+    except Exception:
+        pass  # Don't fail the request if WebSocket notify fails
+
 def calculate_distance(lat1, long1, lat2, long2):
     if lat1 is None or long1 is None or lat2 is None or long2 is None:
         return float('inf')
@@ -78,6 +98,7 @@ def check_request_expiration(service_request):
         
         service_request.status = 'EXPIRED'
         service_request.save()
+        notify_service_flow_update(service_request.id)
 
         try:
             execution = service_request.execution

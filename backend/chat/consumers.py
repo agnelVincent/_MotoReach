@@ -11,6 +11,26 @@ User = get_user_model()
 
 
 @database_sync_to_async
+def _user_can_subscribe_service_flow(user: User, service_request_id: int) -> bool:
+    """True if user is request owner, workshop admin with accepted connection, or assigned mechanic."""
+    try:
+        sr = ServiceRequest.objects.get(pk=service_request_id)
+    except ServiceRequest.DoesNotExist:
+        return False
+    if sr.user_id == user.id:
+        return True
+    if user.role == "workshop_admin" and hasattr(user, "workshop"):
+        if WorkshopConnection.objects.filter(
+            service_request=sr, workshop=user.workshop, status="ACCEPTED"
+        ).exists():
+            return True
+    if user.role == "mechanic" and hasattr(user, "mechanic"):
+        if hasattr(sr, "execution") and sr.execution:
+            return sr.execution.mechanics.filter(user=user).exists()
+    return False
+
+
+@database_sync_to_async
 def _get_service_request(service_request_id: int) -> ServiceRequest | None:
     try:
         return ServiceRequest.objects.get(pk=service_request_id)
@@ -320,4 +340,45 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "item": event["item"],
             }
         )
+
+
+class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
+    """
+    Per–service-request WebSocket for live flow updates. Clients subscribe when
+    viewing a service flow page; backend sends a single message type on any
+    change so the client can refetch (no polling).
+    """
+
+    async def connect(self):
+        try:
+            self.service_request_id = int(
+                self.scope["url_route"]["kwargs"]["service_request_id"]
+            )
+        except (KeyError, TypeError, ValueError):
+            await self.close()
+            return
+
+        user: User = self.scope.get("user")
+        if not user or not user.is_authenticated:
+            await self.close()
+            return
+
+        allowed = await _user_can_subscribe_service_flow(user, self.service_request_id)
+        if not allowed:
+            await self.close()
+            return
+
+        self.room_group_name = f"service_flow_{self.service_request_id}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, code):
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(
+                self.room_group_name, self.channel_name
+            )
+
+    async def service_flow_update(self, event: Dict[str, Any]):
+        """Broadcast: something changed; client should refetch."""
+        await self.send_json({"type": "service_flow.update"})
 

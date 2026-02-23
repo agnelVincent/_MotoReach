@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer
 from service_request.models import ServiceRequest, ServiceExecution, Estimate
+from service_request.utils import notify_service_flow_update
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
@@ -224,8 +225,9 @@ class StripeWebhookView(APIView):
             print(f"Before - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
             payment.service_request.platform_fee_paid = True
             payment.service_request.platform_fee_txn_id = payment.stripe_checkout_id
-            payment.service_request.status = 'CONNECTING' 
+            payment.service_request.status = 'CONNECTING'
             payment.service_request.save()
+            notify_service_flow_update(payment.service_request.id)
             print(f"After - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
             print("ServiceRequest updated successfully!")
         else:
@@ -249,6 +251,7 @@ class StripeWebhookView(APIView):
             execution.save()
             payment.service_request.status = 'SERVICE_AMOUNT_PAID'
             payment.service_request.save()
+            notify_service_flow_update(payment.service_request.id)
         print("SERVICE_ESCROW: execution updated, service request status = SERVICE_AMOUNT_PAID")
 
 
