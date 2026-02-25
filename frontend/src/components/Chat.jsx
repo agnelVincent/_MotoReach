@@ -1,14 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Send } from 'lucide-react';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
+const PAGE_SIZE = 50;
 
-const getWebSocketBase = () => {
-  return import.meta.env.VITE_WS_BASE;
-};
-
-
+const getWebSocketBase = () => import.meta.env.VITE_WS_BASE;
 
 const Chat = ({
   serviceRequestId,
@@ -24,111 +21,151 @@ const Chat = ({
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
+  const [hasMore, setHasMore] = useState(true);   // assume there may be older msgs until told otherwise
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
+  // Task 1: Type-safe comparison — sender_id from WS is a DB int, Redux id may survive as string
   const currentUserId = user?.id;
+  const isOwn = (senderId) =>
+    currentUserId != null && String(senderId) === String(currentUserId);
+
+  // ─── Scroll helpers ───────────────────────────────────────────────────────
+
+  const scrollToBottom = useCallback((behavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  // Task 3: When prepending older messages, preserve the user's scroll position
+  // so the viewport doesn't jump to the top.
+  const preserveScrollOnPrepend = useCallback((prependFn) => {
+    const container = scrollContainerRef.current;
+    if (!container) { prependFn(); return; }
+    const prevScrollHeight = container.scrollHeight;
+    prependFn();
+    // After React re-renders (microtask), restore position relative to old bottom
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight - prevScrollHeight;
+    });
+  }, []);
+
+  // ─── WebSocket setup ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!serviceRequestId || !canChat) {
-      return;
-    }
+    if (!serviceRequestId || !canChat) return;
 
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
-    const wsBase = getWebSocketBase();
-    const wsUrl = `${wsBase}/ws/chat/${serviceRequestId}/?token=${encodeURIComponent(
-      token
-    )}`;
-
+    const wsUrl = `${getWebSocketBase()}/ws/chat/${serviceRequestId}/?token=${encodeURIComponent(token)}`;
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
     socket.onopen = () => {
       setIsConnected(true);
-      // Mark messages as read on open
       socket.send(JSON.stringify({ type: 'mark_read' }));
     };
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+
         if (data.type === 'chat.history') {
+          // Initial load: replace all messages, scroll to bottom instantly
           setMessages(data.messages || []);
+          setHasMore((data.messages?.length ?? 0) === PAGE_SIZE);
+          // Use setTimeout so the DOM updates before we scroll
+          setTimeout(() => scrollToBottom('instant'), 0);
+
         } else if (data.type === 'chat.message') {
+          // New real-time message: append and scroll to bottom
           setMessages((prev) => [...prev, data.message]);
+          setTimeout(() => scrollToBottom('smooth'), 0);
+
+        } else if (data.type === 'chat.history_page') {
+          // Task 2: Older page loaded on scroll-up — prepend without losing position
+          setIsLoadingMore(false);
+          if (!data.messages?.length) {
+            setHasMore(false);
+            return;
+          }
+          setHasMore(data.has_more ?? data.messages.length === PAGE_SIZE);
+          preserveScrollOnPrepend(() => {
+            setMessages((prev) => [...data.messages, ...prev]);
+          });
         }
       } catch (error) {
         console.error('Failed to parse chat message', error);
+        setIsLoadingMore(false);
       }
     };
 
-    socket.onclose = () => {
-      setIsConnected(false);
-    };
-
-    socket.onerror = () => {
-      setIsConnected(false);
-    };
+    socket.onclose = () => setIsConnected(false);
+    socket.onerror = () => setIsConnected(false);
 
     return () => {
       socket.close();
       socketRef.current = null;
       setIsConnected(false);
+      setMessages([]);
+      setHasMore(true);
     };
   }, [serviceRequestId, canChat]);
 
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  // ─── Task 2: Scroll handler — fetch older messages when user hits the top ─
+
+  const handleScroll = useCallback((e) => {
+    const container = e.currentTarget;
+    if (
+      container.scrollTop === 0 &&
+      hasMore &&
+      !isLoadingMore &&
+      socketRef.current?.readyState === WebSocket.OPEN &&
+      messages.length > 0
+    ) {
+      const oldestId = messages[0].id;
+      setIsLoadingMore(true);
+      socketRef.current.send(
+        JSON.stringify({ type: 'fetch_history', before_id: oldestId })
+      );
     }
-  }, [messages]);
+  }, [hasMore, isLoadingMore, messages]);
+
+  // ─── Send message ─────────────────────────────────────────────────────────
 
   const handleSend = (e) => {
     e.preventDefault();
     const text = messageInput.trim();
-    if (!text || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    socketRef.current.send(
-      JSON.stringify({
-        type: 'message',
-        message: text,
-      })
-    );
+    if (!text || socketRef.current?.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({ type: 'message', message: text }));
     setMessageInput('');
   };
 
-  const renderMessage = (msg) => {
-    const isOwn = currentUserId && msg.sender_id === currentUserId;
+  // ─── Render a single message bubble ──────────────────────────────────────
 
+  const renderMessage = (msg) => {
+    const own = isOwn(msg.sender_id);
     return (
       <div
         key={msg.id}
-        className={`flex mb-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
+        className={`flex mb-3 ${own ? 'justify-end' : 'justify-start'}`}
       >
         <div
-          className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${
-            isOwn
+          className={`max-w-[75%] rounded-2xl px-4 py-2 shadow-sm ${own
               ? 'bg-blue-600 text-white rounded-br-none'
               : 'bg-gray-100 text-gray-900 rounded-bl-none'
-          }`}
+            }`}
         >
-          {!isOwn && (
+          {!own && (
             <p className="text-xs font-semibold text-gray-600 mb-0.5">
               {msg.sender_name}
             </p>
           )}
           <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-          <p
-            className={`mt-1 text-[10px] ${
-              isOwn ? 'text-blue-100' : 'text-gray-400'
-            }`}
-          >
+          <p className={`mt-1 text-[10px] ${own ? 'text-blue-100' : 'text-gray-400'}`}>
             {new Date(msg.created_at).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -146,6 +183,7 @@ const Chat = ({
       className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
       style={{ height: '600px' }}
     >
+      {/* Header */}
       <div
         className={`bg-gradient-to-r ${gradientFrom} ${gradientTo} p-4 flex items-center justify-between`}
       >
@@ -165,8 +203,25 @@ const Chat = ({
         )}
       </div>
 
-      <div className="flex-1 bg-gray-50 flex flex-col">
-        <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+      {/* Messages area */}
+      <div className="flex-1 bg-gray-50 flex flex-col min-h-0">
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar"
+        >
+          {/* "Load more" indicator at the top */}
+          {isLoadingMore && (
+            <div className="flex justify-center py-2 mb-2">
+              <span className="text-xs text-gray-400 italic">Loading older messages…</span>
+            </div>
+          )}
+          {canChat && !isLoadingMore && !hasMore && messages.length > 0 && (
+            <div className="flex justify-center py-2 mb-2">
+              <span className="text-xs text-gray-400 italic">Beginning of conversation</span>
+            </div>
+          )}
+
           {canChat ? (
             messages.length > 0 ? (
               messages.map(renderMessage)
@@ -184,14 +239,14 @@ const Chat = ({
               </p>
             </div>
           )}
+
+          {/* Scroll anchor for new messages */}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <form
-        onSubmit={handleSend}
-        className="border-t border-gray-200 p-4 bg-white"
-      >
+      {/* Input */}
+      <form onSubmit={handleSend} className="border-t border-gray-200 p-4 bg-white">
         <div className="flex gap-3">
           <input
             type="text"
@@ -221,4 +276,3 @@ const Chat = ({
 };
 
 export default Chat;
-

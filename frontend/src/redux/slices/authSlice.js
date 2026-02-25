@@ -168,6 +168,16 @@ export const reApplyWorkshop = createAsyncThunk(
     }
 )
 
+/** Decode the JWT payload (base64url) without a library — safe for client-side id extraction only. */
+const _decodeJwtPayload = (token) => {
+    try {
+        const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(atob(base64));
+    } catch {
+        return null;
+    }
+};
+
 const loadInitialState = () => {
 
     let authState = { isAuthenticated: false, accessToken: null, user: null }
@@ -175,10 +185,19 @@ const loadInitialState = () => {
         const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)
         const user = localStorage.getItem(USER_KEY)
         if (accessToken && user) {
+            const parsedUser = JSON.parse(user);
+            // One-time migration: backfill user.id from JWT payload if missing (stale localStorage)
+            if (!parsedUser.id) {
+                const jwtPayload = _decodeJwtPayload(accessToken);
+                if (jwtPayload?.user_id) {
+                    parsedUser.id = jwtPayload.user_id;
+                    localStorage.setItem(USER_KEY, JSON.stringify(parsedUser));
+                }
+            }
             return {
                 isAuthenticated: true,
                 accessToken: accessToken,
-                user: JSON.parse(user)
+                user: parsedUser,
             }
         }
     }
@@ -318,9 +337,16 @@ const authSlice = createSlice({
                 state.loading = false;
                 state.isAuthenticated = true;
                 state.accessToken = action.payload.access;
-                localStorage.setItem('accessToken', action.payload.access);
-                localStorage.setItem('user', JSON.stringify(action.payload.user));
-                state.user = action.payload.user;
+                localStorage.setItem(ACCESS_TOKEN_KEY, action.payload.access);
+                const userData = {
+                    id: action.payload.user_id ?? action.payload.user?.id,
+                    full_name: action.payload.full_name ?? action.payload.user?.full_name,
+                    email: action.payload.email ?? action.payload.user?.email,
+                    role: action.payload.role ?? action.payload.user?.role,
+                    workshop_status: action.payload.workshop_status ?? action.payload.user?.workshop_status,
+                };
+                state.user = userData;
+                localStorage.setItem(USER_KEY, JSON.stringify(userData));
             })
             .addCase(googleLogin.rejected, (state, action) => {
                 state.loading = false;

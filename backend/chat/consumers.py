@@ -12,7 +12,7 @@ User = get_user_model()
 
 @database_sync_to_async
 def _user_can_subscribe_service_flow(user: User, service_request_id: int) -> bool:
-    """True if user is request owner, workshop admin with accepted connection, or assigned mechanic."""
+    """True if user is request owner, workshop admin with accepted connection"""
     try:
         sr = ServiceRequest.objects.get(pk=service_request_id)
     except ServiceRequest.DoesNotExist:
@@ -61,14 +61,12 @@ def _user_has_active_connection(user: User, service_request: ServiceRequest) -> 
 
 @database_sync_to_async
 def _get_chat_history(
-    service_request: ServiceRequest, limit: int = 50
+    service_request: ServiceRequest, limit: int = 50, before_id: int | None = None
 ) -> List[Dict[str, Any]]:
-    messages = (
-        ChatMessage.objects.filter(service_request=service_request)
-        .select_related("sender")
-        .order_by("-created_at")[:limit]
-    )
-    messages = list(reversed(messages))
+    qs = ChatMessage.objects.filter(service_request=service_request).select_related("sender")
+    if before_id is not None:
+        qs = qs.filter(id__lt=before_id)
+    messages = list(reversed(list(qs.order_by("-id")[:limit])))
 
     return [
         {
@@ -254,6 +252,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
             # Push notification to receiver
             await self._send_notification_to_user(receiver_id)
+
+        elif msg_type == "fetch_history":
+            # Cursor-based pagination: client sends the id of its oldest loaded message.
+            # We return the page that comes before it so the user can scroll up infinitely.
+            before_id = content.get("before_id")
+            if before_id is None:
+                return
+            older_messages = await _get_chat_history(
+                self.service_request, limit=50, before_id=int(before_id)
+            )
+            # Send only to the requesting client (not group_send) so others don't get duplicates.
+            await self.send_json({
+                "type": "chat.history_page",
+                "messages": older_messages,
+                "has_more": len(older_messages) == 50,
+            })
 
         elif msg_type == "mark_read":
             await _mark_messages_as_read(user, self.service_request)
