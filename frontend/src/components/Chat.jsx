@@ -21,32 +21,27 @@ const Chat = ({
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  const [hasMore, setHasMore] = useState(true);   // assume there may be older msgs until told otherwise
+  const [hasMore, setHasMore] = useState(true);   
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
 
-  // Task 1: Type-safe comparison — sender_id from WS is a DB int, Redux id may survive as string
   const currentUserId = user?.id;
   const isOwn = (senderId) =>
     currentUserId != null && String(senderId) === String(currentUserId);
 
-  // ─── Scroll helpers ───────────────────────────────────────────────────────
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
-  // Task 3: When prepending older messages, preserve the user's scroll position
-  // so the viewport doesn't jump to the top.
   const preserveScrollOnPrepend = useCallback((prependFn) => {
     const container = scrollContainerRef.current;
     if (!container) { prependFn(); return; }
     const prevScrollHeight = container.scrollHeight;
     prependFn();
-    // After React re-renders (microtask), restore position relative to old bottom
     requestAnimationFrame(() => {
       container.scrollTop = container.scrollHeight - prevScrollHeight;
     });

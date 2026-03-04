@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Tuple
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth import get_user_model
-
+from django.db import DatabaseError
 from service_request.models import ServiceRequest, WorkshopConnection
 from .models import ChatMessage
 
@@ -12,21 +12,27 @@ User = get_user_model()
 
 @database_sync_to_async
 def _user_can_subscribe_service_flow(user: User, service_request_id: int) -> bool:
-    """True if user is request owner, workshop admin with accepted connection"""
     try:
         sr = ServiceRequest.objects.get(pk=service_request_id)
     except ServiceRequest.DoesNotExist:
         return False
-    if sr.user_id == user.id:
-        return True
-    if user.role == "workshop_admin" and hasattr(user, "workshop"):
-        if WorkshopConnection.objects.filter(
-            service_request=sr, workshop=user.workshop, status="ACCEPTED"
-        ).exists():
+    except DatabaseError:
+        return False
+
+    try:
+        if sr.user_id == user.id:   
             return True
-    if user.role == "mechanic" and hasattr(user, "mechanic"):
-        if hasattr(sr, "execution") and sr.execution:
-            return sr.execution.mechanics.filter(user=user).exists()
+        if user.role == "workshop_admin" and hasattr(user, "workshop"):
+            if WorkshopConnection.objects.filter(
+                service_request=sr, workshop=user.workshop, status="ACCEPTED"
+            ).exists():
+                return True
+        if user.role == "mechanic" and hasattr(user, "mechanic"):
+            if hasattr(sr, "execution") and sr.execution:
+                return sr.execution.mechanics.filter(user=user).exists()
+    except DatabaseError as e:
+        print('came from checking user subscribe service flow', e)
+        return False
     return False
 
 
@@ -36,25 +42,34 @@ def _get_service_request(service_request_id: int) -> ServiceRequest | None:
         return ServiceRequest.objects.get(pk=service_request_id)
     except ServiceRequest.DoesNotExist:
         return None
+    except DatabaseError as e:
+        print('came from getting service request', e)
+        return None
 
 
 @database_sync_to_async
 def _user_has_active_connection(user: User, service_request: ServiceRequest) -> bool:
     if service_request.status in ["EXPIRED", "CANCELLED"]:
         return False
+    
+    try:
 
-    if service_request.user_id == user.id:
-        return WorkshopConnection.objects.filter(
-            service_request=service_request,
-            status="ACCEPTED",
-        ).exists()
+        if service_request.user_id == user.id:
+            return WorkshopConnection.objects.filter(
+                service_request=service_request,
+                status="ACCEPTED",
+            ).exists()
 
-    if user.role == "workshop_admin" and hasattr(user, "workshop"):
-        return WorkshopConnection.objects.filter(
-            service_request=service_request,
-            workshop=user.workshop,
-            status="ACCEPTED",
-        ).exists()
+        if user.role == "workshop_admin" and hasattr(user, "workshop"):
+            return WorkshopConnection.objects.filter(
+                service_request=service_request,
+                workshop=user.workshop,
+                status="ACCEPTED",
+            ).exists()
+    
+    except DatabaseError as e:
+        print('came from user active connection', e)
+        return False
 
     return False
 
@@ -63,10 +78,16 @@ def _user_has_active_connection(user: User, service_request: ServiceRequest) -> 
 def _get_chat_history(
     service_request: ServiceRequest, limit: int = 50, before_id: int | None = None
 ) -> List[Dict[str, Any]]:
-    qs = ChatMessage.objects.filter(service_request=service_request).select_related("sender")
-    if before_id is not None:
-        qs = qs.filter(id__lt=before_id)
-    messages = list(reversed(list(qs.order_by("-id")[:limit])))
+    
+    try:
+        qs = ChatMessage.objects.filter(service_request=service_request).select_related("sender")
+        if before_id is not None:
+            qs = qs.filter(id__lt=before_id)
+        messages = list(reversed(list(qs.order_by("-id")[:limit])))
+    
+    except DatabaseError as e:
+        print(e)
+        return []
 
     return [
         {
@@ -85,32 +106,47 @@ def _get_chat_history(
 def _create_message(
     user: User, service_request: ServiceRequest, content: str
 ) -> Tuple[Dict[str, Any], int]:
-    connection = WorkshopConnection.objects.filter(
-        service_request=service_request,
-        status="ACCEPTED",
-    ).first()
+    
+    try:
+        connection = WorkshopConnection.objects.filter(
+            service_request=service_request,
+            status="ACCEPTED",
+        ).first()
 
+    except DatabaseError as e:
+        print(e)
+        raise PermissionError("Cannot verify connection at this moment")
+    
     if not connection:
-        raise PermissionError("No active connection for this service request.")
+        raise PermissionError('No active connection for this service')
+
+    receiver = None
 
     if user.id == service_request.user_id:
-        receiver = connection.workshop.user
-    elif user.role == "workshop_admin" and hasattr(user, "workshop"):
-        if connection.workshop_id != user.workshop.id:
-            raise PermissionError("Not authorized for this service request.")
-        receiver = service_request.user
-    else:
-        raise PermissionError("Not authorized for this service request.")
+        receiver = getattr(connection.workshop, 'user', None)
+
+
+    elif user.role == "workshop_admin":
+        workshop = getattr(user,'workshop',None)
+        if workshop and connection.workshop_id == workshop.id:
+            receiver = service_request.user
+
+    if receiver is None:
+        raise PermissionError('Not authorized for this service request')
 
     if service_request.status in ["EXPIRED", "CANCELLED"]:
         raise PermissionError("Service request is no longer active.")
 
-    msg = ChatMessage.objects.create(
-        service_request=service_request,
-        sender=user,
-        receiver=receiver,
-        content=content,
-    )
+    try:
+        msg = ChatMessage.objects.create(
+            service_request=service_request,
+            sender=user,
+            receiver=receiver,
+            content=content,
+        )
+    except DatabaseError as e:
+        print(e)
+        raise PermissionError('Failed to create message at this time')
 
     data = {
         "id": msg.id,
@@ -125,16 +161,20 @@ def _create_message(
 
 @database_sync_to_async
 def _mark_messages_as_read(user: User, service_request: ServiceRequest) -> None:
-    ChatMessage.objects.filter(
-        service_request=service_request,
-        receiver=user,
-        is_read=False,
-    ).update(is_read=True)
+    try:
+        ChatMessage.objects.filter(
+            service_request=service_request,
+            receiver=user,
+            is_read=False,
+        ).update(is_read=True)
+    except DatabaseError as e:
+        print('happened while marking as read',e)
 
 
 def _build_unread_summary_item_sync(
     receiver: User, service_request: ServiceRequest
 ) -> Dict[str, Any]:
+    
     unread_qs = ChatMessage.objects.filter(
         service_request=service_request,
         receiver=receiver,
