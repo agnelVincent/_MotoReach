@@ -98,8 +98,12 @@ class CreateServiceEscrowCheckoutView(APIView):
         if execution.escrow_paid:
             return Response({'error': 'Service amount already paid'}, status=status.HTTP_400_BAD_REQUEST)
         amount = float(estimate.total_amount)
+
         if amount <= 0:
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        amount_usd = amount * settings.INR_TO_USD_RATE
+
         sr_id = estimate.service_request.id
         base_url = 'http://localhost:5173'
         success_url = f'{base_url}/user/service-flow/{sr_id}?escrow_success=true'
@@ -110,7 +114,7 @@ class CreateServiceEscrowCheckoutView(APIView):
                 line_items=[{
                     'price_data': {
                         'currency': settings.STRIPE_CURRENCY,
-                        'unit_amount': int(round(amount * 100)),
+                        'unit_amount': int(round(amount_usd * 100)),
                         'product_data': {
                             'name': 'Service Amount (Escrow)',
                             'description': f'Service request #{sr_id} – amount held until completion',
