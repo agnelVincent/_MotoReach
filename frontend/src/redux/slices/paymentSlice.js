@@ -3,10 +3,11 @@ import axiosInstance from "../../api/axiosInstance";
 
 export const initiatePlatformFeePayment = createAsyncThunk(
     "payment/initiatePlatformFee",
-    async ({ serviceRequestId }, { rejectWithValue }) => {
+    async ({ serviceRequestId, workshopId }, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.post("payments/create-checkout-session/", {
                 service_request_id: serviceRequestId,
+                workshop_id: workshopId,
             });
             return response.data;
         } catch (error) {
@@ -21,10 +22,11 @@ export const initiatePlatformFeePayment = createAsyncThunk(
 
 export const payPlatformFeeWithWallet = createAsyncThunk(
     "payment/payPlatformFeeWithWallet",
-    async ({ serviceRequestId }, { rejectWithValue }) => {
+    async ({ serviceRequestId, workshopId }, { rejectWithValue }) => {
         try {
             const response = await axiosInstance.post("payments/wallet/pay-fee/", {
                 service_request_id: serviceRequestId,
+                workshop_id: workshopId,
             });
             return response.data;
         } catch (error) {

@@ -22,6 +22,7 @@ class CreateCheckoutSessionView(APIView):
 
     def post(self, request):
         service_request_id = request.data.get('service_request_id')
+        workshop_id = request.data.get('workshop_id')
         if not service_request_id:
             return Response({'error': 'service_request_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -33,7 +34,14 @@ class CreateCheckoutSessionView(APIView):
         if service_request.platform_fee_paid:
              return Response({'message': 'Platform fee already paid'}, status=status.HTTP_200_OK)
 
-        
+        metadata = {
+            'service_request_id': service_request.id,
+            'user_id': request.user.id,
+            'payment_type': 'PLATFORM_FEE'
+        }
+        if workshop_id:
+            metadata['workshop_id'] = str(workshop_id)
+
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -53,11 +61,7 @@ class CreateCheckoutSessionView(APIView):
                 mode='payment',
                 success_url=f'http://localhost:5173/user/workshops-nearby/{service_request.id}?payment_success=true',
                 cancel_url=f'http://localhost:5173/user/workshops-nearby/{service_request.id}?payment_canceled=true',
-                metadata={
-                    'service_request_id': service_request.id,
-                    'user_id': request.user.id,
-                    'payment_type': 'PLATFORM_FEE'
-                },
+                metadata=metadata,
             )
             
             Payment.objects.create(
@@ -229,7 +233,37 @@ class StripeWebhookView(APIView):
             print(f"Before - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
             payment.service_request.platform_fee_paid = True
             payment.service_request.platform_fee_txn_id = payment.stripe_checkout_id
-            payment.service_request.status = 'CONNECTING'
+
+            workshop_id = metadata.get('workshop_id')
+            if workshop_id:
+                from accounts.models import Workshop
+                from service_request.models import WorkshopConnection
+                try:
+                    workshop = Workshop.objects.get(pk=workshop_id)
+                    existing_connection = WorkshopConnection.objects.filter(
+                        service_request=payment.service_request, 
+                        status__in=['REQUESTED', 'ACCEPTED']
+                    ).exists()
+                    
+                    previous_attempts = WorkshopConnection.objects.filter(
+                        service_request=payment.service_request,
+                        workshop=workshop
+                    ).count()
+            
+                    if not existing_connection and previous_attempts < 3:
+                        WorkshopConnection.objects.create(
+                            service_request=payment.service_request,
+                            workshop=workshop,
+                            status='REQUESTED'
+                        )
+                        payment.service_request.status = 'CONNECTING'
+                    else:
+                        payment.service_request.status = 'PLATFORM_FEE_PAID'
+                except Workshop.DoesNotExist:
+                    payment.service_request.status = 'PLATFORM_FEE_PAID'
+            else:
+                payment.service_request.status = 'PLATFORM_FEE_PAID'
+
             payment.service_request.save()
             notify_service_flow_update(payment.service_request.id)
             print(f"After - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
@@ -355,6 +389,7 @@ class PayPlatformFeeWithWalletView(APIView):
 
     def post(self, request):
         service_request_id = request.data.get('service_request_id')
+        workshop_id = request.data.get('workshop_id')
         if not service_request_id:
             return Response({'error': 'service_request_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -399,7 +434,36 @@ class PayPlatformFeeWithWalletView(APIView):
 
                 # Update Service Request
                 service_request.platform_fee_paid = True
-                service_request.status = 'CONNECTING'
+                
+                if workshop_id:
+                    from accounts.models import Workshop
+                    from service_request.models import WorkshopConnection
+                    try:
+                        workshop = Workshop.objects.get(pk=workshop_id)
+                        existing_connection = WorkshopConnection.objects.filter(
+                            service_request=service_request, 
+                            status__in=['REQUESTED', 'ACCEPTED']
+                        ).exists()
+                        
+                        previous_attempts = WorkshopConnection.objects.filter(
+                            service_request=service_request,
+                            workshop=workshop
+                        ).count()
+                
+                        if not existing_connection and previous_attempts < 3:
+                            WorkshopConnection.objects.create(
+                                service_request=service_request,
+                                workshop=workshop,
+                                status='REQUESTED'
+                            )
+                            service_request.status = 'CONNECTING'
+                        else:
+                            service_request.status = 'PLATFORM_FEE_PAID'
+                    except Workshop.DoesNotExist:
+                        service_request.status = 'PLATFORM_FEE_PAID'
+                else:
+                    service_request.status = 'PLATFORM_FEE_PAID'
+
                 service_request.save()
 
             return Response({'message': 'Payment successful', 'wallet_balance': wallet.balance}, status=status.HTTP_200_OK)

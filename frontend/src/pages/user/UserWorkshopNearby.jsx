@@ -7,6 +7,7 @@ import { fetchNearbyWorkshops, userCancelConnection, userConnectToWorkshop } fro
 import { initiatePlatformFeePayment, payPlatformFeeWithWallet } from '../../redux/slices/paymentSlice';
 import { fetchWallet } from '../../redux/slices/walletSlice';
 import { toast } from 'react-hot-toast';
+import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 
 const UserWorkshopNearby = () => {
   const navigate = useNavigate();
@@ -41,6 +42,10 @@ const UserWorkshopNearby = () => {
     dispatch(fetchWallet());
   }, [dispatch, requestId]);
 
+  useServiceFlowSocket(requestId, () => {
+    dispatch(fetchNearbyWorkshops(requestId));
+  });
+
   useEffect(() => {
     if (paymentCanceled && !urlParamsCleared) {
       setTimeout(() => {
@@ -49,6 +54,17 @@ const UserWorkshopNearby = () => {
       }, 100);
     }
   }, [paymentCanceled, requestId, navigate, urlParamsCleared]);
+
+  useEffect(() => {
+    if (paymentSuccess && !urlParamsCleared) {
+      dispatch(fetchNearbyWorkshops(requestId));
+      const timer = setTimeout(() => {
+        navigate(`/user/workshops-nearby/${requestId}`, { replace: true });
+        setUrlParamsCleared(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [paymentSuccess, requestId, navigate, dispatch, urlParamsCleared]);
 
   if (loading) {
     return (
@@ -92,18 +108,16 @@ const UserWorkshopNearby = () => {
     try {
       if (paymentMethod === 'wallet') {
         const resultAction = await dispatch(payPlatformFeeWithWallet({
-          serviceRequestId: currentRequest.id
+          serviceRequestId: currentRequest.id,
+          workshopId: selectedWorkshop?.id
         }));
 
         if (payPlatformFeeWithWallet.fulfilled.match(resultAction)) {
           const data = resultAction.payload;
-          toast.success("Payment successful!");
+          toast.success("Payment successful! Connection request sent.");
           await dispatch(fetchNearbyWorkshops(requestId));
           await dispatch(fetchWallet());
           setShowPaymentModal(false);
-          if (selectedWorkshop) {
-            await connectToWorkshop(selectedWorkshop.id);
-          }
           setIsProcessing(false);
         } else {
           toast.error(resultAction.payload || "Wallet payment failed.");
@@ -112,7 +126,8 @@ const UserWorkshopNearby = () => {
 
       } else {
         const resultAction = await dispatch(initiatePlatformFeePayment({
-          serviceRequestId: currentRequest.id
+          serviceRequestId: currentRequest.id,
+          workshopId: selectedWorkshop?.id
         }));
 
         if (initiatePlatformFeePayment.fulfilled.match(resultAction)) {
@@ -179,7 +194,7 @@ const UserWorkshopNearby = () => {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
-    
+
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
         stars.push(
@@ -224,11 +239,10 @@ const UserWorkshopNearby = () => {
             <div className="space-y-3 mb-8">
               <div
                 onClick={() => setPaymentMethod('stripe')}
-                className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-200 ${
-                  paymentMethod === 'stripe' 
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500 shadow-md' 
-                    : 'bg-slate-50 border-2 border-slate-200 hover:border-blue-300 hover:shadow'
-                }`}
+                className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-200 ${paymentMethod === 'stripe'
+                  ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500 shadow-md'
+                  : 'bg-slate-50 border-2 border-slate-200 hover:border-blue-300 hover:shadow'
+                  }`}
               >
                 <div className="flex items-start gap-4">
                   <div className={`p-2.5 rounded-xl ${paymentMethod === 'stripe' ? 'bg-blue-500' : 'bg-slate-300'}`}>
@@ -248,11 +262,10 @@ const UserWorkshopNearby = () => {
 
               <div
                 onClick={() => setPaymentMethod('wallet')}
-                className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-200 ${
-                  paymentMethod === 'wallet' 
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500 shadow-md' 
-                    : 'bg-slate-50 border-2 border-slate-200 hover:border-blue-300 hover:shadow'
-                }`}
+                className={`relative rounded-2xl p-5 cursor-pointer transition-all duration-200 ${paymentMethod === 'wallet'
+                  ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-500 shadow-md'
+                  : 'bg-slate-50 border-2 border-slate-200 hover:border-blue-300 hover:shadow'
+                  }`}
               >
                 <div className="flex items-start gap-4">
                   <div className={`p-2.5 rounded-xl ${paymentMethod === 'wallet' ? 'bg-blue-500' : 'bg-slate-300'}`}>
@@ -411,7 +424,7 @@ const UserWorkshopNearby = () => {
               </div>
               <div>
                 <p className="font-bold text-lg">Payment Successful!</p>
-                <p className="text-sm text-emerald-700">Platform fee paid. You can now connect with workshops.</p>
+                <p className="text-sm text-emerald-700">Platform fee paid and connection request sent.</p>
               </div>
             </div>
             <button
@@ -536,7 +549,7 @@ const UserWorkshopNearby = () => {
                     <Shield className="w-4 h-4 text-white" />
                     <span className="text-xs font-bold text-white">Verified</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/30">
                       <MapPin className="w-6 h-6 text-white" />
@@ -579,8 +592,8 @@ const UserWorkshopNearby = () => {
                         if (connection.status === 'REQUESTED') {
                           return (
                             <div className="flex gap-2 w-full">
-                              <button 
-                                disabled 
+                              <button
+                                disabled
                                 className="flex-1 py-3.5 bg-slate-200 text-slate-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
                               >
                                 <Clock className="w-5 h-5" />
@@ -598,8 +611,8 @@ const UserWorkshopNearby = () => {
                         }
                         return (
                           <div className="flex gap-2 w-full">
-                            <button 
-                              disabled 
+                            <button
+                              disabled
                               className="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
                             >
                               <CheckCircle className="w-5 h-5" />
@@ -618,8 +631,8 @@ const UserWorkshopNearby = () => {
 
                       if (isConnectedToAny) {
                         return (
-                          <button 
-                            disabled 
+                          <button
+                            disabled
                             className="w-full py-3.5 bg-slate-200 text-slate-500 font-bold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             <Shield className="w-5 h-5" />
@@ -653,7 +666,7 @@ const UserWorkshopNearby = () => {
             </div>
             <h3 className="text-2xl font-bold text-slate-900 mb-2">No Workshops Found</h3>
             <p className="text-slate-600 text-lg">
-              {searchTerm 
+              {searchTerm
                 ? "Try adjusting your search filters"
                 : "No workshops found within 20km radius"}
             </p>
