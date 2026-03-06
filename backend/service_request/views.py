@@ -67,6 +67,10 @@ class CreateServiceRequestView(generics.CreateAPIView):
     
 
 class ServiceRequestDetailView(generics.RetrieveAPIView):
+    """
+    Used by the /nearby/ endpoint.
+    Returns request + nearby_workshops (geo computation) + active_connection.
+    """
     serializer_class = ServiceRequestSerializer
     queryset = ServiceRequest.objects.all()
 
@@ -82,21 +86,33 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
         nearby_list = get_nearby_workshops(u_lat, u_lon)
         
         req_serializer = self.get_serializer(instance)
-        
-        active_connection = WorkshopConnection.objects.filter(
-            service_request=instance
-        ).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED', 'WITHDRAWN']).first()
-        
-        connection_data = None
-        if active_connection:
-            connection_data = WorkshopConnectionSerializer(active_connection).data
-            
         ws_serializer = NearbyWorkshopSerializer(nearby_list, many=True)
         
         return Response({
             "request": req_serializer.data,
             "nearby_workshops": ws_serializer.data,
-            "active_connection": connection_data
+        })
+
+
+class ServiceFlowDetailView(generics.RetrieveAPIView):
+    """
+    Lightweight view used by UserServiceFlow and WorkshopServiceFlow pages.
+    Returns only request + active_connection — no geo computation.
+    """
+    serializer_class = ServiceRequestSerializer
+    queryset = ServiceRequest.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        check_request_expiration(instance)
+        instance.refresh_from_db()
+
+        req_serializer = self.get_serializer(instance)
+
+        return Response({
+            "request": req_serializer.data,
         })
 
 
