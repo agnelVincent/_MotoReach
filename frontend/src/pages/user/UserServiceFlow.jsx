@@ -27,15 +27,20 @@ const UserServiceFlow = () => {
     }
   }, [dispatch, requestId]);
 
-  useServiceFlowSocket(requestId, () => {
-    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
-  });
+useServiceFlowSocket(requestId, () => {
+  if (requestId) {
+    dispatch(fetchServiceRequestDetails(requestId));
+    if (currentRequest?.active_connection?.id) {
+      dispatch(fetchEstimates(currentRequest.active_connection.id));
+    }
+  }
+});
 
   useEffect(() => {
     if (currentRequest?.active_connection?.id) {
       dispatch(fetchEstimates(currentRequest.active_connection.id));
     }
-  }, [dispatch, currentRequest?.active_connection?.id]);
+  }, [dispatch, currentRequest?.active_connection?.id, currentRequest?.status]);
 
   useEffect(() => {
     const escrowSuccess = searchParams.get('escrow_success');

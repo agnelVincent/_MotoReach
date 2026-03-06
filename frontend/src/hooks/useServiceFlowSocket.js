@@ -32,11 +32,12 @@ export function useServiceFlowSocket(requestId, onUpdate) {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'service_flow.update') {
-          onUpdateRef.current?.();
+        if (data.type === 'service_flow.update' && data.event === 'otp_generated') {
+          toast.info('Check your email — the workshop has sent an OTP!');
         }
-      } catch {
-        // ignore parse errors
+      } catch (error) {
+        console.log('error happened in service flow hook')
+        console.log(error)
       }
     };
 

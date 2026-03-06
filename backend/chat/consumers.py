@@ -433,6 +433,6 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def service_flow_update(self, event: Dict[str, Any]):
-        """Broadcast: something changed; client should refetch."""
-        await self.send_json({"type": "service_flow.update"})
+
+        await self.send_json({"type": "service_flow.update", "event": "otp_generated"})
 

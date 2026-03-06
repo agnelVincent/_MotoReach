@@ -528,7 +528,7 @@ class RemoveMechanicView(APIView):
                   execution.mechanics.remove(mechanic)
                   mechanic.availability = 'AVAILABLE'
                   mechanic.save()
-                  notify_service_flow_update(execution.service_request_id)
+                  notify_service_flow_update(execution.service_request_id, event='mechanic_removed')
              return Response({"message": "Mechanic removed successfully"})
              
         except Exception as e:
