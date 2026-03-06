@@ -34,7 +34,12 @@ const Chat = ({
 
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const container = scrollContainerRef.current
+    if (container){
+      container.scrollTo({
+        top :  container.scrollHeight, behavior
+      })
+    }
   }, []);
 
   const preserveScrollOnPrepend = useCallback((prependFn) => {
@@ -72,8 +77,11 @@ const Chat = ({
           // Initial load: replace all messages, scroll to bottom instantly
           setMessages(data.messages || []);
           setHasMore((data.messages?.length ?? 0) === PAGE_SIZE);
-          // Use setTimeout so the DOM updates before we scroll
-          setTimeout(() => scrollToBottom('instant'), 0);
+
+          requestAnimationFrame(() => {
+  requestAnimationFrame(() => scrollToBottom('instant'));
+});
+
 
         } else if (data.type === 'chat.message') {
           // New real-time message: append and scroll to bottom
@@ -203,7 +211,7 @@ const Chat = ({
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar"
+          className="flex-1 min-h-0 overflow-y-auto px-4 py-4 custom-scrollbar"
         >
           {/* "Load more" indicator at the top */}
           {isLoadingMore && (
