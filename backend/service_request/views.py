@@ -511,7 +511,7 @@ class AssignMechanicView(APIView):
             execution.mechanics.add(mechanic)
             mechanic.availability = 'BUSY'
             mechanic.save()
-            notify_service_flow_update(pk)
+            notify_service_flow_update(pk, event='mechanic_assigned')
             return Response({"message": "Mechanic assigned successfully"})
             
         except ServiceRequest.DoesNotExist:
@@ -685,7 +685,7 @@ class SendEstimateView(APIView):
             if service_request.status == 'CONNECTED':
                 service_request.status = 'ESTIMATE_SHARED'
                 service_request.save()
-            notify_service_flow_update(service_request.id)
+            notify_service_flow_update(service_request.id, event='estimate_sent')
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -737,7 +737,7 @@ class ApproveEstimateView(APIView):
                     estimate_amount=estimate.total_amount,
                     estimate=estimate
                 )
-            notify_service_flow_update(estimate.service_request_id)
+            notify_service_flow_update(estimate.service_request_id, event='estimate_approved')
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -766,7 +766,7 @@ class RejectEstimateView(APIView):
             estimate.status = 'REJECTED'
             estimate.rejected_at = timezone.now()
             estimate.save()
-            notify_service_flow_update(estimate.service_request_id)
+            notify_service_flow_update(estimate.service_request_id, event='estimate_rejected')
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
@@ -803,7 +803,7 @@ class ResendEstimateView(APIView):
             if service_request.status != 'ESTIMATE_SHARED':
                 service_request.status = 'ESTIMATE_SHARED'
                 service_request.save()
-            notify_service_flow_update(service_request.id)
+            notify_service_flow_update(service_request.id, event='estimate_resent')
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
 
 
@@ -933,7 +933,7 @@ class GenerateServiceOTPView(APIView):
         otp = generate_otp_code(length=6)
         execution.otp_code = otp
         execution.save()
-        notify_service_flow_update(execution.service_request_id)
+        notify_service_flow_update(execution.service_request_id, event='otp_generated')
 
         # Email OTP to the service request owner
         user = execution.service_request.user

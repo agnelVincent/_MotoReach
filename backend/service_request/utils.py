@@ -3,10 +3,17 @@ from payments.utils import check_and_process_refund
 from math import radians, cos, sin, asin, sqrt
 
 
-def notify_service_flow_update(service_request_id: int) -> None:
+def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
     """
     Notify all clients subscribed to this service request's flow (via WebSocket)
     that data has changed, so they can refetch. Called from views after mutations.
+
+    Args:
+        service_request_id: The PK of the ServiceRequest.
+        event: A short label for what changed (e.g. 'update', 'otp_generated',
+               'mechanic_assigned', 'mechanic_removed', 'estimate_sent', ...).
+               The frontend can use this to show targeted toasts while still
+               triggering a refetch on every event.
     """
     try:
         from asgiref.sync import async_to_sync
@@ -17,7 +24,7 @@ def notify_service_flow_update(service_request_id: int) -> None:
             return
         async_to_sync(channel_layer.group_send)(
             f"service_flow_{service_request_id}",
-            {"type": "service_flow.update"},
+            {"type": "service_flow.update", "event": event},
         )
     except Exception:
         pass  # Don't fail the request if WebSocket notify fails

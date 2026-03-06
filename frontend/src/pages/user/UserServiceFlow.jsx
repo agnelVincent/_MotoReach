@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -27,14 +27,18 @@ const UserServiceFlow = () => {
     }
   }, [dispatch, requestId]);
 
-useServiceFlowSocket(requestId, () => {
-  if (requestId) {
-    dispatch(fetchServiceRequestDetails(requestId));
-    if (currentRequest?.active_connection?.id) {
-      dispatch(fetchEstimates(currentRequest.active_connection.id));
+  const currentRequestRef = useRef(currentRequest);
+  useEffect(() => { currentRequestRef.current = currentRequest; }, [currentRequest]);
+
+  useServiceFlowSocket(requestId, () => {
+    if (requestId) {
+      dispatch(fetchServiceRequestDetails(requestId));
+      const connectionId = currentRequestRef.current?.active_connection?.id;
+      if (connectionId) {
+        dispatch(fetchEstimates(connectionId));
+      }
     }
-  }
-});
+  });
 
   useEffect(() => {
     if (currentRequest?.active_connection?.id) {

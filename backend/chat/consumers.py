@@ -433,6 +433,14 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def service_flow_update(self, event: Dict[str, Any]):
-
-        await self.send_json({"type": "service_flow.update", "event": "otp_generated"})
+        """
+        Relay a service-flow update to the connected client.
+        Forwards the 'event' label from the channel layer message so the
+        frontend can show targeted toasts (e.g. otp_generated, estimate_sent)
+        while always triggering a refetch via onUpdate.
+        """
+        await self.send_json({
+            "type": "service_flow.update",
+            "event": event.get("event", "update"),
+        })
 
