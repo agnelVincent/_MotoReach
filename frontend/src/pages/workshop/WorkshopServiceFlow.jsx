@@ -17,6 +17,7 @@ import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
 import EstimateManager from '../../components/EstimateManager';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
+import ReportComplaintModal from '../../components/ReportComplaintModal';
 
 const WorkshopServiceFlow = () => {
   const { requestId } = useParams();
@@ -24,6 +25,7 @@ const WorkshopServiceFlow = () => {
 
   const { currentRequest, mechanics: workshopMechanics, loading } = useSelector((state) => state.serviceRequest);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
 
   useEffect(() => {
     if (!requestId) return;
@@ -308,6 +310,15 @@ const WorkshopServiceFlow = () => {
                 Cancel connection
               </button>
             )}
+
+            {/* Report a Problem */}
+            <button
+              onClick={() => setShowComplaintModal(true)}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-lg hover:from-orange-600 hover:to-amber-700 transition-colors flex items-center justify-center gap-2 font-semibold shadow-md"
+            >
+              <AlertCircle className="w-5 h-5" />
+              Report a Problem
+            </button>
           </div>
         </div>
       </div>
@@ -349,6 +360,12 @@ const WorkshopServiceFlow = () => {
           </div>
         </div>
       )}
+
+      <ReportComplaintModal
+        isOpen={showComplaintModal}
+        onClose={() => setShowComplaintModal(false)}
+        serviceRequestId={requestId}
+      />
     </div>
   );
 };

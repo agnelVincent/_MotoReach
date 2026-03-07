@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import AdminDashboardStatsView,WorkshopVerificationView, AdminMechanicListView,AdminUserListView,AdminWorkshopListView, ToggleUserBlockView
+from .views import AdminDashboardStatsView,WorkshopVerificationView, AdminMechanicListView,AdminUserListView,AdminWorkshopListView, ToggleUserBlockView, AdminComplaintListView
 
 urlpatterns = [
     path('stats/', AdminDashboardStatsView.as_view(), name='stats'),
@@ -8,4 +8,5 @@ urlpatterns = [
     path('workshops/', AdminWorkshopListView.as_view(), name='admin-workshops'),
     path('mechanics/', AdminMechanicListView.as_view(), name='admin-mechanics'),
     path('users/<int:user_id>/toggle-block/', ToggleUserBlockView.as_view(), name='toggle-block'),
+    path('complaints/', AdminComplaintListView.as_view(), name='admin-complaints'),
 ]

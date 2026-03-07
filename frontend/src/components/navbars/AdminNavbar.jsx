@@ -18,7 +18,7 @@ const AdminNavbar = () => {
     { name: 'Workshops', path: '/admin/workshops', icon: Building2 },
     { name: 'Mechanics', path: '/admin/mechanics', icon: Users },
     { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
-    { name: 'Reports / Complaints', path: '/admin/reports', icon: AlertCircle }
+    { name: 'Reports / Complaints', path: '/admin/complaints', icon: AlertCircle }
   ];
 
   const profileMenuItems = [
@@ -37,14 +37,14 @@ const AdminNavbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-const handleNavClick = (path) => {
-    navigate(path); 
+  const handleNavClick = (path) => {
+    navigate(path);
     setIsMobileMenuOpen(false);
   };
 
-  const {logout} = useLogout()
+  const { logout } = useLogout()
 
-const handleProfileMenuClick = (action) => {
+  const handleProfileMenuClick = (action) => {
     setIsProfileOpen(false);
     if (action === 'logout') {
       logout();
@@ -82,11 +82,10 @@ const handleProfileMenuClick = (action) => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${
-                    isActive(link.path)
+                  className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
                       ? 'text-slate-700 bg-slate-100'
                       : 'text-gray-700 hover:text-slate-700 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="whitespace-nowrap">{link.name}</span>
@@ -128,11 +127,10 @@ const handleProfileMenuClick = (action) => {
                       <button
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${
-                          item.action === 'logout'
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
                             ? 'text-red-600 hover:bg-red-50'
                             : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <Icon className="w-4 h-4" />
                         {item.name}
@@ -176,11 +174,10 @@ const handleProfileMenuClick = (action) => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                    isActive(link.path)
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
                       ? 'bg-slate-100 text-slate-700'
                       : 'text-gray-700 hover:bg-gray-50 hover:text-slate-700'
-                  }`}
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {link.name}
@@ -199,11 +196,10 @@ const handleProfileMenuClick = (action) => {
                   <button
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                      item.action === 'logout'
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
                         ? 'text-red-600 hover:bg-red-50'
                         : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name}

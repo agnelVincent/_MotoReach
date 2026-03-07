@@ -10,6 +10,7 @@ import { createEscrowCheckout, resetPaymentState } from '../../redux/slices/paym
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
+import ReportComplaintModal from '../../components/ReportComplaintModal';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
@@ -20,6 +21,7 @@ const UserServiceFlow = () => {
   const { checkoutUrl: escrowCheckoutUrl, loading: escrowLoading } = useSelector((state) => state.payment);
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [showComplaintModal, setShowComplaintModal] = useState(false);
 
   useEffect(() => {
     if (requestId) {
@@ -575,7 +577,9 @@ const UserServiceFlow = () => {
                 </button>
               )}
 
-              <button className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:from-orange-600 hover:to-amber-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
+              <button
+                onClick={() => setShowComplaintModal(true)}
+                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:from-orange-600 hover:to-amber-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
                 <AlertCircle className="w-5 h-5" />
                 Report a Problem
               </button>
@@ -693,6 +697,12 @@ const UserServiceFlow = () => {
           </div>
         )}
       </div>
+
+      <ReportComplaintModal
+        isOpen={showComplaintModal}
+        onClose={() => setShowComplaintModal(false)}
+        serviceRequestId={requestId}
+      />
     </div>
   );
 };

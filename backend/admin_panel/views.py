@@ -1,7 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
+from rest_framework import serializers
 from accounts.models import Workshop,User,Mechanic
+from admin_panel.models import Complaint
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -147,3 +149,45 @@ class ToggleUserBlockView(APIView):
             'status': status_text,
             'userId': user.id
         }, status=status.HTTP_200_OK)
+
+class AdminComplaintSerializer(serializers.ModelSerializer):
+    reporter_email = serializers.EmailField(source='reporter.email', read_only=True)
+    reporter_name = serializers.CharField(source='reporter.full_name', read_only=True)
+    reporter_role = serializers.CharField(source='reporter.role', read_only=True)
+    reported_user_email = serializers.EmailField(source='reported_user.email', read_only=True)
+    reported_user_name = serializers.CharField(source='reported_user.full_name', read_only=True)
+    reported_user_role = serializers.CharField(source='reported_user.role', read_only=True)
+    is_blocked = serializers.SerializerMethodField()
+    service_request_details = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Complaint
+        fields = [
+            'id', 'reporter', 'reporter_email', 'reporter_name', 'reporter_role',
+            'reported_user', 'reported_user_email', 'reported_user_name', 'reported_user_role',
+            'is_blocked', 'service_request', 'service_request_details', 'description', 'image', 'phone_number',
+            'status', 'created_at', 'resolved_at'
+        ]
+        
+    def get_is_blocked(self, obj):
+        return not obj.reported_user.is_active
+
+    def get_service_request_details(self, obj):
+        sr = obj.service_request
+        return {
+            'vehicle': f"{sr.vehicle_type} - {sr.vehicle_model}",
+            'issue': sr.issue_category,
+            'status': sr.status,
+            'description': sr.description,
+            'estimate_amount': sr.execution.estimate_amount if hasattr(sr, 'execution') else 0
+        }
+
+class AdminComplaintListView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        complaints = Complaint.objects.select_related(
+            'reporter', 'reported_user', 'service_request', 'service_request__execution'
+        ).order_by('-created_at')
+        serializer = AdminComplaintSerializer(complaints, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

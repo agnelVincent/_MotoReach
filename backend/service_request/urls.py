@@ -26,6 +26,7 @@ from .views import (
     DeleteEstimateView,
     GenerateServiceOTPView,
     VerifyServiceOTPView,
+    ReportComplaintView,
 )
 
 urlpatterns = [
@@ -57,4 +58,5 @@ urlpatterns = [
     path('estimates/<int:estimate_id>/delete/', DeleteEstimateView.as_view(), name='delete-estimate'),
     path('execution/<int:pk>/generate-otp/', GenerateServiceOTPView.as_view(), name='generate-service-otp'),
     path('execution/<int:pk>/verify-otp/', VerifyServiceOTPView.as_view(), name='verify-service-otp'),
+    path('<int:pk>/complaint/', ReportComplaintView.as_view(), name='report-complaint'),
 ]

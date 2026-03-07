@@ -9,8 +9,9 @@ from accounts.models import Workshop, Mechanic
 from .serializers import (
     ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer,
     ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
-    EstimateUpdateSerializer
+    EstimateUpdateSerializer, ComplaintCreateSerializer
 )
+from admin_panel.models import Complaint
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
@@ -799,12 +800,58 @@ class ResendEstimateView(APIView):
             estimate.sent_at = timezone.now()
             estimate.rejected_at = None
             estimate.save()
+            
             service_request = estimate.service_request
-            if service_request.status != 'ESTIMATE_SHARED':
+            if service_request.status == 'CONNECTED':
                 service_request.status = 'ESTIMATE_SHARED'
                 service_request.save()
             notify_service_flow_update(service_request.id, event='estimate_resent')
+
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+
+
+class ReportComplaintView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            service_request = ServiceRequest.objects.get(pk=pk)
+        except ServiceRequest.DoesNotExist:
+            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Determine reporter and reported_user
+        if request.user == service_request.user:
+            # User is reporting the workshop
+            active_connection = WorkshopConnection.objects.filter(
+                service_request=service_request,
+                status='ACCEPTED'
+            ).first()
+            if not active_connection:
+                return Response({"error": "No active workshop connection found to report"}, status=status.HTTP_400_BAD_REQUEST)
+            reported_user = active_connection.workshop.user
+        elif hasattr(request.user, 'workshop') and request.user.role == 'workshop_admin':
+            # Workshop is reporting the user
+            active_connection = WorkshopConnection.objects.filter(
+                service_request=service_request,
+                workshop=request.user.workshop,
+                status='ACCEPTED'
+            ).first()
+            if not active_connection:
+                return Response({"error": "You are not connected to this service request"}, status=status.HTTP_400_BAD_REQUEST)
+            reported_user = service_request.user
+        else:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        serializer = ComplaintCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(
+                reporter=request.user,
+                reported_user=reported_user,
+                service_request=service_request
+            )
+            return Response({"message": "Complaint submitted successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class GetEstimateView(APIView):
