@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import ServiceRequest, WorkshopConnection, Estimate, EstimateLineItem
 from accounts.models import Workshop
+from admin_panel.models import Complaint
 
 import cloudinary.uploader
 from .models import ServiceExecution
@@ -239,3 +240,36 @@ class EstimateUpdateSerializer(serializers.ModelSerializer):
         instance.calculate_totals()
         instance.save()
         return instance
+
+class ComplaintSerializer(serializers.ModelSerializer):
+    reporter_email = serializers.EmailField(source='reporter.email', read_only=True)
+    reporter_name = serializers.CharField(source='reporter.full_name', read_only=True)
+    reported_user_email = serializers.EmailField(source='reported_user.email', read_only=True)
+    reported_user_name = serializers.CharField(source='reported_user.full_name', read_only=True)
+    
+    class Meta:
+        model = Complaint
+        fields = [
+            'id', 'reporter', 'reporter_email', 'reporter_name',
+            'reported_user', 'reported_user_email', 'reported_user_name',
+            'service_request', 'description', 'image', 'phone_number',
+            'status', 'created_at', 'resolved_at'
+        ]
+        read_only_fields = ['id', 'reporter', 'status', 'created_at', 'resolved_at', 'reported_user', 'service_request']
+
+class ComplaintCreateSerializer(serializers.ModelSerializer):
+    image_file = serializers.ImageField(write_only=True, required=False)
+
+    class Meta:
+        model = Complaint
+        fields = [
+            'description', 'phone_number', 'image', 'image_file'
+        ]
+        read_only_fields = ['image']
+
+    def create(self, validated_data):
+        image_file = validated_data.pop('image_file', None)
+        if image_file:
+            upload_result = cloudinary.uploader.upload(image_file)
+            validated_data['image'] = upload_result['secure_url']
+        return super().create(validated_data)

@@ -13,7 +13,7 @@ class Complaint(models.Model):
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='complaints')
     
     description = models.TextField()
-    image = models.ImageField(upload_to='complaints/', null=True, blank=True)
+    image = models.URLField(max_length=500, null=True, blank=True)
     phone_number = models.CharField(max_length=20)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
