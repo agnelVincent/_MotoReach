@@ -2,9 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, AlertCircle, Building2, Users, CreditCard, Wallet, LogOut, ChevronDown } from 'lucide-react';
 import { useLogout } from '../../hooks/useLogout';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 const AdminNavbar = () => {
 
+  const user = useSelector((state) => state.auth.user);
   const navigate = useNavigate(); // 2. Initialize navigate
   const location = useLocation();
 
@@ -83,8 +85,8 @@ const AdminNavbar = () => {
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
                   className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
-                      ? 'text-slate-700 bg-slate-100'
-                      : 'text-gray-700 hover:text-slate-700 hover:bg-gray-50'
+                    ? 'text-slate-700 bg-slate-100'
+                    : 'text-gray-700 hover:text-slate-700 hover:bg-gray-50'
                     }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -118,8 +120,8 @@ const AdminNavbar = () => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 animate-fadeIn">
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">Admin User</p>
-                    <p className="text-xs text-gray-500">admin@motorreach.com</p>
+                    <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.name || 'Admin'}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   {profileMenuItems.map((item) => {
                     const Icon = item.icon;
@@ -128,8 +130,8 @@ const AdminNavbar = () => {
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
                         className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-gray-700 hover:bg-gray-50'
+                          ? 'text-red-600 hover:bg-red-50'
+                          : 'text-gray-700 hover:bg-gray-50'
                           }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -175,8 +177,8 @@ const AdminNavbar = () => {
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
-                      ? 'bg-slate-100 text-slate-700'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-slate-700'
+                    ? 'bg-slate-100 text-slate-700'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-slate-700'
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -187,8 +189,8 @@ const AdminNavbar = () => {
 
             <div className="pt-3 border-t border-gray-200 space-y-2">
               <div className="px-4 py-2">
-                <p className="text-sm font-semibold text-gray-800">Admin User</p>
-                <p className="text-xs text-gray-500">admin@motorreach.com</p>
+                <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.name || 'Admin'}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
               {profileMenuItems.map((item) => {
                 const Icon = item.icon;
@@ -197,8 +199,8 @@ const AdminNavbar = () => {
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-gray-700 hover:bg-gray-50'
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-700 hover:bg-gray-50'
                       }`}
                   >
                     <Icon className="w-5 h-5" />

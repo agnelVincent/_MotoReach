@@ -5,8 +5,10 @@ import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut,
 import { useNavigate, useLocation } from 'react-router-dom';
 // 👇 2. Import your custom hook for logout
 import { useLogout } from '../../hooks/useLogout';
+import { useSelector } from 'react-redux';
 
 const MechanicNavbar = () => {
+  const user = useSelector((state) => state.auth.user);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -125,8 +127,8 @@ const MechanicNavbar = () => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 animate-fadeIn">
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">Mechanic Name</p>
-                    <p className="text-xs text-gray-500">mechanic@example.com</p>
+                    <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.name || 'Mechanic'}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   {profileMenuItems.map((item) => {
                     const Icon = item.icon;
@@ -194,8 +196,8 @@ const MechanicNavbar = () => {
 
             <div className="pt-3 border-t border-gray-200 space-y-2">
               <div className="px-4 py-2">
-                <p className="text-sm font-semibold text-gray-800">Mechanic Name</p>
-                <p className="text-xs text-gray-500">mechanic@example.com</p>
+                <p className="text-sm font-semibold text-gray-800">{user?.full_name || user?.name || 'Mechanic'}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
               {profileMenuItems.map((item) => {
                 const Icon = item.icon;

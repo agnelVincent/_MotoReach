@@ -3,8 +3,10 @@ import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Wallet, Users, Cre
 import { useLogout } from '../../hooks/useLogout';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
+import { useSelector } from 'react-redux';
 
 const WorkshopNavbar = () => {
+  const user = useSelector((state) => state.auth.user);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -185,8 +187,8 @@ const WorkshopNavbar = () => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 animate-fadeIn">
                   <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">Workshop Name</p>
-                    <p className="text-xs text-gray-500">workshop@example.com</p>
+                    <p className="text-sm font-semibold text-gray-800">{user?.workshop_name || user?.full_name || user?.name || 'Workshop'}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   {profileMenuItems.map((item) => {
                     const Icon = item.icon;
@@ -292,8 +294,8 @@ const WorkshopNavbar = () => {
 
             <div className="pt-3 border-t border-gray-200 space-y-2">
               <div className="px-4 py-2">
-                <p className="text-sm font-semibold text-gray-800">Workshop Name</p>
-                <p className="text-xs text-gray-500">workshop@example.com</p>
+                <p className="text-sm font-semibold text-gray-800">{user?.workshop_name || user?.full_name || user?.name || 'Workshop'}</p>
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
               {profileMenuItems.map((item) => {
                 const Icon = item.icon;
