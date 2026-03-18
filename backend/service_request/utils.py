@@ -26,7 +26,8 @@ def notify_service_flow_update(service_request_id: int, event: str = "update") -
             f"service_flow_{service_request_id}",
             {"type": "service_flow.update", "event": event},
         )
-    except Exception:
+    except Exception as e:
+        print(e)
         pass  # Don't fail the request if WebSocket notify fails
 
 def calculate_distance(lat1, long1, lat2, long2):

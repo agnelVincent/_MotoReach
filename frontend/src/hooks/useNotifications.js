@@ -4,19 +4,22 @@ import { useSelector } from 'react-redux';
 const ACCESS_TOKEN_KEY = 'accessToken';
 
 const getWebSocketBase = () => {
+  const envBase = import.meta.env.VITE_WS_BASE
+  if(envBase){
+    return envBase;
+  }
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.host}`;
+  return `${protocol}://localhost:8000`;
 };
 
 export const useNotifications = (currentServiceRequestId) => {
-  // Store raw items from the server (may include entries for the
-  // currently open service request; we will filter those out for UI).
+
   const [items, setItems] = useState([]);
 
   const { accessToken, isAuthenticated } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Only connect when the user is authenticated and we have a token.
+
     if (!isAuthenticated || !accessToken) {
       setItems([]);
       return;
@@ -73,9 +76,6 @@ export const useNotifications = (currentServiceRequestId) => {
     };
   }, [isAuthenticated, accessToken]);
 
-  // Derive the visible notifications for the current UI context:
-  // - Only keep entries with unread_count > 0
-  // - Hide entries for the service request that is currently open in a chat view
   const visibleNotifications = items.filter((n) => {
     if (!n || typeof n.unread_count === 'undefined') return false;
     if (n.unread_count <= 0) return false;
