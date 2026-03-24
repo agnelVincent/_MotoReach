@@ -7,7 +7,6 @@ import { fetchNearbyWorkshops, userCancelConnection, userConnectToWorkshop } fro
 import { initiatePlatformFeePayment, payPlatformFeeWithWallet } from '../../redux/slices/paymentSlice';
 import { fetchWallet } from '../../redux/slices/walletSlice';
 import { toast } from 'react-hot-toast';
-import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 
 const UserWorkshopNearby = () => {
   const navigate = useNavigate();
@@ -39,12 +38,8 @@ const UserWorkshopNearby = () => {
     if (!currentRequest || currentRequest.id !== parseInt(requestId)) {
       dispatch(fetchNearbyWorkshops(requestId));
     }
-    dispatch(fetchWallet());
   }, [dispatch, requestId]);
 
-  useServiceFlowSocket(requestId, () => {
-    dispatch(fetchNearbyWorkshops(requestId));
-  });
 
   useEffect(() => {
     if (paymentCanceled && !urlParamsCleared) {
@@ -96,6 +91,7 @@ const UserWorkshopNearby = () => {
 
   const handleConnect = async (workshopId, workshopName) => {
     if (!currentRequest?.platform_fee_paid) {
+      await dispatch(fetchWallet());
       setSelectedWorkshop({ id: workshopId, name: workshopName });
       setShowPaymentModal(true);
       return;
