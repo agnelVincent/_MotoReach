@@ -1,34 +1,28 @@
 from django.utils import timezone
 from payments.utils import check_and_process_refund
 from math import radians, cos, sin, asin, sqrt
+from django.db import transaction
 
 
 def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
-    """
-    Notify all clients subscribed to this service request's flow (via WebSocket)
-    that data has changed, so they can refetch. Called from views after mutations.
 
-    Args:
-        service_request_id: The PK of the ServiceRequest.
-        event: A short label for what changed (e.g. 'update', 'otp_generated',
-               'mechanic_assigned', 'mechanic_removed', 'estimate_sent', ...).
-               The frontend can use this to show targeted toasts while still
-               triggering a refetch on every event.
-    """
-    try:
-        from asgiref.sync import async_to_sync
-        from channels.layers import get_channel_layer
+    def send_notification():
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
 
-        channel_layer = get_channel_layer()
-        if not channel_layer:
-            return
-        async_to_sync(channel_layer.group_send)(
-            f"service_flow_{service_request_id}",
-            {"type": "service_flow.update", "event": event},
-        )
-    except Exception as e:
-        print(e)
-        pass  # Don't fail the request if WebSocket notify fails
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+            async_to_sync(channel_layer.group_send)(
+                f"service_flow_{service_request_id}",
+                {"type": "service_flow.update", "event": event},
+            )
+        except Exception as e:
+            print(e)
+            pass  
+
+    transaction.on_commit(send_notification)
 
 def calculate_distance(lat1, long1, lat2, long2):
     if lat1 is None or long1 is None or lat2 is None or long2 is None:
