@@ -157,8 +157,6 @@ export const assignMechanic = createAsyncThunk(
   async ({ serviceRequestId, mechanicId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/assign/`, { mechanic_id: mechanicId });
-      // Refresh request details to show update
-      dispatch(fetchServiceRequestDetails(serviceRequestId));
       dispatch(fetchWorkshopMechanics());
       return response.data;
     } catch (error) {
@@ -172,8 +170,6 @@ export const removeMechanic = createAsyncThunk(
   async ({ serviceRequestId, mechanicId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/execution/${serviceRequestId}/remove/`, { mechanic_id: mechanicId });
-      // Refresh details
-      dispatch(fetchServiceRequestDetails(serviceRequestId));
       dispatch(fetchWorkshopMechanics());
       return response.data;
     } catch (error) {
@@ -212,7 +208,6 @@ export const sendEstimate = createAsyncThunk(
   async ({ estimateId, requestId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/estimates/${estimateId}/send/`);
-      dispatch(fetchServiceRequestDetails(requestId));
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || "Failed to send estimate");
@@ -286,7 +281,6 @@ export const resendEstimate = createAsyncThunk(
   async ({ estimateId, requestId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/estimates/${estimateId}/resend/`);
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || "Failed to resend estimate");
@@ -324,7 +318,6 @@ export const verifyServiceOTP = createAsyncThunk(
   async ({ executionId, otp, requestId }, { dispatch, rejectWithValue }) => {
     try {
       const response = await axiosInstance.post(`service-request/execution/${executionId}/verify-otp/`, { otp });
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.error || "Invalid OTP");
