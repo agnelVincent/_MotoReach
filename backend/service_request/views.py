@@ -18,7 +18,7 @@ from .utils import check_request_expiration, get_nearby_workshops, notify_servic
 
 
 def check_expired_connections(queryset):
-    expiration_threshold = timezone.now() - timedelta(minutes=10) 
+    expiration_threshold = timezone.now() - timedelta(minutes=30) 
     
     expired_requests = queryset.filter(
         status='REQUESTED', 

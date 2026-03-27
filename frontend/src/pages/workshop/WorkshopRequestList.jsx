@@ -34,7 +34,7 @@ const ExpirationTimer = ({ requestedAt }) => {
   useEffect(() => {
     const calculateTimeLeft = () => {
       const created = new Date(requestedAt);
-      const expires = new Date(created.getTime() + 60 * 60 * 1000); // 1 hour expiration
+      const expires = new Date(created.getTime() + 30 * 60 * 1000); // 30 mins expiration
       const now = new Date();
       const difference = expires - now;
 
