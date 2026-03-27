@@ -30,7 +30,6 @@ const WorkshopServiceFlow = () => {
   useEffect(() => {
     if (!requestId) return;
     dispatch(fetchServiceRequestDetails(requestId));
-    dispatch(fetchWorkshopMechanics());
   }, [dispatch, requestId]);
 
   useServiceFlowSocket(requestId, () => {
@@ -205,7 +204,12 @@ const WorkshopServiceFlow = () => {
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-gray-800">Service Personnel</h3>
                 <button
-                  onClick={() => setShowAssignModal(true)}
+                  onClick={() => {
+                    setShowAssignModal(true)
+                    if (!workshopMechanics.length){
+                      dispatch(fetchWorkshopMechanics())
+                    }
+                  }}
                   className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
                   title="Add Mechanic"
                 >
