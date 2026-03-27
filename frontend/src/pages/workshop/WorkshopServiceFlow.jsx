@@ -266,9 +266,6 @@ const WorkshopServiceFlow = () => {
               <EstimateManager
                 connectionId={activeConnection.id}
                 requestId={requestId}
-                onEstimateSent={() => {
-                  dispatch(fetchServiceRequestDetails(requestId));
-                }}
               />
             )}
 
