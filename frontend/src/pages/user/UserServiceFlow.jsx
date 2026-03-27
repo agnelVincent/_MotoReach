@@ -54,7 +54,6 @@ const UserServiceFlow = () => {
     if (escrowSuccess === 'true') {
       toast.success('Payment successful. Amount is held in escrow until service completion.');
       setSearchParams({}, { replace: true });
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
     }
     if (escrowCanceled === 'true') {
       toast.error('Payment was canceled.');
@@ -160,7 +159,6 @@ const UserServiceFlow = () => {
     try {
       await dispatch(approveEstimate({ estimateId })).unwrap();
       toast.success('Estimate approved. Please pay to proceed.');
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
       if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
       toast.error(e?.error || 'Failed to approve estimate');
@@ -171,7 +169,6 @@ const UserServiceFlow = () => {
     try {
       await dispatch(rejectEstimate({ estimateId })).unwrap();
       toast.success('Estimate rejected. Workshop can send a new one.');
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
       if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
       toast.error(e?.error || 'Failed to reject estimate');
@@ -202,7 +199,6 @@ const UserServiceFlow = () => {
       await dispatch(verifyServiceOTP({ executionId, otp, requestId })).unwrap();
       toast.success('Service verified. Payment has been released to the workshop.');
       setOtpValues(['', '', '', '', '', '']);
-      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
     } catch (e) {
       toast.error(e?.error || 'Invalid OTP');
     } finally {
