@@ -43,19 +43,19 @@ export function useServiceFlowSocket(requestId, onUpdate) {
 
           // Show targeted toast for specific events
           if (eventName === 'otp_generated') {
-            toast.info('Check your email — the workshop has sent an OTP!');
+            toast('Check your email — the workshop has sent an OTP!');
           } else if (eventName === 'estimate_sent') {
-            toast.info('The workshop has shared a new estimate. Review it below.');
+            toast('The workshop has shared a new estimate. Review it below.');
           } else if (eventName === 'estimate_resent') {
-            toast.info('The workshop has updated and resent the estimate.');
+            toast('The workshop has updated and resent the estimate.');
           } else if (eventName === 'estimate_approved') {
             toast.success('Estimate approved! Please proceed with payment.');
           } else if (eventName === 'estimate_rejected') {
-            toast.info('Estimate was rejected. Waiting for a new one.');
+            toast('Estimate was rejected. Waiting for a new one.');
           } else if (eventName === 'mechanic_assigned') {
-            toast.success('A mechanic has been assigned to your service.');
+            toast('A mechanic has been assigned to your service.');
           } else if (eventName === 'mechanic_removed') {
-            toast.info('A mechanic has been removed from your service.');
+            toast('A mechanic has been removed from your service.');
           }
 
           // Always call onUpdate so the component refetches fresh data
