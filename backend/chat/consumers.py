@@ -290,19 +290,17 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 },
             )
 
-            # Push notification to receiver
             await self._send_notification_to_user(receiver_id)
 
         elif msg_type == "fetch_history":
-            # Cursor-based pagination: client sends the id of its oldest loaded message.
-            # We return the page that comes before it so the user can scroll up infinitely.
+
             before_id = content.get("before_id")
             if before_id is None:
                 return
             older_messages = await _get_chat_history(
                 self.service_request, limit=50, before_id=int(before_id)
             )
-            # Send only to the requesting client (not group_send) so others don't get duplicates.
+
             await self.send_json({
                 "type": "chat.history_page",
                 "messages": older_messages,
@@ -317,10 +315,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({"type": "chat.message", "message": event["message"]})
 
     async def _send_notification_to_user(self, user_id: int):
-        """
-        Send an updated unread-count notification for this service request
-        to the given user via their notification group.
-        """
+
         sr = self.service_request
         try:
             receiver = await database_sync_to_async(User.objects.get)(pk=user_id)
@@ -339,10 +334,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def _notify_unread_update(self, user: User):
-        """
-        Convenience method to refresh unread count for the current user
-        and service request.
-        """
+
         summary = await _build_unread_summary_item(user, self.service_request)
         group_name = f"notifications_user_{user.id}"
         await self.channel_layer.group_send(
@@ -355,9 +347,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
 
 class NotificationConsumer(AsyncJsonWebsocketConsumer):
-    """
-    Per-user notification stream for unread chat messages.
-    """
+
 
     async def connect(self):
         user: User = self.scope.get("user")  # type: ignore[assignment]
@@ -397,11 +387,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
 
 class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
-    """
-    Per–service-request WebSocket for live flow updates. Clients subscribe when
-    viewing a service flow page; backend sends a single message type on any
-    change so the client can refetch (no polling).
-    """
+
 
     async def connect(self):
         try:
@@ -433,12 +419,6 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def service_flow_update(self, event: Dict[str, Any]):
-        """
-        Relay a service-flow update to the connected client.
-        Forwards the 'event' label from the channel layer message so the
-        frontend can show targeted toasts (e.g. otp_generated, estimate_sent)
-        while always triggering a refetch via onUpdate.
-        """
 
         await self.send_json({
             "type": "service_flow.update",

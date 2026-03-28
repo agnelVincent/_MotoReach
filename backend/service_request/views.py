@@ -11,7 +11,6 @@ from .serializers import (
     ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
     EstimateUpdateSerializer, ComplaintCreateSerializer
 )
-from admin_panel.models import Complaint
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
@@ -68,10 +67,6 @@ class CreateServiceRequestView(generics.CreateAPIView):
     
 
 class ServiceRequestDetailView(generics.RetrieveAPIView):
-    """
-    Used by the /nearby/ endpoint.
-    Returns request + nearby_workshops (geo computation) + active_connection.
-    """
     serializer_class = ServiceRequestSerializer
     queryset = ServiceRequest.objects.all()
 
@@ -96,10 +91,7 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
 
 
 class ServiceFlowDetailView(generics.RetrieveAPIView):
-    """
-    Lightweight view used by UserServiceFlow and WorkshopServiceFlow pages.
-    Returns only request + active_connection — no geo computation.
-    """
+    #used for socket api call
     serializer_class = ServiceRequestSerializer
     queryset = ServiceRequest.objects.all()
     permission_classes = [permissions.IsAuthenticated]
@@ -320,8 +312,6 @@ class CancelConnectionRequestView(APIView):
                 mechanic.availability = 'AVAILABLE'
                 mechanic.save()
             
-            # Clear mechanics and reset execution details instead of deletion
-            # This prevents IntegrityError due to legacy ServiceMessage references
             execution.mechanics.clear()
             execution.assigned_to = None
             execution.estimate_amount = 0
@@ -447,14 +437,7 @@ class WorkshopMechanicsView(APIView):
 
 
 class MechanicAssignedServicesView(APIView):
-    """
-    List services assigned to the logged-in mechanic.
 
-    We reuse ServiceRequestSerializer so the frontend gets:
-    - service_request fields
-    - active_connection info
-    - execution info (with estimate_amount, escrow_paid, started_at, completed_at, mechanics, lead_technician).
-    """
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -470,9 +453,6 @@ class MechanicAssignedServicesView(APIView):
         qs = ServiceRequest.objects.filter(
             execution__mechanics=mechanic
         ).select_related('user').order_by('-created_at')
-
-        # Optionally filter to "current" services if needed:
-        # qs = qs.filter(status__in=['CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'])
 
         serializer = ServiceRequestSerializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -695,7 +675,7 @@ class ApproveEstimateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, estimate_id):
-        """User approves an estimate"""
+
         try:
             estimate = Estimate.objects.get(pk=estimate_id)
         except Estimate.DoesNotExist:
@@ -952,12 +932,7 @@ class GenerateServiceOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        """
-        Generate OTP for service completion.
 
-        Can be called by the workshop admin or any mechanic assigned to this execution.
-        The OTP is emailed to the service request owner and NOT returned in the response.
-        """
         try:
             execution = ServiceExecution.objects.get(pk=pk)
         except ServiceExecution.DoesNotExist:
@@ -1012,7 +987,6 @@ class GenerateServiceOTPView(APIView):
             )
             print(otp)
         except Exception as e:
-            # Roll back OTP so a new code can be generated cleanly if email fails
             execution.otp_code = None
             execution.save(update_fields=["otp_code"])
             return Response(
