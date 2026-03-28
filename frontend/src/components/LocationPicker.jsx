@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { MapPin, Navigation, AlertCircle, CheckCircle2 } from 'lucide-react'; 
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
@@ -18,9 +19,15 @@ function LocationMarker({ position, setPosition, onLocationSelect }) {
         click(e) {
             setPosition(e.latlng);
             onLocationSelect(e.latlng.lat, e.latlng.lng);
-            map.flyTo(e.latlng, map.getZoom());
         },
     });
+
+    useEffect(() => {
+        if (position) {
+            const targetZoom = map.getZoom() < 10 ? 15 : map.getZoom();
+            map.flyTo(position, targetZoom);
+        }
+    }, [position, map]);
 
     return position === null ? null : (
         <Marker position={position}></Marker>
@@ -132,7 +139,6 @@ const LocationPicker = ({ onLocationSelect, initialLat, initialLng }) => {
                     zoom={position ? 15 : 4}
                     scrollWheelZoom={true}
                     style={{ height: "100%", width: "100%" }}
-                    key={position ? `${position.lat}-${position.lng}` : 'default'}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
