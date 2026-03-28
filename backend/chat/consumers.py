@@ -439,6 +439,7 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
         frontend can show targeted toasts (e.g. otp_generated, estimate_sent)
         while always triggering a refetch via onUpdate.
         """
+
         await self.send_json({
             "type": "service_flow.update",
             "event": event.get("event", "update"),

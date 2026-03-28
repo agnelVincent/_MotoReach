@@ -18,10 +18,10 @@ def notify_service_flow_update(service_request_id: int, event: str = "update") -
                 f"service_flow_{service_request_id}",
                 {"type": "service_flow.update", "event": event},
             )
+            print('successfully executed..........')
         except Exception as e:
             print(e)
             pass  
-
     transaction.on_commit(send_notification)
 
 def calculate_distance(lat1, long1, lat2, long2):

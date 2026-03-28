@@ -34,9 +34,10 @@ export function useServiceFlowSocket(requestId, onUpdate) {
     const socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
+
       try {
         const data = JSON.parse(event.data);
-
+        
         if (data.type === 'service_flow.update') {
           const eventName = data.event || 'update';
 
