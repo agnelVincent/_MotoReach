@@ -379,7 +379,7 @@ const UserWorkshopNearby = () => {
               <h1 style={styles.heading}>Nearby Workshops</h1>
               <p style={styles.subheading}>
                 <MapPin size={15} color="#6366F1" style={{ marginRight: 6 }} />
-                Showing results near <strong>{currentRequest?.vehicle_model || 'your location'}</strong>
+                Showing results near your location
               </p>
             </div>
             {/* Fee notice if not yet paid */}
