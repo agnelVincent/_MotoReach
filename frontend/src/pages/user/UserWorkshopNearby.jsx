@@ -45,24 +45,17 @@ const UserWorkshopNearby = () => {
   }, [dispatch, requestId]);
 
   useEffect(() => {
-    if (paymentCanceled && !urlParamsCleared) {
-      setTimeout(() => {
+    if (paymentCanceled) {
         navigate(`/user/workshops-nearby/${requestId}`, { replace: true });
-        setUrlParamsCleared(true);
-      }, 100);
     }
-  }, [paymentCanceled, requestId, navigate, urlParamsCleared]);
+  }, [paymentCanceled, requestId, navigate]);
 
   useEffect(() => {
-    if (paymentSuccess && !urlParamsCleared) {
+    if (paymentSuccess) {
       dispatch(fetchNearbyWorkshops(requestId));
-      const timer = setTimeout(() => {
         navigate(`/user/workshops-nearby/${requestId}`, { replace: true });
-        setUrlParamsCleared(true);
-      }, 100);
-      return () => clearTimeout(timer);
     }
-  }, [paymentSuccess, requestId, navigate, dispatch, urlParamsCleared]);
+  }, [paymentSuccess, requestId, navigate, dispatch]);
 
   if (loading) {
     return (
