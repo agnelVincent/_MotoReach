@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
-  MapPin, Star, ArrowRight, Shield, Search, SlidersHorizontal,
+  MapPin, ArrowRight, Shield, Search, SlidersHorizontal,
   CheckCircle, AlertCircle, X, CreditCard, AlertTriangle, Clock,
-  Wallet, Zap, Award, TrendingUp, ChevronDown, Info
+  Wallet, Zap, Award, ChevronDown, Info
 } from 'lucide-react';
 import { fetchNearbyWorkshops, userCancelConnection, userConnectToWorkshop } from '../../redux/slices/serviceRequestSlice';
 import { initiatePlatformFeePayment, payPlatformFeeWithWallet } from '../../redux/slices/paymentSlice';
-import { fetchWallet } from '../../redux/slices/walletSlice';
+import { fetchWallet } from '../../redux/slices/walletSlice'; 
 import { toast } from 'react-hot-toast';
 
 // ─── PLATFORM FEE CONSTANT ────────────────────────────────────────────────────
@@ -21,7 +21,6 @@ const UserWorkshopNearby = () => {
   const { requestId } = useParams();
 
   const { nearbyWorkshops, currentRequest, loading } = useSelector((state) => state.serviceRequest);
-  const { loading: paymentLoading } = useSelector((state) => state.payment);
   const { balance } = useSelector((state) => state.wallet);
 
   const queryParams = new URLSearchParams(location.search);
@@ -36,7 +35,6 @@ const UserWorkshopNearby = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('stripe');
 
@@ -152,14 +150,13 @@ const UserWorkshopNearby = () => {
   };
 
   const handleDisconnectClick = (serviceRequestId) => {
-    setSelectedRequestId(serviceRequestId);
     setShowDisconnectModal(true);
   };
 
   const handleDisconnectConfirm = async () => {
     setIsProcessing(true);
     try {
-      await dispatch(userCancelConnection(selectedRequestId)).unwrap();
+      await dispatch(userCancelConnection(requestId)).unwrap();
       toast.success("Disconnected successfully");
       dispatch(fetchNearbyWorkshops(requestId));
       setShowDisconnectModal(false);
