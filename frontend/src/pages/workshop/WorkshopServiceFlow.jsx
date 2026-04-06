@@ -12,6 +12,7 @@ import {
   removeMechanic,
   generateServiceOTP,
   cancelRequestWorkshop,
+  fetchEstimates,
 } from '../../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
@@ -33,7 +34,10 @@ const WorkshopServiceFlow = () => {
   }, [dispatch, requestId]);
 
   useServiceFlowSocket(requestId, () => {
-    if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+    if (requestId){
+      dispatch(fetchServiceRequestDetails(requestId));
+      dispatch(fetchEstimates(activeConnection.id))
+    } 
   });
 
   const currentStatus = currentRequest?.status || 'CREATED';
