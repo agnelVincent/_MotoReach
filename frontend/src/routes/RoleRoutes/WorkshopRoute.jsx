@@ -7,6 +7,7 @@ import WorkshopRequestList from "../../pages/workshop/WorkshopRequestList";
 import WorkshopMechanicManager from "../../pages/workshop/WorkshopMechanicManager";
 import WorkshopServiceFlow from "../../pages/workshop/WorkshopServiceFlow";
 import WorkshopWallet from "../../pages/workshop/WorkshopWallet";
+import WorkshopPayment from "../../pages/workshop/WorkshopPayment";
 
 function WorkshopRoute() {
     return (
@@ -17,6 +18,7 @@ function WorkshopRoute() {
             <Route path="requests" element={<WorkshopRequestList />} />
             <Route path="team" element={<WorkshopMechanicManager />} />
             <Route path="wallet" element={<WorkshopWallet />} />
+            <Route path="payment" element={<WorkshopPayment />} />
             <Route path="service-flow/:requestId" element={<WorkshopServiceFlow />} />
         </Route>
     );

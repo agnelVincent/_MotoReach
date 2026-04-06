@@ -478,3 +478,16 @@ class UserPaymentHistoryView(APIView):
         payments = Payment.objects.filter(user=request.user).order_by('-created_at')
         serializer = PaymentHistorySerializer(payments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class WorkshopPaymentHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        escrow_payments = Payment.objects.filter(
+            payment_type='SERVICE_ESCROW',
+            service_request__execution__workshop__user=request.user
+        ).select_related('service_request').order_by('-created_at')
+
+        serializer = PaymentHistorySerializer(escrow_payments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

@@ -8,6 +8,7 @@ from .views import (
     AddMoneyCheckoutView,
     PayPlatformFeeWithWalletView,
     UserPaymentHistoryView,
+    WorkshopPaymentHistoryView,
 )
 
 urlpatterns = [
@@ -19,4 +20,5 @@ urlpatterns = [
     path('wallet/add-money/', AddMoneyCheckoutView.as_view(), name='add-money'),
     path('wallet/pay-fee/', PayPlatformFeeWithWalletView.as_view(), name='pay-fee-wallet'),
     path('history/', UserPaymentHistoryView.as_view(), name='payment-history'),
+    path('workshop/escrows/', WorkshopPaymentHistoryView.as_view(), name='workshop-escrow-history'),
 ]
