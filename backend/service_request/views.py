@@ -14,6 +14,7 @@ from .serializers import (
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
+from django.db import DatabaseError
 
 
 def check_expired_connections(queryset):
@@ -911,6 +912,35 @@ class DeleteEstimateView(APIView):
 
         estimate.delete()
         return Response({"message": "Estimate deleted successfully"}, status=status.HTTP_200_OK)
+
+class StartServiceView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            service_request = ServiceRequest.objects.get(pk = pk)
+            execution = service_request.execution
+        except DatabaseError:
+            return Response({'error' : 'Service execution not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        is_workshop_admin = getattr(request.user, 'role' , '') == 'workshop_admin' and execution.workshop == getattr(request.user, 'workshop', None)
+        is_mechanic = request.user in  execution.mechanics.all()
+
+        if not (is_workshop_admin or is_mechanic):
+            return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        if service_request.status != 'SERVICE_AMOUNT_PAID':
+            return Response({'error': 'Cannot start the service. Service amount not paid yet'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        with transaction.atomic():
+            service_request.status = 'IN_PROGRESS'
+            service_request.save()
+            execution.started_at = timezone.now()
+
+            execution.save()
+            notify_service_flow_update(service_request.id, event='service_started')
+        
+        return Response({'message' : 'Service started successfully'}, status=status.HTTP_200_OK)
 
 
 def _can_generate_service_otp(user, execution):
