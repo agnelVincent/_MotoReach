@@ -19,6 +19,7 @@ const UserNavbar = () => {
     { name: 'Subscription', path: '/user/subscription' },
     { name: 'Wallet', path: '/user/wallet' },
     { name: 'Services', path: '/user/services' },
+    { name: 'Payments', path: '/user/payments' },
     { name: 'Contact Us', path: '/contact' },
   ];
 

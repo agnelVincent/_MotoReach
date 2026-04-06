@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
-from .serializers import WalletSerializer, WalletTransactionSerializer
+from .serializers import WalletSerializer, WalletTransactionSerializer, PaymentHistorySerializer
 from service_request.models import ServiceRequest, ServiceExecution, Estimate
 from service_request.utils import notify_service_flow_update
 from django.views.decorators.csrf import csrf_exempt
@@ -470,3 +470,11 @@ class PayPlatformFeeWithWalletView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UserPaymentHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        payments = Payment.objects.filter(user=request.user).order_by('-created_at')
+        serializer = PaymentHistorySerializer(payments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
