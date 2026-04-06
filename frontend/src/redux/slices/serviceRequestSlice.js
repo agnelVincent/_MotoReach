@@ -288,6 +288,33 @@ export const resendEstimate = createAsyncThunk(
   }
 );
 
+
+export const startService = createAsyncThunk(
+  'serviceRequest/startService',
+  async (requestId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${requestId}/start/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Failed to start service");
+    }
+  }
+);
+
+
+export const endService = createAsyncThunk(
+  'serviceRequest/endService',
+  async (requestId, {  rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${requestId}/end/`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Failed to complete service");
+    }
+  }
+);
+
+
 export const generateServiceOTP = createAsyncThunk(
   'serviceRequest/generateServiceOTP',
   async (executionId, { rejectWithValue }) => {
