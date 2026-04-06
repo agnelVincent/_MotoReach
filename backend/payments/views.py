@@ -9,6 +9,7 @@ from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer, PaymentHistorySerializer
 from service_request.models import ServiceRequest, ServiceExecution, Estimate
 from service_request.utils import notify_service_flow_update
+from .utils import get_platform_admin
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
@@ -234,6 +235,20 @@ class StripeWebhookView(APIView):
             payment.service_request.platform_fee_paid = True
             payment.service_request.platform_fee_txn_id = payment.stripe_checkout_id
 
+            admin_user = get_platform_admin()
+            if admin_user:
+                with transaction.atomic():
+                    admin_wallet, _ = Wallet.objects.get_or_create(user=admin_user)
+                    admin_wallet.balance = F('balance') + payment.amount
+                    admin_wallet.save()
+                    admin_wallet.refresh_from_db()
+                    WalletTransaction.objects.create(
+                        wallet=admin_wallet,
+                        amount=payment.amount,
+                        transaction_type='CREDIT',
+                        description=f"Platform Fee Collected for Service Request #{payment.service_request.id}"
+                    )
+
             workshop_id = metadata.get('workshop_id')
             if workshop_id:
                 from accounts.models import Workshop
@@ -431,6 +446,19 @@ class PayPlatformFeeWithWalletView(APIView):
                     payment_type='PLATFORM_FEE',
                     status='COMPLETED'
                 )
+
+                admin_user = get_platform_admin()
+                if admin_user:
+                    admin_wallet, _ = Wallet.objects.get_or_create(user=admin_user)
+                    admin_wallet.balance = F('balance') + fee_amount
+                    admin_wallet.save()
+                    admin_wallet.refresh_from_db()
+                    WalletTransaction.objects.create(
+                        wallet=admin_wallet,
+                        amount=fee_amount,
+                        transaction_type='CREDIT',
+                        description=f"Platform Fee Collected for Service Request #{service_request.id}"
+                    )
 
                 # Update Service Request
                 service_request.platform_fee_paid = True
