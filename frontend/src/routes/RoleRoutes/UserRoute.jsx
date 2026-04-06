@@ -7,6 +7,7 @@ import UserWorkshopNearby from "../../pages/user/UserWorkshopNearby";
 import UserServices from "../../pages/user/UserServices";
 import UserWallet from "../../pages/user/UserWallet";
 import UserServiceFlow from "../../pages/user/UserServiceFlow";
+import UserPaymentHistory from "../../pages/user/UserPaymentHistory";
 
 function UserRoute() {
     return (
@@ -19,6 +20,7 @@ function UserRoute() {
             <Route path="services" element={<UserServices />} />
             <Route path="service-flow/:requestId" element={<UserServiceFlow />} />
             <Route path="wallet" element={<UserWallet />} />
+            <Route path="payments" element={<UserPaymentHistory />} />
         </Route>
     );
 }
