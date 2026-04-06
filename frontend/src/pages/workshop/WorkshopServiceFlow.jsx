@@ -36,7 +36,13 @@ const WorkshopServiceFlow = () => {
   useServiceFlowSocket(requestId, () => {
     if (requestId){
       dispatch(fetchServiceRequestDetails(requestId));
-      dispatch(fetchEstimates(activeConnection.id))
+      const connectionId = currentRequest?.active_connection?.id
+
+      if(connectionId){
+        setTimeout(() => {
+          dispatch(fetchEstimates(connectionId))
+        }, 300);      
+      }
     } 
   });
 
