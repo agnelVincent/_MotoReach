@@ -3,6 +3,12 @@ from django.conf import settings
 from django.db.models import F
 from .models import Wallet, WalletTransaction
 from django.db import transaction
+from django.contrib.auth import get_user_model
+
+def get_platform_admin():
+    User = get_user_model()
+    admin = User.objects.filter(role='admin', is_superuser=True).first()
+    return admin or User.objects.filter(role='admin').first()
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -42,6 +48,21 @@ def check_and_process_refund(service_request):
             payment.is_refunded = True
             payment.refund_txn_id = f"WALLET-REFUND-{payment.id}" 
             payment.save()
+            
+            admin_user = get_platform_admin()
+            if admin_user:
+                admin_wallet, _ = Wallet.objects.get_or_create(user=admin_user)
+                admin_wallet.balance = F('balance') - payment.amount
+                admin_wallet.save()
+                
+                admin_wallet.refresh_from_db()
+                
+                WalletTransaction.objects.create(
+                    wallet=admin_wallet,
+                    amount=payment.amount,
+                    transaction_type='DEBIT',
+                    description=f"Platform Fee Refunded to User for Service Request #{service_request.id}"
+                )
         
         return True, "Refund processed to Wallet"
 
