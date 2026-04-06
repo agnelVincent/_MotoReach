@@ -57,9 +57,20 @@ export function useServiceFlowSocket(requestId, onUpdate) {
           } else if (eventName === 'mechanic_removed') {
             toast('A mechanic has been removed from your service.');
           }
+           else if (eventName === 'mechanic_removed') {
+            toast('A mechanic has been removed from your service.')
+          
+          } else if (eventName === 'service_started') {
+            toast.success('The service has officially started at the workshop!', {
+              icon: '🔧',
+            });
+          } else if (eventName === 'service_completed') {
+            toast.success('Service completed! Awaiting final OTP generation and verification.', {
+              icon: '🎉',
+            });
+          }
 
-          // Always call onUpdate so the component refetches fresh data
-          onUpdateRef.current?.(eventName);
+          onUpdateRef.current?.(eventName)
         }
       } catch (err) {
         console.error('[ServiceFlowSocket] Failed to parse message:', err);
