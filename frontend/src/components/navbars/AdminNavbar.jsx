@@ -20,6 +20,7 @@ const AdminNavbar = () => {
     { name: 'Workshops', path: '/admin/workshops', icon: Building2 },
     { name: 'Mechanics', path: '/admin/mechanics', icon: Users },
     { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
+    { name: 'Platform Revenue', path: '/admin/wallet', icon: Wallet },
     { name: 'Reports / Complaints', path: '/admin/complaints', icon: AlertCircle }
   ];
 

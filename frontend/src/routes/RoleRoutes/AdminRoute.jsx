@@ -5,6 +5,7 @@ import AdminUser from "../../pages/admin/AdminUser";
 import AdminWorkshop from "../../pages/admin/AdminWorkshop";
 import AdminMechanic from "../../pages/admin/AdminMechanic";
 import AdminComplaints from "../../pages/admin/AdminComplaints";
+import AdminWallet from "../../pages/admin/AdminWallet";
 
 function AdminRoute() {
     return (
@@ -14,6 +15,7 @@ function AdminRoute() {
             <Route path="workshops" element={<AdminWorkshop />} />
             <Route path="mechanics" element={<AdminMechanic />} />
             <Route path="complaints" element={<AdminComplaints />} />
+            <Route path="wallet" element={<AdminWallet />} />
         </Route>
     );
 }
