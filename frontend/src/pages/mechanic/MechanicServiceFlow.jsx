@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import {
+  fetchEstimates,
   fetchServiceRequestDetails,
   generateServiceOTP,
 } from '../../redux/slices/serviceRequestSlice';
@@ -21,11 +22,15 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
+import Chat from '../../components/Chat'
 
 const MechanicServiceFlow = () => {
   const { requestId } = useParams();
   const dispatch = useDispatch();
-  const { currentRequest, loading } = useSelector((state) => state.serviceRequest);
+  const { currentRequest, loading, estimates } = useSelector((state) => state.serviceRequest);
+
+  const currentRequestRef = useRef(currentRequest);
+  useEffect(() => { currentRequestRef.current = currentRequest; }, [currentRequest]);
 
   useEffect(() => {
     if (!requestId) return;
@@ -34,7 +39,17 @@ const MechanicServiceFlow = () => {
 
   useServiceFlowSocket(requestId, () => {
     if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+    const connectionId = currentRequestRef.current?.active_connection?.id;
+    if (connectionId) {
+        dispatch(fetchEstimates(connectionId));
+      }
   });
+
+  useEffect(() => {
+    if (currentRequest?.active_connection?.id) {
+      dispatch(fetchEstimates(currentRequest.active_connection.id));
+    }
+  }, [dispatch, currentRequest?.active_connection?.id, currentRequest?.status]);
 
   const currentStatus = currentRequest?.status || 'CREATED';
   const execution = currentRequest?.execution;
@@ -136,6 +151,83 @@ const MechanicServiceFlow = () => {
             </div>
           </div>
         </div>
+
+        <Chat
+   serviceRequestId={requestId} 
+   canChat={currentStatus !== 'COMPLETED' && currentStatus !== 'VERIFIED'} 
+   headerTitle="Service Chat Area" 
+   headerSubtitle="Connected with Workshop and Client"
+/>
+
+{/* Estimate summary (Detailed Read-Only) */}
+{estimates && estimates.length > 0 && (
+  (() => {
+    const activeEstimate = estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0];
+    
+    return (
+      <div className="bg-white rounded-2xl shadow-xl p-6">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-green-600" />
+          Estimate Breakdown
+        </h3>
+        
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+              activeEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+            }`}>
+              {activeEstimate.status === 'APPROVED' && <CheckCircle className="w-3 h-3" />}
+              {activeEstimate.status}
+            </span>
+          </div>
+
+          {/* Line Items Map */}
+          {activeEstimate.line_items && activeEstimate.line_items.length > 0 && (
+            <div className="bg-white/60 rounded-xl p-3 space-y-2">
+              {activeEstimate.line_items.map((item, index) => (
+                <div key={index} className="flex justify-between items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-800 text-sm">{item.description}</p>
+                    <p className="text-xs text-gray-500">
+                      {item.item_type} • {item.quantity} × ₹{parseFloat(item.unit_price).toFixed(2)}
+                    </p>
+                  </div>
+                  <p className="font-semibold text-gray-800 text-sm">₹{parseFloat(item.total).toFixed(2)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Totals */}
+          <div className="bg-white/80 rounded-xl p-3 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Subtotal</span>
+              <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
+            </div>
+            {parseFloat(activeEstimate.tax_amount) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Tax</span>
+                <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-2 border-t border-green-200 mt-2">
+              <span className="font-bold text-gray-800">Total Amount</span>
+              <span className="font-bold text-lg text-green-700">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
+            </div>
+          </div>
+          
+          <div className="flex justify-between text-xs pt-2">
+             <span className="text-gray-600">Escrow Status</span>
+             <span className={`font-semibold ${execution?.escrow_paid ? 'text-green-700' : 'text-amber-700'}`}>
+               {execution?.escrow_paid ? 'Paid (in escrow)' : 'Not yet paid'}
+             </span>
+          </div>
+        </div>
+      </div>
+    );
+  })()
+)}
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           {/* Left: basic request + personnel */}
