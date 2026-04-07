@@ -852,7 +852,15 @@ class GetEstimateView(APIView):
         )
         is_service_owner = estimate.service_request.user == request.user
 
-        if not (is_workshop_admin or is_service_owner):
+        is_mechanic = False
+        if request.user.role == 'mechanic':
+            try:
+                execution = estimate.service_request.execution
+                is_mechanic = execution.mechanics.filter(user=request.user).exists()
+            except Exception:
+                pass
+
+        if not (is_workshop_admin or is_service_owner or is_mechanic):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
@@ -875,7 +883,15 @@ class ListEstimatesView(APIView):
         )
         is_service_owner = connection.service_request.user == request.user
 
-        if not (is_workshop_admin or is_service_owner):
+        is_mechanic = False
+        if request.user.role == 'mechanic':
+            try:
+                execution = connection.service_request.execution
+                is_mechanic = execution.mechanics.filter(user=request.user).exists()
+            except Exception:
+                pass
+
+        if not (is_workshop_admin or is_service_owner or is_mechanic):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
         estimates = Estimate.objects.filter(workshop_connection=connection).order_by('-created_at')
