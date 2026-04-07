@@ -206,7 +206,7 @@ const MechanicServiceFlow = () => {
           <div className="lg:col-span-2">
             <Chat
               serviceRequestId={requestId} 
-              canChat={currentStatus !== 'COMPLETED' && currentStatus !== 'VERIFIED'} 
+              canChat={!!currentRequest?.active_connection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)} 
               headerTitle="Service Chat Area" 
               headerSubtitle="Connected with Workshop and Client"
             />
