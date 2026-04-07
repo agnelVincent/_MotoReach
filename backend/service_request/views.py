@@ -11,6 +11,7 @@ from .serializers import (
     ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
     EstimateUpdateSerializer, ComplaintCreateSerializer
 )
+from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
@@ -1128,3 +1129,93 @@ class VerifyServiceOTPView(APIView):
             execution.service_request.save()
             notify_service_flow_update(execution.service_request_id)
         return Response({"message": "Service verified. Payment released to workshop."}, status=status.HTTP_200_OK)
+
+class WorkshopDashboardStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'workshop_admin' or not hasattr(request.user, 'workshop'):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        workshop = request.user.workshop
+        
+        # 1. Total Revenue from Wallet balance
+        from payments.models import Wallet
+        wallet = Wallet.objects.filter(user=request.user).first()
+        total_revenue = wallet.balance if wallet else 0.00
+        
+        # 2. Active Requests
+        active_requests = WorkshopConnection.objects.filter(
+            workshop=workshop,
+            status='ACCEPTED'
+        ).exclude(
+            service_request__status__in=['COMPLETED', 'VERIFIED', 'CANCELLED', 'EXPIRED']
+        ).count()
+        
+        # 3. Completed Services
+        completed_services = ServiceRequest.objects.filter(
+            execution__workshop=workshop,
+            status__in=['COMPLETED', 'VERIFIED']
+        ).count()
+        
+        # 4. Active (or total) Mechanics
+        active_mechanics = Mechanic.objects.filter(
+            workshop=workshop,
+        ).count()
+        
+        # 5. Recent Requests (Connections)
+        recent_connections = WorkshopConnection.objects.filter(
+            workshop=workshop,
+            status='ACCEPTED'
+        ).order_by('-created_at')[:5]
+        
+        recent_requests_data = []
+        for conn in recent_connections:
+            recent_requests_data.append({
+                "id": f"#REQ-{conn.service_request.id}",
+                "customer": conn.service_request.user.full_name or conn.service_request.user.username,
+                "service": conn.service_request.issue_category,
+                "status": conn.service_request.get_status_display(),
+                "time": conn.created_at.strftime("%I:%M %p, %b %d"),
+                "priority": "high" if "Emergency" in conn.service_request.issue_category else "medium"
+            })
+            
+        # 6. Top Mechanics (Mock or exact)
+        from django.db.models import Count
+        top_mechanics = Mechanic.objects.filter(
+            workshop=workshop
+        ).annotate(
+            completed_count=Count(
+                'executions',
+                filter=models.Q(executions__service_request__status__in=['COMPLETED', 'VERIFIED'])
+            )
+        ).order_by('-completed_count')[:3]
+        
+        top_mechanics_data = []
+        for index, mechanic in enumerate(top_mechanics):
+            top_mechanics_data.append({
+                "name": mechanic.name,
+                "completed": mechanic.completed_count,
+                "rating": 4.5,
+                "earnings": "N/A"
+            })
+            
+        # 7. Monthly Revenue (Mocked for dashboard styling)
+        monthly_data = [
+            {"month": "Jan", "revenue": 1000},
+            {"month": "Feb", "revenue": 1500},
+            {"month": "Mar", "revenue": 1200},
+            {"month": "Apr", "revenue": (float(total_revenue) % 5000) + 1000},
+            {"month": "May", "revenue": float(total_revenue) / 2},
+            {"month": "Jun", "revenue": float(total_revenue)}
+        ]
+
+        return Response({
+            "total_revenue": total_revenue,
+            "active_requests": active_requests,
+            "completed_services": completed_services,
+            "active_mechanics": active_mechanics,
+            "recent_requests": recent_requests_data,
+            "top_mechanics": top_mechanics_data,
+            "monthly_data": monthly_data,
+        }, status=status.HTTP_200_OK)

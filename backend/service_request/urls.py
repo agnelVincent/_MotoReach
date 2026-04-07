@@ -29,6 +29,7 @@ from .views import (
     GenerateServiceOTPView,
     VerifyServiceOTPView,
     ReportComplaintView,
+    WorkshopDashboardStatsView,
 )
 
 urlpatterns = [
@@ -44,6 +45,7 @@ urlpatterns = [
     path('workshop/connection-requests/<int:pk>/reject/', RejectConnectionRequestView.as_view(), name='reject-connection'),
     path('workshop/connection-requests/<int:pk>/cancel/', CancelConnectionRequestView.as_view(), name='cancel-connection'),
     
+    path('workshop/stats/', WorkshopDashboardStatsView.as_view(), name='workshop-stats'),
     path('workshop/my-mechanics/', WorkshopMechanicsView.as_view(), name='workshop-my-mechanics'),
     path('execution/<int:pk>/assign/', AssignMechanicView.as_view(), name='assign-mechanic'),
     path('execution/<int:pk>/remove/', RemoveMechanicView.as_view(), name='remove-mechanic'),
