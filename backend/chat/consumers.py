@@ -66,6 +66,10 @@ def _user_has_active_connection(user: User, service_request: ServiceRequest) -> 
                 workshop=user.workshop,
                 status="ACCEPTED",
             ).exists()
+        
+        if user.role == "mechanic" and hasattr(user, "mechanic"):
+            if hasattr(service_request, "execution") and service_request.execution:
+                return service_request.execution.mechanics.filter(user=user).exists()
     
     except DatabaseError as e:
         print('came from user active connection', e)
