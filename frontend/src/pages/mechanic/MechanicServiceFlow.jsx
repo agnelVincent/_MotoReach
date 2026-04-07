@@ -408,8 +408,10 @@ const MechanicServiceFlow = () => {
             )}
           </div>
 
-          {/* Right: OTP + small summary */}
+          
           <div className="space-y-6">
+
+            {execution?.escrow_paid && currentStatus === 'COMPLETED' && (
             <div className="bg-white rounded-2xl shadow-xl p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <Key className="w-5 h-5 text-orange-600" />
@@ -438,6 +440,7 @@ const MechanicServiceFlow = () => {
                 </p>
               )}
             </div>
+            )}
 
             {execution && (
               <div className="bg-white rounded-2xl shadow-xl p-6">
