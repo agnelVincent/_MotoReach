@@ -4,7 +4,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.db import DatabaseError
 from service_request.models import ServiceRequest, WorkshopConnection
-from .models import ChatMessage
+from .models import ChatMessage, ChatMessageRecipient
 
 
 User = get_user_model()
@@ -124,19 +124,6 @@ def _create_message(
     if not connection:
         raise PermissionError('No active connection for this service')
 
-    receiver = None
-
-    if user.id == service_request.user_id:
-        receiver = getattr(connection.workshop, 'user', None)
-
-
-    elif user.role == "workshop_admin":
-        workshop = getattr(user,'workshop',None)
-        if workshop and connection.workshop_id == workshop.id:
-            receiver = service_request.user
-
-    if receiver is None:
-        raise PermissionError('Not authorized for this service request')
 
     if service_request.status in ["EXPIRED", "CANCELLED"]:
         raise PermissionError("Service request is no longer active.")
@@ -145,9 +132,29 @@ def _create_message(
         msg = ChatMessage.objects.create(
             service_request=service_request,
             sender=user,
-            receiver=receiver,
             content=content,
         )
+
+        participants = []
+
+        if service_request.user:
+            participants.append(service_request.user)
+
+        if hasattr(connection.workshop, 'user'):
+            participants.append(connection.workshop.user)
+
+        if hasattr(service_request, "execution") and service_request.execution:
+            for mechanic in service_request.execution.mechanics.all():
+                if hasattr(mechanic, 'user'):
+                    participants.append(mechanic.user)
+
+        receiver_ids = []
+
+        for p in set(participants):
+            if p.id != user.id:
+                ChatMessageRecipient.objects.create(message=msg, user=p, is_read=False)
+                receiver_ids.append(p.id)
+
     except DatabaseError as e:
         print(e)
         raise PermissionError('Failed to create message at this time')
@@ -160,7 +167,7 @@ def _create_message(
         "content": msg.content,
         "created_at": msg.created_at.isoformat(),
     }
-    return data, receiver.id
+    return data, receiver_ids
 
 
 @database_sync_to_async
