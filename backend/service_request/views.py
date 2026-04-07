@@ -924,7 +924,8 @@ class StartServiceView(APIView):
             return Response({'error' : 'Service execution not found'}, status=status.HTTP_404_NOT_FOUND)
         
         is_workshop_admin = getattr(request.user, 'role' , '') == 'workshop_admin' and execution.workshop == getattr(request.user, 'workshop', None)
-        is_mechanic = request.user in  execution.mechanics.all()
+        is_mechanic = execution.mechanics.filter(user=request.user).exists()
+
 
         if not (is_workshop_admin or is_mechanic):
             return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
@@ -956,7 +957,8 @@ class EndServiceView(APIView):
             return Response({"error": "Service execution not found"}, status=status.HTTP_404_NOT_FOUND)
         
         is_workshop_admin = getattr(request.user, 'role', '') == 'workshop_admin' and execution.workshop == getattr(request.user, 'workshop', None)
-        is_mechanic = request.user in execution.mechanics.all()
+        is_mechanic = execution.mechanics.filter(user=request.user).exists()
+
         
         if not (is_workshop_admin or is_mechanic):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)

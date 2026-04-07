@@ -2,9 +2,11 @@ import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import {
+  endService,
   fetchEstimates,
   fetchServiceRequestDetails,
   generateServiceOTP,
+  startService,
 } from '../../redux/slices/serviceRequestSlice';
 import {
   FileCheck,
@@ -23,6 +25,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import Chat from '../../components/Chat'
+import ServiceActionButton from '../../components/ServiceActionButton'
 
 const MechanicServiceFlow = () => {
   const { requestId } = useParams();
@@ -227,6 +230,54 @@ const MechanicServiceFlow = () => {
     );
   })()
 )}
+
+
+{/* Add this right below the Service Progress block and above Chat */}
+<ServiceActionButton
+  currentStatus={currentStatus}
+  onStart={async () => {
+    try {
+      await dispatch(startService(requestId)).unwrap();
+      toast.success('Service started successfully!');
+    } catch (e) {
+      toast.error(e || 'Failed to start service');
+    }
+  }}
+  onEnd={async () => {
+  toast((t) => (
+    <div className="flex flex-col gap-3">
+      <div className="font-medium text-gray-900">
+        Are you sure the service is completely finished?
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={async () => {
+            toast.dismiss(t.id);
+            try {
+              await dispatch(endService(requestId)).unwrap();
+              dispatch(fetchServiceRequestDetails(requestId)); // sync
+              toast.success('Service marked as completed!');
+            } catch (e) {
+              toast.error(e || 'Failed to finish service');
+            }
+          }}
+          className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  ), { position: 'top-center' });
+  }}
+  loading={loading}
+  disabled={loading}
+/>
 
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
