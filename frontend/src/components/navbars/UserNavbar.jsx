@@ -16,7 +16,7 @@ const UserNavbar = () => {
 
   const navLinks = [
     { name: 'Home', path: '/user' },
-    { name: 'Subscription', path: '/user/subscription' },
+    // { name: 'Subscription', path: '/user/subscription' },
     { name: 'Wallet', path: '/user/wallet' },
     { name: 'Services', path: '/user/services' },
     { name: 'Payments', path: '/user/payments' },

@@ -19,7 +19,7 @@ const AdminNavbar = () => {
     { name: 'Users', path: '/admin/users', icon: Users },
     { name: 'Workshops', path: '/admin/workshops', icon: Building2 },
     { name: 'Mechanics', path: '/admin/mechanics', icon: Users },
-    { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
+    // { name: 'Subscription', path: '/admin/subscription', icon: CreditCard },
     { name: 'Platform Revenue', path: '/admin/wallet', icon: Wallet },
     { name: 'Reports / Complaints', path: '/admin/complaints', icon: AlertCircle }
   ];

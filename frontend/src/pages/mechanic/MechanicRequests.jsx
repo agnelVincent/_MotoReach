@@ -23,7 +23,7 @@ const statusBadgeClasses = (status) => {
       return 'bg-amber-100 text-amber-700';
     case 'COMPLETED':
       return 'bg-green-100 text-green-700';
-    case 'VERIFIED':
+    case 'COMPLETED & VERIFIED':
       return 'bg-emerald-100 text-emerald-700';
     default:
       return 'bg-gray-100 text-gray-700';
@@ -102,7 +102,9 @@ const MechanicRequests = () => {
                       request.status
                     )}`}
                   >
-                    {request.status.replace('_', ' ')}
+                    {request.status === 'VERIFIED'
+                      ? 'VERIFIED AND COMPLETED'
+                      : request.status.replace('_', ' ')}
                   </div>
                 </div>
 
