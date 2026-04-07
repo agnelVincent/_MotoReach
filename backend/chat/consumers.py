@@ -284,7 +284,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 return
 
             try:
-                message_data, receiver_id = await _create_message(
+                message_data, receiver_ids = await _create_message(
                     user, self.service_request, raw_message
                 )
             except PermissionError:
@@ -301,7 +301,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 },
             )
 
-            await self._send_notification_to_user(receiver_id)
+            for rid in receiver_ids:
+                await self._send_notification_to_user(rid)
 
         elif msg_type == "fetch_history":
 
