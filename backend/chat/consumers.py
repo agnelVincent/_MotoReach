@@ -173,11 +173,11 @@ def _create_message(
 @database_sync_to_async
 def _mark_messages_as_read(user: User, service_request: ServiceRequest) -> None:
     try:
-        ChatMessage.objects.filter(
-            service_request=service_request,
-            receiver=user,
-            is_read=False,
-        ).update(is_read=True)
+        ChatMessageRecipient.objects.filter(
+            message__service_request = service_request,
+            user = user,
+            is_read = False,
+        ).update(is_read = True)
     except DatabaseError as e:
         print('happened while marking as read',e)
 
@@ -186,11 +186,11 @@ def _build_unread_summary_item_sync(
     receiver: User, service_request: ServiceRequest
 ) -> Dict[str, Any]:
     
-    unread_qs = ChatMessage.objects.filter(
-        service_request=service_request,
-        receiver=receiver,
+    unread_qs = ChatMessageRecipient.objects.filter(
+        message__service_request=service_request,
+        user=receiver,
         is_read=False,
-    ).select_related("sender", "service_request__user")
+    ).select_related("message__sender")
 
     count = unread_qs.count()
     if count == 0:
@@ -201,8 +201,8 @@ def _build_unread_summary_item_sync(
         }
 
 
-    last_msg = unread_qs.order_by("-created_at").first()
-    counterpart_name = last_msg.sender.full_name
+    last_receipt = unread_qs.order_by("-message__created_at").first()
+    counterpart_name = last_receipt.message.sender.full_name
 
     return {
         "service_request_id": service_request.id,
