@@ -25,3 +25,27 @@ class ChatMessage(models.Model):
 
     def __str__(self) -> str:
         return f"[SR#{self.service_request_id}] {self.sender_id} -> {self.receiver_id}: {self.content[:30]}"
+
+
+class ChatMessageRecipient(models.Model):
+
+    message = models.ForeignKey(
+        ChatMessage, 
+        on_delete=models.CASCADE, 
+        related_name="recipients"
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name="chat_receipts"
+    )
+
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "is_read"]),
+        ]
+
+        
