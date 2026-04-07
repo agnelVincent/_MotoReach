@@ -220,9 +220,10 @@ def _build_unread_summary_item(
 
 @database_sync_to_async
 def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
+    
     service_request_ids = (
-        ChatMessage.objects.filter(receiver=user, is_read=False)
-        .values_list("service_request_id", flat=True)
+        ChatMessageRecipient.objects.filter(user=user, is_read=False)
+        .values_list("message__service_request_id", flat=True)
         .distinct()
     )
     summaries: List[Dict[str, Any]] = []
