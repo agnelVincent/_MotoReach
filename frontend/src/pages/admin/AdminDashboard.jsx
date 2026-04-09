@@ -21,17 +21,17 @@ import { fetchAdminStats } from '../../redux/slices/adminSlice';
 import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
 
 
-
 const AdminDashboard = () => {
 
   const navigate = useNavigate();
   const dispatch = useDispatch()
-  const {stats} = useSelector(state => state.admin)
+
 
   useEffect(() => {
     dispatch(fetchAdminStats())
   },[])
 
+  const {stats} = useSelector((state) => state.adminSlice)
 
   const metrics = [
     {
