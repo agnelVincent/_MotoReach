@@ -7,6 +7,7 @@ from admin_panel.models import Complaint
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from service_request.models import ServiceRequest
 
 
 class AdminDashboardStatsView(APIView):
@@ -18,6 +19,8 @@ class AdminDashboardStatsView(APIView):
         mechanic_count = Mechanic.objects.count()
 
         recent_signups = User.objects.all().order_by('-date_joined')[:5]
+
+        total_requests = ServiceRequest.objects.all().count()
 
         signups_data = [
             {
@@ -47,7 +50,8 @@ class AdminDashboardStatsView(APIView):
                     'total_mechanics' : mechanic_count
                 },
                 'recent_signups' : signups_data,
-                'pending_approvals' : pending_data
+                'pending_approvals' : pending_data,
+                'total_requests' : total_requests
             }, status=status.HTTP_200_OK
         )
     
