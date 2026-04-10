@@ -31,7 +31,7 @@ const AdminDashboard = () => {
     dispatch(fetchAdminStats())
   },[])
 
-  const {stats} = useSelector((state) => state.adminSlice)
+  const {stats} = useSelector((state) => state.admin)
 
   const metrics = [
     {
