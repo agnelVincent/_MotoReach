@@ -60,7 +60,7 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Requests',
-      value: '28,672',
+      value: stats.total_requests,
       change: '+22.5%',
       isPositive: true,
       icon: FileText,
