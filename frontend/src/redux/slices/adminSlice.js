@@ -32,6 +32,8 @@ const adminSlice = createSlice({
     initialState: {
         stats: {
             metrics: { total_users: 0, total_workshops: 0, total_mechanics: 0 },
+            total_requests : 0,
+            total_revenue : 0,
             recent_signups: [],
             pending_approvals: []
         },
