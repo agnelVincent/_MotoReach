@@ -1,6 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosInstance from '../../api/axiosInstance';
 
+
+
+export const fetchWorkshopStats = createAsyncThunk(
+    'workshopMechanic/fetchWorkshopStats',
+    async ({rejectWithValue}) => {
+        try{
+            const response = await axiosInstance.get('service_request/workshop/stats/')
+            return response.data
+        }
+        catch(error){
+            return rejectWithValue(error.response?.data?.error || 'Failed to load workshop dashboard stats')
+        }
+    }
+)
+
 export const searchWorkshops = createAsyncThunk(
     'workshopMechanic/searchWorkshops',
     async (query, { rejectWithValue }) => {

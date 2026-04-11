@@ -11,6 +11,7 @@ import {
   Activity,
   Award,
 } from 'lucide-react';
+import { useEffect } from 'react';
 
 
 const WorkshopDashboard = () => {
@@ -74,6 +75,7 @@ const WorkshopDashboard = () => {
     { month: 'May', revenue: 55000 },
     { month: 'Jun', revenue: 72000 },
   ];
+
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
