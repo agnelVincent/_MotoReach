@@ -1210,6 +1210,8 @@ class WorkshopDashboardStatsView(APIView):
             {"month": "Jun", "revenue": float(total_revenue)}
         ]
 
+        print('hiii.. its sending right now')
+
         return Response({
             "total_revenue": total_revenue,
             "active_requests": active_requests,

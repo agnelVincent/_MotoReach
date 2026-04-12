@@ -7,7 +7,7 @@ export const fetchWorkshopStats = createAsyncThunk(
     'workshopMechanic/fetchWorkshopStats',
     async (_,{rejectWithValue}) => {
         try{
-            const response = await axiosInstance.get('service_request/workshop/stats/')
+            const response = await axiosInstance.get('service-request/workshop/stats/')
             return response.data
         }
         catch(error){
