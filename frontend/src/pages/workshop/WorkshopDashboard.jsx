@@ -59,27 +59,11 @@ const WorkshopDashboard = () => {
     }
   ];
 
-  const recentRequests = [
-    { id: '#REQ-1234', customer: 'John Doe', service: 'Oil Change', status: 'In Progress', time: '2 hours ago', priority: 'high' },
-    { id: '#REQ-1235', customer: 'Jane Smith', service: 'Brake Repair', status: 'Pending', time: '4 hours ago', priority: 'medium' },
-    { id: '#REQ-1236', customer: 'Mike Johnson', service: 'Engine Tune-up', status: 'Completed', time: '6 hours ago', priority: 'low' },
-    { id: '#REQ-1237', customer: 'Sarah Williams', service: 'Tire Replacement', status: 'In Progress', time: '1 hour ago', priority: 'high' },
-  ];
+  const recentRequests = stats.recent_requests || []
 
-  const topMechanics = [
-    { name: 'Rajesh Kumar', completed: 45, rating: 4.9, earnings: '₹35,200' },
-    { name: 'Amit Sharma', completed: 38, rating: 4.8, earnings: '₹28,500' },
-    { name: 'Vijay Patel', completed: 32, rating: 4.7, earnings: '₹24,800' },
-  ];
+  const topMechanics = stats.top_mechanics || []
 
-  const monthlyData = [
-    { month: 'Jan', revenue: 45000 },
-    { month: 'Feb', revenue: 52000 },
-    { month: 'Mar', revenue: 48000 },
-    { month: 'Apr', revenue: 61000 },
-    { month: 'May', revenue: 55000 },
-    { month: 'Jun', revenue: 72000 },
-  ];
+  const monthlyData = stats.monthly_data || []
 
   const dispatch = useDispatch()
 
@@ -87,8 +71,9 @@ const WorkshopDashboard = () => {
     dispatch(fetchWorkshopStats())
   },[dispatch])
   
-  console.log(stats)
-  const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
+  const maxRevenue = monthlyData.length
+  ? Math.max(...monthlyData.map(d => d.revenue))
+  : 1
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -225,6 +210,7 @@ const WorkshopDashboard = () => {
             </div>
 
             {/* Top Mechanics */}
+            {topMechanics?.length > 0 && 
             <div className="bg-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Top Performing Mechanics</h2>
@@ -258,6 +244,9 @@ const WorkshopDashboard = () => {
                 ))}
               </div>
             </div>
+            
+              
+            }
           </div>
         </div>
       </div>
