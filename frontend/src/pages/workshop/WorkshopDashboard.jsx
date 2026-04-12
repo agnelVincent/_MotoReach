@@ -85,8 +85,9 @@ const WorkshopDashboard = () => {
 
   useEffect(()=>{
     dispatch(fetchWorkshopStats())
-  })
-
+  },[dispatch])
+  
+  console.log(stats)
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
   return (

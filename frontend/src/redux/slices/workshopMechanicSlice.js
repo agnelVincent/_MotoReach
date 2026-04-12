@@ -5,7 +5,7 @@ import axiosInstance from '../../api/axiosInstance';
 
 export const fetchWorkshopStats = createAsyncThunk(
     'workshopMechanic/fetchWorkshopStats',
-    async ({rejectWithValue}) => {
+    async (_,{rejectWithValue}) => {
         try{
             const response = await axiosInstance.get('service_request/workshop/stats/')
             return response.data
@@ -162,7 +162,7 @@ const workshopMechanicSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchWorkshopStats.fulfilled, (state) => {
+            .addCase(fetchWorkshopStats.fulfilled, (state, action) => {
                 state.stats = action.payload
             })
 
