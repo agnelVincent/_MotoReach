@@ -141,6 +141,15 @@ const workshopMechanicSlice = createSlice({
         fetchLoading: false,
         error: null,
         successMessage: null,
+        stats : {
+            total_revenue : 0,
+            active_requests : 0,
+            completed_services : 0,
+            active_mechanics : 0,
+            recent_requests : 0,
+            top_mechanics : [],
+            monthly_data : []
+        }
     },
     reducers: {
         clearMessages: (state) => {
@@ -153,6 +162,8 @@ const workshopMechanicSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            
+
             .addCase(searchWorkshops.pending, (state) => {
                 state.searchLoading = true;
             })
