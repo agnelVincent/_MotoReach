@@ -1167,7 +1167,7 @@ class WorkshopDashboardStatsView(APIView):
         recent_connections = WorkshopConnection.objects.filter(
             workshop=workshop,
             status='ACCEPTED'
-        ).order_by('-created_at')[:5]
+        ).order_by('-requested_at')[:5]
         
         recent_requests_data = []
         for conn in recent_connections:
@@ -1176,7 +1176,7 @@ class WorkshopDashboardStatsView(APIView):
                 "customer": conn.service_request.user.full_name or conn.service_request.user.username,
                 "service": conn.service_request.issue_category,
                 "status": conn.service_request.get_status_display(),
-                "time": conn.created_at.strftime("%I:%M %p, %b %d"),
+                "time": conn.requested_at.strftime("%I:%M %p, %b %d"),
                 "priority": "high" if "Emergency" in conn.service_request.issue_category else "medium"
             })
             
@@ -1186,8 +1186,8 @@ class WorkshopDashboardStatsView(APIView):
             workshop=workshop
         ).annotate(
             completed_count=Count(
-                'executions',
-                filter=models.Q(executions__service_request__status__in=['COMPLETED', 'VERIFIED'])
+                'assigned_executions',
+                filter=models.Q(assigned_executions__service_request__status__in=['COMPLETED', 'VERIFIED'])
             )
         ).order_by('-completed_count')[:3]
         
@@ -1209,8 +1209,6 @@ class WorkshopDashboardStatsView(APIView):
             {"month": "May", "revenue": float(total_revenue) / 2},
             {"month": "Jun", "revenue": float(total_revenue)}
         ]
-
-        print('hiii.. its sending right now')
 
         return Response({
             "total_revenue": total_revenue,
