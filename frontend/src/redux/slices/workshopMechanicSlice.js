@@ -162,7 +162,9 @@ const workshopMechanicSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            
+            .addCase(fetchWorkshopStats.fulfilled, (state) => {
+                state.stats = action.payload
+            })
 
             .addCase(searchWorkshops.pending, (state) => {
                 state.searchLoading = true;

@@ -12,13 +12,18 @@ import {
   Award,
 } from 'lucide-react';
 import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchWorkshopStats } from '../../redux/slices/workshopMechanicSlice';
 
 
 const WorkshopDashboard = () => {
+
+  const {stats} = useSelector((state) => state.workshopMechanic)
+
   const metrics = [
     {
       title: 'Total Revenue',
-      value: '₹1,24,580',
+      value: stats.total_revenue,
       change: '+12.5%',
       isPositive: true,
       icon: DollarSign,
@@ -27,7 +32,7 @@ const WorkshopDashboard = () => {
     },
     {
       title: 'Active Requests',
-      value: '18',
+      value: stats.active_requests,
       change: '+3',
       isPositive: true,
       icon: FileText,
@@ -36,7 +41,7 @@ const WorkshopDashboard = () => {
     },
     {
       title: 'Completed Services',
-      value: '142',
+      value: stats.completed_services,
       change: '+8.2%',
       isPositive: true,
       icon: CheckCircle,
@@ -45,7 +50,7 @@ const WorkshopDashboard = () => {
     },
     {
       title: 'Active Mechanics',
-      value: '12',
+      value: stats.active_mechanics,
       change: '+2',
       isPositive: true,
       icon: Users,
@@ -76,6 +81,11 @@ const WorkshopDashboard = () => {
     { month: 'Jun', revenue: 72000 },
   ];
 
+  const dispatch = useDispatch()
+
+  useEffect(()=>{
+    dispatch(fetchWorkshopStats())
+  })
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
