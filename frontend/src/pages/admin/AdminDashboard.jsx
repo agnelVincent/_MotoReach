@@ -29,7 +29,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     dispatch(fetchAdminStats())
-  },[])
+  },[dispatch])
 
   const {stats} = useSelector((state) => state.admin)
 
@@ -89,7 +89,7 @@ const AdminDashboard = () => {
 
   const monthlyData = stats.monthly_data || []
 
-  const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
+  const maxRevenue = Math.max(...monthlyData.map(d => d.revenue),1);
 
 const formatTime = (dateString) => {
     const date = new Date(dateString);
@@ -222,7 +222,10 @@ const getTypeColor = (type) => {
                           className="h-full bg-gradient-to-r from-slate-600 to-slate-800 rounded-lg transition-all duration-1000 flex items-center justify-end pr-3"
                           style={{ width: `${(data.revenue / maxRevenue) * 100}%` }}
                         >
-                          <span className="text-xs font-semibold text-white">₹{(data.revenue / 1000).toFixed(0)}K</span>
+                          <span className="text-xs font-semibold text-white">₹{data.revenue >= 1000
+                              ? `₹${(data.revenue / 1000).toFixed(1)}K`
+                              : `₹${data.revenue}`
+                            }K</span>
                         </div>
                       </div>
                     </div>

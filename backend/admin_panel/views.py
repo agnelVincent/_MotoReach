@@ -54,9 +54,13 @@ class AdminDashboardStatsView(APIView):
         if wallet:
             for i in range(5,-1,-1):
                 target_date = now - relativedelta(months=i)
-                revenue = WalletTransaction.objects.filter(wallet = wallet, 
+                qs = WalletTransaction.objects.filter(wallet = wallet, 
+                                                           transaction_type='CREDIT',
                                                            created_at__year = target_date.year, 
-                                                           created_at__month = target_date.month).aggregate(total = Sum('amount'))['total']
+                                                           created_at__month = target_date.month)
+                
+
+                revenue = qs.aggregate(total = Sum('amount'))['total']
 
                 monthly_data.append({
                     'month' : target_date.strftime('%b'),
@@ -71,6 +75,7 @@ class AdminDashboardStatsView(APIView):
                     'revenue' : 0
                 })
 
+        print(monthly_data)
         return Response(
             {
                 'metrics' : {
