@@ -1194,21 +1194,42 @@ class WorkshopDashboardStatsView(APIView):
         top_mechanics_data = []
         for index, mechanic in enumerate(top_mechanics):
             top_mechanics_data.append({
-                "name": mechanic.name,
+                "name": mechanic.user.full_name,
                 "completed": mechanic.completed_count,
                 "rating": 4.5,
                 "earnings": "N/A"
             })
             
-        # 7. Monthly Revenue (Mocked for dashboard styling)
-        monthly_data = [
-            {"month": "Jan", "revenue": 1000},
-            {"month": "Feb", "revenue": 1500},
-            {"month": "Mar", "revenue": 1200},
-            {"month": "Apr", "revenue": (float(total_revenue) % 5000) + 1000},
-            {"month": "May", "revenue": float(total_revenue) / 2},
-            {"month": "Jun", "revenue": float(total_revenue)}
-        ]
+        # 7. Monthly Revenue (Actual over last 6 months)
+        from payments.models import WalletTransaction
+        from django.utils import timezone
+        from dateutil.relativedelta import relativedelta
+        from django.db.models import Sum
+        
+        now = timezone.now()
+        monthly_data = []
+        
+        if wallet:
+            for i in range(5, -1, -1):
+                target_date = now - relativedelta(months=i)
+                revenue = WalletTransaction.objects.filter(
+                    wallet=wallet,
+                    transaction_type='CREDIT',
+                    created_at__year=target_date.year,
+                    created_at__month=target_date.month
+                ).aggregate(total=Sum('amount'))['total']
+                
+                monthly_data.append({
+                    "month": target_date.strftime("%b"),
+                    "revenue": float(revenue) if revenue else 0
+                })
+        else:
+            for i in range(5, -1, -1):
+                target_date = now - relativedelta(months=i)
+                monthly_data.append({
+                    "month": target_date.strftime("%b"),
+                    "revenue": 0
+                })
 
         return Response({
             "total_revenue": total_revenue,
