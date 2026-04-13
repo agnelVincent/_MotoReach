@@ -24,8 +24,6 @@ const WorkshopDashboard = () => {
     {
       title: 'Total Revenue',
       value: stats.total_revenue,
-      change: '+12.5%',
-      isPositive: true,
       icon: DollarSign,
       gradient: 'from-green-500 to-emerald-600',
       bgGradient: 'from-green-50 to-emerald-50'
@@ -33,8 +31,6 @@ const WorkshopDashboard = () => {
     {
       title: 'Active Requests',
       value: stats.active_requests,
-      change: '+3',
-      isPositive: true,
       icon: FileText,
       gradient: 'from-blue-500 to-indigo-600',
       bgGradient: 'from-blue-50 to-indigo-50'
@@ -42,8 +38,6 @@ const WorkshopDashboard = () => {
     {
       title: 'Completed Services',
       value: stats.completed_services,
-      change: '+8.2%',
-      isPositive: true,
       icon: CheckCircle,
       gradient: 'from-purple-500 to-pink-600',
       bgGradient: 'from-purple-50 to-pink-50'
@@ -51,8 +45,6 @@ const WorkshopDashboard = () => {
     {
       title: 'Active Mechanics',
       value: stats.active_mechanics,
-      change: '+2',
-      isPositive: true,
       icon: Users,
       gradient: 'from-orange-500 to-red-600',
       bgGradient: 'from-orange-50 to-red-50'
@@ -102,10 +94,6 @@ const WorkshopDashboard = () => {
                     <div className="flex items-start justify-between mb-4">
                       <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${metric.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div className={`flex items-center gap-1 text-sm font-semibold ${metric.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {metric.isPositive ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                        {metric.change}
                       </div>
                     </div>
                     
