@@ -8,7 +8,10 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from service_request.models import ServiceRequest
-from payments.models import Wallet
+from payments.models import Wallet, WalletTransaction
+from django.utils import timezone
+from dateutil.relativedelta import relativedelta
+from django.db.models import Sum
 
 class AdminDashboardStatsView(APIView):
     permission_classes = [IsAdminUser]
@@ -22,7 +25,7 @@ class AdminDashboardStatsView(APIView):
 
         total_requests = ServiceRequest.objects.all().count()
 
-        total_revenue = Wallet.objects.get(user = request.user)
+        wallet = Wallet.objects.get(user = request.user)
 
         signups_data = [
             {
@@ -44,6 +47,30 @@ class AdminDashboardStatsView(APIView):
             } for w in pending_workshops
         ]
 
+        monthly_data = []
+
+        now = timezone.now()
+
+        if wallet:
+            for i in range(5,-1,-1):
+                target_date = now - relativedelta(months=i)
+                revenue = WalletTransaction.objects.filter(wallet = wallet, 
+                                                           created_at__year = target_date.year, 
+                                                           created_at__month = target_date.month).aggregate(total = Sum('amount'))['total']
+
+                monthly_data.append({
+                    'month' : target_date.strftime('%b'),
+                    'revenue' : float(revenue) if revenue else 0
+                })
+        
+        else:
+            for i in range(5,-1,-1):
+                target_date = now - relativedelta(months=i)
+                monthly_data.append({
+                    'month' : target_date.strftime('%b'),
+                    'revenue' : 0
+                })
+
         return Response(
             {
                 'metrics' : {
@@ -54,7 +81,8 @@ class AdminDashboardStatsView(APIView):
                 'recent_signups' : signups_data,
                 'pending_approvals' : pending_data,
                 'total_requests' : total_requests,
-                'total_revenue' : total_revenue.balance
+                'total_revenue' : wallet.balance,
+                'monthly_data' : monthly_data
             }, status=status.HTTP_200_OK
         )
     
