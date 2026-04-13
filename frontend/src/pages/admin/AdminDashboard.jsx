@@ -37,7 +37,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Users',
       value: stats.metrics.total_users,
-      isPositive: true,
       icon: Users,
       gradient: 'from-blue-500 to-indigo-600',
       bgGradient: 'from-blue-50 to-indigo-50'
@@ -45,7 +44,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Workshops',
       value: stats.metrics.total_workshops,
-      isPositive: true,
       icon: Building2,
       gradient: 'from-purple-500 to-pink-600',
       bgGradient: 'from-purple-50 to-pink-50'
@@ -53,7 +51,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Mechanics',
       value: stats.metrics.total_mechanics,
-      isPositive: true,
       icon: User,
       gradient: 'from-orange-500 to-red-600',
       bgGradient: 'from-orange-50 to-red-50'
@@ -61,8 +58,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Requests',
       value: stats.total_requests,
-      change: '+22.5%',
-      isPositive: true,
       icon: FileText,
       gradient: 'from-green-500 to-emerald-600',
       bgGradient: 'from-green-50 to-emerald-50'
@@ -70,8 +65,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Subscriptions',
       value: '4,892',
-      change: '+18.7%',
-      isPositive: true,
       icon: CreditCard,
       gradient: 'from-cyan-500 to-blue-600',
       bgGradient: 'from-cyan-50 to-blue-50'
@@ -79,8 +72,6 @@ const AdminDashboard = () => {
     {
       title: 'Total Revenue',
       value: stats.total_revenue,
-      change: '+25.4%',
-      isPositive: true,
       icon: DollarSign,
       gradient: 'from-yellow-500 to-orange-600',
       bgGradient: 'from-yellow-50 to-orange-50'
@@ -180,10 +171,6 @@ const getTypeColor = (type) => {
                       <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${metric.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                         <Icon className="w-6 h-6 text-white" />
                       </div>
-                      <div className={`flex items-center gap-1 text-sm font-semibold ${metric.isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                        {metric.isPositive ? <ArrowUpRight className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                        {metric.change}
-                      </div>
                     </div>
                     
                     <h3 className="text-3xl font-bold text-gray-800 mb-1">
@@ -199,7 +186,7 @@ const getTypeColor = (type) => {
           </div>
 
           {/* Revenue Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className=" flex justify-center grid grid-cols-1 gap-6 mb-8">
             <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -231,21 +218,6 @@ const getTypeColor = (type) => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="space-y-4">
-              <div className="bg-gradient-to-br from-slate-700 to-slate-900 rounded-2xl p-6 shadow-lg text-white">
-                <Activity className="w-12 h-12 mb-4 opacity-80" />
-                <h3 className="text-3xl font-bold mb-2">99.2%</h3>
-                <p className="text-slate-200">Platform Uptime</p>
-              </div>
-
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg text-white">
-                <Zap className="w-12 h-12 mb-4 opacity-80" />
-                <h3 className="text-3xl font-bold mb-2">1.2M</h3>
-                <p className="text-blue-100">Total Transactions</p>
               </div>
             </div>
           </div>
