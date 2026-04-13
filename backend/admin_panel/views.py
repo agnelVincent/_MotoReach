@@ -8,7 +8,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from service_request.models import ServiceRequest
-
+from payments.models import Wallet
 
 class AdminDashboardStatsView(APIView):
     permission_classes = [IsAdminUser]
@@ -21,6 +21,8 @@ class AdminDashboardStatsView(APIView):
         recent_signups = User.objects.all().order_by('-date_joined')[:5]
 
         total_requests = ServiceRequest.objects.all().count()
+
+        total_revenue = Wallet.objects.get(user = request.user)
 
         signups_data = [
             {
@@ -51,7 +53,8 @@ class AdminDashboardStatsView(APIView):
                 },
                 'recent_signups' : signups_data,
                 'pending_approvals' : pending_data,
-                'total_requests' : total_requests
+                'total_requests' : total_requests,
+                'total_revenue' : total_revenue.balance
             }, status=status.HTTP_200_OK
         )
     

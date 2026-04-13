@@ -78,7 +78,7 @@ const AdminDashboard = () => {
     },
     {
       title: 'Total Revenue',
-      value: '₹45,67,890',
+      value: stats.total_revenue,
       change: '+25.4%',
       isPositive: true,
       icon: DollarSign,
