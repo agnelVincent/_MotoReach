@@ -35,7 +35,8 @@ const adminSlice = createSlice({
             total_requests : 0,
             total_revenue : 0,
             recent_signups: [],
-            pending_approvals: []
+            pending_approvals: [],
+            monthly_data : []
         },
         loading: false,
         error: null

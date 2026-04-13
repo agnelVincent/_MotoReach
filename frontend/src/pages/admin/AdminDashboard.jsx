@@ -87,14 +87,7 @@ const AdminDashboard = () => {
     }
   ];
 
-  const monthlyData = [
-    { month: 'Jan', revenue: 280000 },
-    { month: 'Feb', revenue: 320000 },
-    { month: 'Mar', revenue: 295000 },
-    { month: 'Apr', revenue: 385000 },
-    { month: 'May', revenue: 410000 },
-    { month: 'Jun', revenue: 456789 },
-  ];
+  const monthlyData = stats.monthly_data || []
 
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue));
 
