@@ -13,6 +13,7 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
 from .models import Complaint
+from .serializers import ComplaintSerializer
 
 class AdminDashboardStatsView(APIView):
     permission_classes = [IsAdminUser]
@@ -76,8 +77,9 @@ class AdminDashboardStatsView(APIView):
                     'revenue' : 0
                 })
 
-        complaints = Complaint.objects.order_by('-created_at')[:5].values()
-        
+        complaints = Complaint.objects.order_by('-created_at')[:5]
+        complaints = ComplaintSerializer(complaints,many = True)
+        print(complaints.data)
 
         return Response(
             {
@@ -91,6 +93,7 @@ class AdminDashboardStatsView(APIView):
                 'total_requests' : total_requests,
                 'total_revenue' : wallet.balance,
                 'monthly_data' : monthly_data,
+                'complaints' : complaints.data
 
             }, status=status.HTTP_200_OK
         )
