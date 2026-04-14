@@ -88,11 +88,7 @@ const formatTime = (dateString) => {
   };
 
 
-  const recentComplaints = [
-    { id: 'COMP-1234', user: 'John Doe', workshop: 'AutoFix Workshop', issue: 'Poor service quality', priority: 'high', status: 'Open' },
-    { id: 'COMP-1235', user: 'Jane Smith', workshop: 'SpeedCare', issue: 'Delayed service', priority: 'medium', status: 'In Review' },
-    { id: 'COMP-1236', user: 'Mike Johnson', workshop: 'ProMech', issue: 'Billing issue', priority: 'low', status: 'Resolved' },
-  ];
+  const recentComplaints = stats.complaints || []
 
 const getTypeColor = (type) => {
     const t = type.toLowerCase();
@@ -356,16 +352,16 @@ const getTypeColor = (type) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-xs font-mono font-semibold text-gray-600">{complaint.id}</span>
-                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getPriorityColor(complaint.priority)}`}>
+                      {/* <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getPriorityColor(complaint.priority)}`}>
                         {complaint.priority.toUpperCase()}
-                      </span>
+                      </span> */}
                     </div>
-                    <p className="font-semibold text-gray-800 mb-1">{complaint.issue}</p>
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-600">
-                      <span>User: {complaint.user}</span>
-                      <span>•</span>
-                      <span>Workshop: {complaint.workshop}</span>
-                    </div>
+                    <p className="font-semibold text-gray-800 mb-1">{complaint.description}</p>
+                      <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                        <span>Reporter: {complaint.reporter}</span>
+                        <span>•</span>
+                        <span>Against: {complaint.reported_user}</span>
+                      </div>
                   </div>
                   <span className={`text-xs font-semibold px-4 py-2 rounded-full ${getStatusColor(complaint.status)} whitespace-nowrap`}>
                     {complaint.status}
