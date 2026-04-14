@@ -189,10 +189,6 @@ const getTypeColor = (type) => {
                   <h2 className="text-xl font-bold text-gray-800 mb-1">Revenue Overview</h2>
                   <p className="text-sm text-gray-600">Monthly revenue trends (Last 6 months)</p>
                 </div>
-                <div className="flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-semibold text-green-600">+25.4%</span>
-                </div>
               </div>
 
               <div className="space-y-4">
@@ -352,9 +348,6 @@ const getTypeColor = (type) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-xs font-mono font-semibold text-gray-600">{complaint.id}</span>
-                      {/* <span className={`text-xs font-semibold px-3 py-1 rounded-full ${getPriorityColor(complaint.priority)}`}>
-                        {complaint.priority.toUpperCase()}
-                      </span> */}
                     </div>
                     <p className="font-semibold text-gray-800 mb-1">{complaint.description}</p>
                       <div className="flex flex-wrap gap-3 text-sm text-gray-600">
