@@ -12,6 +12,7 @@ from payments.models import Wallet, WalletTransaction
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 from django.db.models import Sum
+from .models import Complaint
 
 class AdminDashboardStatsView(APIView):
     permission_classes = [IsAdminUser]
@@ -75,7 +76,9 @@ class AdminDashboardStatsView(APIView):
                     'revenue' : 0
                 })
 
-        print(monthly_data)
+        complaints = Complaint.objects.order_by('-created_at')[:5].values()
+        
+
         return Response(
             {
                 'metrics' : {
@@ -87,7 +90,8 @@ class AdminDashboardStatsView(APIView):
                 'pending_approvals' : pending_data,
                 'total_requests' : total_requests,
                 'total_revenue' : wallet.balance,
-                'monthly_data' : monthly_data
+                'monthly_data' : monthly_data,
+
             }, status=status.HTTP_200_OK
         )
     
