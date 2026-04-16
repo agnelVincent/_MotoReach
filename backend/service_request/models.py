@@ -216,3 +216,25 @@ class ServiceExecution(models.Model):
 
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+
+
+class MechanicEarning(models.Model):
+    EARNING_TYPE_CHOICES = [
+        ('SERVICE_SHARE','Service Share'),
+        ('BONUS','Bonus')
+    ]
+    mechanic = models.ForeignKey(
+        'accounts.Mechanic',
+        on_delete = models.CASCADE,
+        related_name= 'earnings'
+    )
+    service_execution = models.ForeignKey(
+        'service_request.ServiceExecution',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='mechanic_earnings'
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    earning_type = models.CharField(max_length=20, choices=EARNING_TYPE_CHOICES, default='SERVICE_SHARE')
+    description = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)

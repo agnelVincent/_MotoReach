@@ -1097,8 +1097,11 @@ class VerifyServiceOTPView(APIView):
             return Response({"error": "Only the service request owner can verify OTP"}, status=status.HTTP_403_FORBIDDEN)
         if execution.otp_code != otp:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        
         from payments.models import Payment, Wallet, WalletTransaction
         from django.db.models import F
+
+
         with transaction.atomic():
             execution.completed_at = timezone.now()
             execution.otp_code = None 
@@ -1113,6 +1116,9 @@ class VerifyServiceOTPView(APIView):
             ).first()
             if escrow_payment:
                 workshop_user = execution.workshop.user
+
+                
+
                 wallet, _ = Wallet.objects.get_or_create(user=workshop_user)
                 wallet.balance = F('balance') + escrow_payment.amount
                 wallet.save()
@@ -1128,6 +1134,7 @@ class VerifyServiceOTPView(APIView):
             execution.service_request.status = 'VERIFIED'
             execution.service_request.save()
             notify_service_flow_update(execution.service_request_id)
+
         return Response({"message": "Service verified. Payment released to workshop."}, status=status.HTTP_200_OK)
 
 class WorkshopDashboardStatsView(APIView):
