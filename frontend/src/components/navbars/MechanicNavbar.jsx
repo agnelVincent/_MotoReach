@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown } from 'lucide-react';
+import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown, Wallet } from 'lucide-react';
 // 👇 1. Import useNavigate for routing
 // 👇 1. Import useNavigate for routing
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -18,6 +18,7 @@ const MechanicNavbar = () => {
     { name: 'Dashboard', path: '/mechanic', icon: LayoutDashboard },
     { name: 'Requests', path: '/mechanic/requests', icon: FileText },
     { name: 'Workshop', path: '/mechanic/workshop', icon: Building2 },
+    { name: 'Wallet', path: '/mechanic/wallet', icon: Wallet },
   ];
 
   const profileMenuItems = [

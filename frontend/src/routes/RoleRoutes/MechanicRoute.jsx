@@ -5,6 +5,7 @@ import MechanicProfile from "../../pages/mechanic/MechanicProfile";
 import MechanicWorkshop from "../../pages/mechanic/MechanicWorkshop";
 import MechanicRequests from "../../pages/mechanic/MechanicRequests";
 import MechanicServiceFlow from "../../pages/mechanic/MechanicServiceFlow";
+import MechanicWallet from "../../pages/mechanic/MechanicWallet";
 
 function MechanicRoute() {
     return (
@@ -14,6 +15,7 @@ function MechanicRoute() {
             <Route path="workshop" element={<MechanicWorkshop />} />
             <Route path="requests" element={<MechanicRequests />} />
             <Route path="service-flow/:requestId" element={<MechanicServiceFlow />} />
+            <Route path="wallet" element={<MechanicWallet />} />
         </Route>
     );
 }
