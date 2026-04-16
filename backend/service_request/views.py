@@ -1103,6 +1103,7 @@ class VerifyServiceOTPView(APIView):
 
 
         with transaction.atomic():
+
             execution.completed_at = timezone.now()
             execution.otp_code = None 
             execution.save()
@@ -1114,23 +1115,62 @@ class VerifyServiceOTPView(APIView):
                 status='COMPLETED',
                 escrow_released=False
             ).first()
+
             if escrow_payment:
                 workshop_user = execution.workshop.user
 
-                
+                from decimal import Decimal
+
+                MECHANIC_SHARE_PERCENTAGE = Decimal('0.20')
+
+                mechanics = list(execution.mechanics.all())
+
+                if mechanics:
+                    mechanic_pool = (escrow_payment.amount * MECHANIC_SHARE_PERCENTAGE).quantize(Decimal('0.01'))
+                    workshop_share = escrow_payment.amount - mechanic_pool
+                    per_mechanic_amount = (mechanic_pool / len(mechanics)).quantize(Decimal('0.01'))
+
+                else:
+                    workshop_share = escrow_payment.amount
+                    mechanic_pool = Decimal('0.00')
+                    per_mechanic_amount = Decimal('0.00')
 
                 wallet, _ = Wallet.objects.get_or_create(user=workshop_user)
-                wallet.balance = F('balance') + escrow_payment.amount
+                wallet.balance = F('balance') + workshop_share
                 wallet.save()
-                wallet.refresh_from_db()
+
                 WalletTransaction.objects.create(
                     wallet=wallet,
-                    amount=escrow_payment.amount,
+                    amount=workshop_share,
                     transaction_type='CREDIT',
                     description=f"Service completion payout for request #{execution.service_request.id}"
                 )
+                
+                from .models import MechanicEarning
+                for mechanic in mechanics:
+                    m_wallet, _ = Wallet.objects.get_or_create(user = mechanic.user)
+                    m_wallet.balance = F('balance') + per_mechanic_amount
+                    m_wallet.save()
+
+                    WalletTransaction.objects.create(
+                        wallet = m_wallet,
+                        amount = per_mechanic_amount,
+                        transaction_type = 'CREDIT',
+                        description = f"Service share (20% / {len(mechanics)} mechanic(s)) for request #{execution.service_request.id}"
+                    )
+
+                    MechanicEarning.objects.create(
+                        mechanic = mechanic,
+                        service_execution = execution,
+                        amount = per_mechanic_amount,
+                        earning_type = 'SERVICE_SHARE',
+                        description = f"Auto share from service #{execution.service_request.id}"
+                    )
+
+
                 escrow_payment.escrow_released = True
                 escrow_payment.save()
+
             execution.service_request.status = 'VERIFIED'
             execution.service_request.save()
             notify_service_flow_update(execution.service_request_id)
