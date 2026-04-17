@@ -34,7 +34,9 @@ const mechanicWalletSlice = createSlice({
         error : null
     },
     reducers : {
-        clearMechanicWalletError : (state)
+        clearMechanicWalletError : (state) => {
+            state.error = null
+        }
     },
     extraReducers : (builder) => {
         builder 

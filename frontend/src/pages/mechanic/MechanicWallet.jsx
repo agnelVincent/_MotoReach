@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMechanicWallet } from '../../redux/slices/mechanicWalletSlice';
+
 import {
   Wallet,
   TrendingUp,
@@ -16,97 +19,6 @@ import {
   Users,
 } from 'lucide-react';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-// Shaped exactly like the future API response from GET /payments/mechanic/earnings/
-const MOCK_WALLET = {
-  balance: 4850.00,
-  total_earned: 12340.00,
-  this_month: 2100.00,
-  total_bonuses: 1250.00,
-  total_services: 18,
-};
-
-const MOCK_EARNINGS = [
-  {
-    id: 1,
-    earning_type: 'SERVICE_SHARE',
-    amount: '500.00',
-    description: 'Auto share from service #47',
-    service_execution: {
-      service_request: { id: 47, issue_category: 'Engine Oil Change', vehicle_model: 'Honda City' },
-      mechanic_count: 2,
-    },
-    created_at: '2026-04-16T08:30:00Z',
-  },
-  {
-    id: 2,
-    earning_type: 'BONUS',
-    amount: '300.00',
-    description: 'Bonus from workshop admin: Great work on the engine!',
-    service_execution: null,
-    created_at: '2026-04-15T17:15:00Z',
-  },
-  {
-    id: 3,
-    earning_type: 'SERVICE_SHARE',
-    amount: '750.00',
-    description: 'Auto share from service #43',
-    service_execution: {
-      service_request: { id: 43, issue_category: 'Brake System Repair', vehicle_model: 'Maruti Swift' },
-      mechanic_count: 1,
-    },
-    created_at: '2026-04-14T11:00:00Z',
-  },
-  {
-    id: 4,
-    earning_type: 'SERVICE_SHARE',
-    amount: '350.00',
-    description: 'Auto share from service #39',
-    service_execution: {
-      service_request: { id: 39, issue_category: 'Battery Replacement', vehicle_model: 'Hyundai i20' },
-      mechanic_count: 3,
-    },
-    created_at: '2026-04-12T14:45:00Z',
-  },
-  {
-    id: 5,
-    earning_type: 'BONUS',
-    amount: '500.00',
-    description: 'Bonus from workshop admin: Monthly performance reward',
-    service_execution: null,
-    created_at: '2026-04-10T09:00:00Z',
-  },
-  {
-    id: 6,
-    earning_type: 'SERVICE_SHARE',
-    amount: '420.00',
-    description: 'Auto share from service #35',
-    service_execution: {
-      service_request: { id: 35, issue_category: 'Tire Puncture Fix', vehicle_model: 'Toyota Innova' },
-      mechanic_count: 2,
-    },
-    created_at: '2026-04-08T16:20:00Z',
-  },
-  {
-    id: 7,
-    earning_type: 'SERVICE_SHARE',
-    amount: '680.00',
-    description: 'Auto share from service #31',
-    service_execution: {
-      service_request: { id: 31, issue_category: 'Full Service', vehicle_model: 'Mahindra Thar' },
-      mechanic_count: 1,
-    },
-    created_at: '2026-04-05T10:30:00Z',
-  },
-  {
-    id: 8,
-    earning_type: 'BONUS',
-    amount: '450.00',
-    description: 'Bonus from workshop admin: Special festival reward',
-    service_execution: null,
-    created_at: '2026-04-01T12:00:00Z',
-  },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCurrency = (amount) =>
@@ -133,8 +45,10 @@ const MechanicWallet = () => {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showBalance, setShowBalance] = useState(true);
+  const dispatch = useDispatch()
+  const { balance, totalEarned, thisMonth, totalBonuses, totalServices, earnings, loading, error } = useSelector((state) => state.mechanicWallet);
 
-  const filtered = MOCK_EARNINGS.filter((e) => {
+  const filtered = earnings.filter((e) => {
     const matchFilter = activeFilter === 'ALL' || e.earning_type === activeFilter;
     const matchSearch =
       search === '' ||
