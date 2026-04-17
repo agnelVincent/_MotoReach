@@ -62,28 +62,28 @@ const MechanicWallet = () => {
   const stats = [
     {
       label: 'Total Earned',
-      value: formatCurrency(MOCK_WALLET.total_earned),
+      value: formatCurrency(totalEarned),
       icon: TrendingUp,
       gradient: 'from-blue-500 to-indigo-600',
       bg: 'bg-blue-50',
     },
     {
       label: 'This Month',
-      value: formatCurrency(MOCK_WALLET.this_month),
+      value: formatCurrency(thisMonth),
       icon: Calendar,
       gradient: 'from-green-500 to-emerald-600',
       bg: 'bg-green-50',
     },
     {
       label: 'Bonuses Received',
-      value: formatCurrency(MOCK_WALLET.total_bonuses),
+      value: formatCurrency(totalBonuses),
       icon: Gift,
       gradient: 'from-purple-500 to-pink-600',
       bg: 'bg-purple-50',
     },
     {
       label: 'Services Done',
-      value: MOCK_WALLET.total_services,
+      value: totalServices,
       icon: Wrench,
       gradient: 'from-orange-500 to-red-600',
       bg: 'bg-orange-50',
@@ -118,7 +118,7 @@ const MechanicWallet = () => {
                 </p>
                 <div className="flex items-center gap-3">
                   <h2 className="text-5xl font-extrabold text-white tracking-tight">
-                    {showBalance ? formatCurrency(MOCK_WALLET.balance) : '₹ ••••••'}
+                    {showBalance ? formatCurrency(balance) : '₹ ••••••'}
                   </h2>
                   <button
                     onClick={() => setShowBalance(!showBalance)}
@@ -140,11 +140,11 @@ const MechanicWallet = () => {
               <div className="flex gap-3">
                 <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center border border-white/20">
                   <p className="text-orange-100 text-xs mb-1">This Month</p>
-                  <p className="text-white font-bold text-lg">{formatCurrency(MOCK_WALLET.this_month)}</p>
+                  <p className="text-white font-bold text-lg">{formatCurrency(thisMonth)}</p>
                 </div>
                 <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center border border-white/20">
                   <p className="text-orange-100 text-xs mb-1 flex items-center gap-1"><Star className="w-3 h-3" /> Bonuses</p>
-                  <p className="text-white font-bold text-lg">{formatCurrency(MOCK_WALLET.total_bonuses)}</p>
+                  <p className="text-white font-bold text-lg">{formatCurrency(totalBonuses)}</p>
                 </div>
               </div>
             </div>
@@ -176,22 +176,22 @@ const MechanicWallet = () => {
               <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
-                  style={{ width: `${((MOCK_WALLET.total_earned - MOCK_WALLET.total_bonuses) / MOCK_WALLET.total_earned * 100).toFixed(1)}%` }}
+                  style={{ width: `${((totalEarned - totalBonuses) /totalEarned * 100).toFixed(1)}%` }}
                 />
               </div>
               <div
                 className="h-3 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 transition-all"
-                style={{ width: `${(MOCK_WALLET.total_bonuses / MOCK_WALLET.total_earned * 100).toFixed(1)}%` }}
+                style={{ width: `${(totalBonuses / totalEarned * 100).toFixed(1)}%` }}
               />
             </div>
             <div className="flex items-center gap-6 text-xs text-gray-500">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />
-                Service Share — {formatCurrency(MOCK_WALLET.total_earned - MOCK_WALLET.total_bonuses)}
+                Service Share — {formatCurrency(totalEarned - totalBonuses)}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block" />
-                Bonuses — {formatCurrency(MOCK_WALLET.total_bonuses)}
+                Bonuses — {formatCurrency(totalBonuses)}
               </span>
             </div>
           </div>
