@@ -518,4 +518,86 @@ class WorkshopPaymentHistoryView(APIView):
 
         serializer = PaymentHistorySerializer(escrow_payments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class MechanicWalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.role != 'mechanic':
+            return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_403_FORBIDDEN)
+        
+        from service_request.models import MechanicEarning
+        from django.db.models import Sum,Count,Q
+        from decimal import Decimal
+        from accounts.models import Mechanic
+
+        try:
+            mechanic = request.user.mechanic
+        except Mechanic.DoesNotExist:
+            return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        wallet, _ = Wallet.objects.get_or_create(user = request.user)
+
+        earning_qs = MechanicEarning.objects.filter(mechanic=mechanic)
+
+        total_earned = earning_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        total_bonuses = earning_qs.filter(earning_type = 'BONUS').aggregate(total = Sum('amount'))['total'] or Decimal('0.00')
+        total_services = earning_qs.filter(earning_type = 'SERVICE_SHARE').values('service_execution').distinct().count()
+
+        from django.utils import timezone
+        now = timezone.now()
+
+        this_month = earning_qs.filter(
+            created_at__year = now.year,
+            created_at__month = now.month
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        page = int(request.GET.get('page',1))
+        page_size = int(request.GET.get('page_size',20))
+        start = (page - 1) * page_size
+        end = start + page_size
+
+
+        earning_list = earning_qs.select_related(
+            'service_execution__service_request'
+        ).order_by('-created_at')[start:end]
+
+        earning_data = []
+
+        for e in earning_list:
+            se = e.service_execution
+            sr = se.service_request if se else None
+            mechanic_count = se.mechanics.count() if se else 0
+
+            earning_data.append({
+                'id' : e.id,
+                'earning_type' : e.earning_type,
+                'amount' : str(e.amount),
+                'description' : e.description,
+                'created_at' : e.created_at,
+                'service_execution' : {
+                    'id' : se.id,
+                    'mechanic_count' : mechanic_count,
+                    'service_request' : {
+                        'id' : sr.id,
+                        'issue_category' : sr.issue_category,
+                        'vehicle_model' : sr.vehicle_model
+                    } if sr else None
+                } if se else None
+            })
+
+            return Response({
+                'balance' : str(wallet.balance),
+                'total_earned' : str(total_earned),
+                'this_month' : str(this_month),
+                'total_bonuses' : str(total_bonuses),
+                'total_services' : total_services,
+                'earnings' : earning_data,
+                'total' : earning_qs.count(),
+                'page' : page,
+                'page_size' : page_size,
+                'has_more' : end < earning_qs.count()
+            })
+
 
