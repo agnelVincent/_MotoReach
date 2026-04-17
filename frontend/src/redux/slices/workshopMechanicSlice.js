@@ -127,18 +127,6 @@ export const cancelJoinRequest = createAsyncThunk(
     }
 );
 
-export const mechanicWalletData = createAsyncThunk(
-    'workshopMechanic/mechanicWalletData',
-    async (_, {rejectWithValue}) => {
-        try{
-            const response = await axiosInstance.post('payments/mechanic/wallet/');
-            return response.data;
-        }
-        catch(error){
-            return rejectWithValue(error.response?.data?.error || 'Failed to fetch wallet data')
-        }
-    }
-)
 
 const workshopMechanicSlice = createSlice({
     name: 'workshopMechanic',
@@ -163,7 +151,6 @@ const workshopMechanicSlice = createSlice({
             top_mechanics : [],
             monthly_data : []
         },
-        workshopWallet : []
     },
     reducers: {
         clearMessages: (state) => {
@@ -177,10 +164,6 @@ const workshopMechanicSlice = createSlice({
     extraReducers: (builder) => {
         builder
 
-            .addCase(mechanicWalletData.fulfilled, (state,action) => {
-                state.workshopWallet = action.payload
-            })
-            
             .addCase(fetchWorkshopStats.fulfilled, (state, action) => {
                 state.stats = action.payload
             })
