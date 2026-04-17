@@ -176,6 +176,11 @@ const workshopMechanicSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+
+            .addCase(mechanicWalletData.fulfilled, (state,action) => {
+                state.workshopWallet = action.payload
+            })
+            
             .addCase(fetchWorkshopStats.fulfilled, (state, action) => {
                 state.stats = action.payload
             })
