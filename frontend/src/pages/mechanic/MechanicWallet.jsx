@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMechanicWallet } from '../../redux/slices/mechanicWalletSlice';
 
@@ -46,7 +46,12 @@ const MechanicWallet = () => {
   const [search, setSearch] = useState('');
   const [showBalance, setShowBalance] = useState(true);
   const dispatch = useDispatch()
+
   const { balance, totalEarned, thisMonth, totalBonuses, totalServices, earnings, loading, error } = useSelector((state) => state.mechanicWallet);
+
+  useEffect(() => {
+    dispatch(fetchMechanicWallet())
+  }, [dispatch])
 
   const filtered = earnings.filter((e) => {
     const matchFilter = activeFilter === 'ALL' || e.earning_type === activeFilter;

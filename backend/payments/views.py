@@ -538,6 +538,7 @@ class MechanicWalletView(APIView):
             return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_404_NOT_FOUND)
         
         wallet, _ = Wallet.objects.get_or_create(user = request.user)
+        print(wallet.balance)
 
         earning_qs = MechanicEarning.objects.filter(mechanic=mechanic)
 
