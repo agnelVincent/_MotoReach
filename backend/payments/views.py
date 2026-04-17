@@ -524,7 +524,7 @@ class MechanicWalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.role != 'mechanic':
+        if not hasattr(request.user, 'mechanic'):
             return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_403_FORBIDDEN)
         
         from service_request.models import MechanicEarning
