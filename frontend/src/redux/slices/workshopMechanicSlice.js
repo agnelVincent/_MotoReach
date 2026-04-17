@@ -127,6 +127,19 @@ export const cancelJoinRequest = createAsyncThunk(
     }
 );
 
+export const mechanicWalletData = createAsyncThunk(
+    'workshopMechanic/mechanicWalletData',
+    async (_, {rejectWithValue}) => {
+        try{
+            const response = await axiosInstance.post('payments/mechanic/wallet/');
+            return response.data;
+        }
+        catch(error){
+            return rejectWithValue(error.response?.data?.error || 'Failed to fetch wallet data')
+        }
+    }
+)
+
 const workshopMechanicSlice = createSlice({
     name: 'workshopMechanic',
     initialState: {
@@ -149,7 +162,8 @@ const workshopMechanicSlice = createSlice({
             recent_requests : 0,
             top_mechanics : [],
             monthly_data : []
-        }
+        },
+        workshopWallet : []
     },
     reducers: {
         clearMessages: (state) => {
