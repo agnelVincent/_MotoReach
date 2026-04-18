@@ -834,3 +834,50 @@ class MechanicCancelJoinRequestView(APIView):
             return Response({'message': 'Join request cancelled successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class WorkshopMechanicDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, mechanic_id):
+        if not hasattr(request.user, 'workshop'):
+            return Response({'error' : 'Unauthorized'}, status = status.HTTP_403_FORBIDDEN)
+
+        try:
+            mechanic = Mechanic.objects.get(id = mechanic_id, workshop = request.user.workshop)
+        except Mechanic.DoesNotExist:
+            return Response({'error' : 'Mechanic not found in your team'}, status = status.http_404_NOT_FOUND)
+
+        data : {
+            'id' : mechanic.id,
+            'name' : mechanic.full_name,
+            'email': mechanic.email,
+            'phone' : mechanic.phone,
+            'joinedDate' : mechanic.created_at.strftime('%d %b %Y'),
+            'status' : mechanic.availability
+        }
+
+        earnings_qs = MechanicEarning.objects.filter(
+            mechanic = mechanic,
+            earning_type = 'SERVICE_SHARE'
+        ).select_related('service_execution__service_request').order_by('-created_at')
+
+        data['totalServices'] = earnings_qs.count()
+        data['totalEarnings'] = earnings_qs.aggregate(total = Sum('amount'))['total'] or 0.00
+
+        services_list = []
+
+        for earn in earnings_qs:
+            sr = earn.service_execution.service_request if earn.service_execution else None
+            if sr:
+                services_list.append({
+                    'id' : str(sr.id),
+                    'category' : sr.issue_category,
+                    'vehicle' : sr.vehicle_model,
+                    'date' : earn.created_at.strft('%d %b %Y'),
+                    'mechanicShare' : float(earn.amount),
+                    'status' : sr.status
+                })
+
+        data['services'] = services_list
+
+        return Response(data, status = status.http_200_OK)
