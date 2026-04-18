@@ -79,6 +79,36 @@ export const fetchMyMechanics = createAsyncThunk(
     }
 );
 
+
+export const fetchMechanicDetails = createAsyncThunk(
+    'workshopMechanic/fetchMechanicDetails',
+    async (mechanicId, {rejectWithValue}) => {
+        try {
+            const response = await axiosInstance.get(`accounts/workshop/${mechanicId}/`)
+            return response.data
+        }
+        catch(error){
+            return rejectWithValue(error.response?.data?.error || 'Failed to fetch mechanic details')
+        }
+    }
+)
+
+export const payMechanicBonus = createAsyncThunk(
+    'workshopMechanic/payMechanicBonus',
+    async ({ mechanicId, serviceId, amount }, { rejectWithValue }) => {
+        try {
+            const response = await axiosInstance.post('accounts/workshop/mechanic/bonus/', {
+                mechanicId,
+                serviceId,
+                amount
+            });
+            return response.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.error || 'Failed to process bonus payment');
+        }
+    }
+);
+
 export const fetchCurrentWorkshop = createAsyncThunk(
     'workshopMechanic/fetchCurrentWorkshop',
     async (_, { rejectWithValue }) => {
