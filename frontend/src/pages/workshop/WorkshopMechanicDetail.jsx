@@ -11,7 +11,7 @@ import { fetchMechanicDetails, payMechanicBonus } from '../../redux/slices/works
 const WorkshopMechanicDetail = () => {
     const { mechanicId } = useParams();
     const navigate = useNavigate();
-    const {mechanicDetail} = useSelector((state) => state.workshopMechanic)
+    const {mechanicDetail, detailLoading} = useSelector((state) => state.workshopMechanic)
     const dispatch = useDispatch()
 
     useEffect(() => {
@@ -41,6 +41,14 @@ const WorkshopMechanicDetail = () => {
         alert(`Processing bonus of ₹${bonusAmount} for Service #${selectedService?.id} to ${mechanic.name}`);
         closeBonusModal();
     };
+
+    if (detailLoading || !mechanicDetail || !mechanicDetail.services) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8 pb-20">
