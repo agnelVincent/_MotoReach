@@ -849,10 +849,10 @@ class WorkshopMechanicDetailView(APIView):
             return Response({'error' : 'Mechanic not found in your team'}, status = status.http_404_NOT_FOUND)
 
         data = {
-            'id' : mechanic.id,
-            'name' : mechanic.full_name,
-            'email': mechanic.email,
-            'phone' : mechanic.phone,
+            'id' : mechanic.user.id,
+            'name' : mechanic.user.full_name,
+            'email': mechanic.user.email,
+            'phone' : mechanic.contact_number,
             'joinedDate' : mechanic.created_at.strftime('%d %b %Y'),
             'status' : mechanic.availability
         }
@@ -874,11 +874,11 @@ class WorkshopMechanicDetailView(APIView):
                     'id' : str(sr.id),
                     'category' : sr.issue_category,
                     'vehicle' : sr.vehicle_model,
-                    'date' : earn.created_at.strft('%d %b %Y'),
+                    'date' : earn.created_at.strftime('%d %b %Y'),
                     'mechanicShare' : float(earn.amount),
                     'status' : sr.status
                 })
 
         data['services'] = services_list
 
-        return Response(data, status = status.http_200_OK)
+        return Response(data, status = status.HTTP_200_OK)
