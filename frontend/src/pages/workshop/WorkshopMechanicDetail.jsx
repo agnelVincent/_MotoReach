@@ -5,12 +5,18 @@ import {
     TrendingUp, Award
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchMechanicDetail, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice';
+import { fetchMechanicDetails, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice'
 
 
 const WorkshopMechanicDetail = () => {
     const { mechanicId } = useParams();
     const navigate = useNavigate();
+    const {mechanicDetail} = useSelector((state) => state.workshopMechanic)
+    const dispatch = useDispatch()
+
+    useEffect(() => {
+        dispatch(fetchMechanicDetails())
+    })
 
     const [isBonusModalOpen, setIsBonusModalOpen] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
@@ -56,36 +62,36 @@ const WorkshopMechanicDetail = () => {
                         <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-16 mb-6">
                             <div className="w-32 h-32 rounded-2xl bg-white p-2 shadow-lg">
                                 <div className="w-full h-full bg-blue-50 rounded-xl flex items-center justify-center text-4xl font-black text-blue-600">
-                                    {mechanic.name.charAt(0)}
+                                    {mechanicDetail?.name?.charAt(0) || ''}
                                 </div>
                             </div>
                             <div className="flex-1 pb-2">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <h1 className="text-3xl font-extrabold text-gray-900">{mechanic.name}</h1>
+                                    <h1 className="text-3xl font-extrabold text-gray-900">{mechanicDetail.name}</h1>
                                     <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1">
-                                        <CheckCircle className="w-3 h-3" /> {mechanic.status}
+                                        <CheckCircle className="w-3 h-3" /> {mechanicDetail.status}
                                     </span>
                                 </div>
-                                <p className="text-gray-500 font-medium tracking-wide">ID: MECH-{mechanic.id}</p>
+                                <p className="text-gray-500 font-medium tracking-wide">ID: MECH-{mechanicDetail.id}</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t border-gray-100">
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-gray-50 rounded-lg"><Phone className="w-5 h-5 text-gray-500" /></div>
-                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Phone</p><p className="text-sm font-medium text-gray-900">{mechanic.phone}</p></div>
+                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Phone</p><p className="text-sm font-medium text-gray-900">{mechanicDetail.phone}</p></div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-gray-50 rounded-lg"><Mail className="w-5 h-5 text-gray-500" /></div>
-                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Email</p><p className="text-sm font-medium text-gray-900">{mechanic.email}</p></div>
+                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Email</p><p className="text-sm font-medium text-gray-900">{mechanicDetail.email}</p></div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-gray-50 rounded-lg"><Calendar className="w-5 h-5 text-gray-500" /></div>
-                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Joined</p><p className="text-sm font-medium text-gray-900">{mechanic.joinedDate}</p></div>
+                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Joined</p><p className="text-sm font-medium text-gray-900">{mechanicDetail.joinedDate}</p></div>
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="p-3 bg-blue-50 rounded-lg"><Wrench className="w-5 h-5 text-blue-600" /></div>
-                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Total Services</p><p className="text-sm font-bold tracking-tight text-blue-600">{mechanic.totalServices}</p></div>
+                                <div><p className="text-xs text-gray-400 font-semibold uppercase">Total Services</p><p className="text-sm font-bold tracking-tight text-blue-600">{mechanicDetail.totalServices}</p></div>
                             </div>
                         </div>
                     </div>
@@ -101,7 +107,7 @@ const WorkshopMechanicDetail = () => {
                     </div>
 
                     <div className="space-y-4">
-                        {services.map(service => (
+                        {mechanicDetail.services.map(service => (
                             <div key={service.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row justify-between items-center gap-6 hover:shadow-md transition-shadow">
                                 <div className="flex items-start gap-4 flex-1 w-full relative">
                                     <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0">

@@ -181,6 +181,7 @@ const workshopMechanicSlice = createSlice({
             top_mechanics : [],
             monthly_data : []
         },
+        mechanicDetail : []
 
     },
     reducers: {
@@ -312,15 +313,15 @@ const workshopMechanicSlice = createSlice({
                 state.error = action.payload;
             })
 
-            .addCase(fetchMechanicDetail.pending, (state) => {
+            .addCase(fetchMechanicDetails.pending, (state) => {
                 state.detailLoading = true;
                 state.error = null;
             })
-            .addCase(fetchMechanicDetail.fulfilled, (state, action) => {
+            .addCase(fetchMechanicDetails.fulfilled, (state, action) => {
                 state.detailLoading = false;
                 state.mechanicDetail = action.payload; 
             })
-            .addCase(fetchMechanicDetail.rejected, (state, action) => {
+            .addCase(fetchMechanicDetails.rejected, (state, action) => {
                 state.detailLoading = false;
                 state.error = action.payload;
             })
