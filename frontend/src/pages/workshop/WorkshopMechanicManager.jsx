@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { Users, UserPlus, Search, Phone, Mail, Calendar, CheckCircle, XCircle, MoreVertical, Briefcase } from 'lucide-react';
 import { fetchMechanicRequests, fetchMyMechanics, respondToRequest, clearMessages, removeMechanic } from '../../redux/slices/workshopMechanicSlice';
 import { toast } from 'react-hot-toast';
 
 const WorkshopMechanicManager = () => {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const { mechanicRequests, myMechanics, requestsLoading, fetchLoading, error, successMessage } = useSelector(state => state.workshopMechanic);
     const [activeTab, setActiveTab] = useState('active'); // 'active' or 'requests'
 
@@ -160,7 +162,7 @@ const WorkshopMechanicManager = () => {
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {myMechanics.map((mechanic) => (
-                                            <div key={mechanic.mechanic_id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all group">
+                                            <div key={mechanic.mechanic_id} onClick={() => navigate(`/workshop/team/${mechanic.mechanic_id}`)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all group cursor-pointer">
                                                 <div className="flex items-start justify-between mb-4">
                                                     <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-lg font-bold text-gray-600">
                                                         {mechanic.mechanic_name.charAt(0)}
@@ -192,7 +194,7 @@ const WorkshopMechanicManager = () => {
 
                                                     <div className="pt-4 mt-4 border-t border-gray-100 flex justify-end">
                                                         <button
-                                                            onClick={() => handleRemove(mechanic.mechanic_id)}
+                                                            onClick={(e) => { e.stopPropagation(); handleRemove(mechanic.mechanic_id); }}
                                                             className="text-sm text-red-600 hover:text-red-700 font-medium hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-red-100"
                                                         >
                                                             Remove Mechanic
