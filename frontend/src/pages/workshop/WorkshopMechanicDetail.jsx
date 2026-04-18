@@ -15,8 +15,8 @@ const WorkshopMechanicDetail = () => {
     const dispatch = useDispatch()
 
     useEffect(() => {
-        dispatch(fetchMechanicDetails())
-    })
+        dispatch(fetchMechanicDetails(mechanicId))
+    }, [dispatch, mechanicId])
 
     const [isBonusModalOpen, setIsBonusModalOpen] = useState(false);
     const [selectedService, setSelectedService] = useState(null);

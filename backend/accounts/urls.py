@@ -58,5 +58,5 @@ urlpatterns = [
     path("workshop/mechanics/", WorkshopMyMechanicsView.as_view(), name="workshop-my-mechanics"),
     path("workshop/mechanic/remove/", WorkshopRemoveMechanicView.as_view(), name="workshop-remove-mechanic"),
 
-    path('workshop/team/<int:id>/', WorkshopMechanicDetailView.as_view(), name='workshop-mechanic-detail' )
+    path('workshop/team/<int:mechanic_id>/', WorkshopMechanicDetailView.as_view(), name='workshop-mechanic-detail' )
 ]
