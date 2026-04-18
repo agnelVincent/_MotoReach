@@ -588,17 +588,17 @@ class MechanicWalletView(APIView):
                 } if se else None
             })
 
-            return Response({
-                'balance' : str(wallet.balance),
-                'total_earned' : str(total_earned),
-                'this_month' : str(this_month),
-                'total_bonuses' : str(total_bonuses),
-                'total_services' : total_services,
-                'earnings' : earning_data,
-                'total' : earning_qs.count(),
-                'page' : page,
-                'page_size' : page_size,
-                'has_more' : end < earning_qs.count()
-            })
+        return Response({
+            'balance' : str(wallet.balance),
+            'total_earned' : str(total_earned),
+            'this_month' : str(this_month),
+            'total_bonuses' : str(total_bonuses),
+            'total_services' : total_services,
+            'earnings' : earning_data,
+            'total' : earning_qs.count(),
+            'page' : page,
+            'page_size' : page_size,
+            'has_more' : end < earning_qs.count()
+        })
 
 
