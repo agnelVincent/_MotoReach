@@ -181,6 +181,7 @@ const workshopMechanicSlice = createSlice({
             top_mechanics : [],
             monthly_data : []
         },
+
     },
     reducers: {
         clearMessages: (state) => {
@@ -309,7 +310,32 @@ const workshopMechanicSlice = createSlice({
             .addCase(cancelJoinRequest.rejected, (state, action) => {
                 state.actionLoading = false;
                 state.error = action.payload;
-            });
+            })
+
+            .addCase(fetchMechanicDetail.pending, (state) => {
+                state.detailLoading = true;
+                state.error = null;
+            })
+            .addCase(fetchMechanicDetail.fulfilled, (state, action) => {
+                state.detailLoading = false;
+                state.mechanicDetail = action.payload; 
+            })
+            .addCase(fetchMechanicDetail.rejected, (state, action) => {
+                state.detailLoading = false;
+                state.error = action.payload;
+            })
+            
+            .addCase(payMechanicBonus.pending, (state) => {
+                state.actionLoading = true;
+            })
+            .addCase(payMechanicBonus.fulfilled, (state, action) => {
+                state.actionLoading = false;
+                state.successMessage = action.payload.message;
+            })
+            .addCase(payMechanicBonus.rejected, (state, action) => {
+                state.actionLoading = false;
+                state.error = action.payload;
+            })
     }
 });
 
