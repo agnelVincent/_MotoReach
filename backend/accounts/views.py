@@ -15,7 +15,7 @@ from .serializers import (
     WorkshopSearchSerializer,
     MechanicRequestSerializer
 )
-from django.db.models import Q
+from django.db.models import Q, Sum
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -33,6 +33,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import serializers
 from django.db import transaction
+from service_request.models import MechanicEarning
 
 
 class BaseRegisterView(APIView):
@@ -847,7 +848,7 @@ class WorkshopMechanicDetailView(APIView):
         except Mechanic.DoesNotExist:
             return Response({'error' : 'Mechanic not found in your team'}, status = status.http_404_NOT_FOUND)
 
-        data : {
+        data = {
             'id' : mechanic.id,
             'name' : mechanic.full_name,
             'email': mechanic.email,
