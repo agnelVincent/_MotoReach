@@ -1,54 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     User, Phone, Mail, ArrowLeft, Wrench, IndianRupee, Gift, Calendar, CheckCircle, 
     TrendingUp, Award
 } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMechanicDetail, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice';
+
 
 const WorkshopMechanicDetail = () => {
     const { mechanicId } = useParams();
     const navigate = useNavigate();
 
-    // DUMMY STATE
-    const [mechanic] = useState({
-        id: mechanicId,
-        name: "Abhishek Sharma",
-        email: "abhishek@example.com",
-        phone: "+91 9876543210",
-        joinedDate: "15 Jan 2026",
-        status: "Active",
-        totalServices: 14,
-        totalEarnings: 12500
-    });
-
-    const [services] = useState([
-        {
-            id: '1029',
-            category: 'Engine Repair',
-            vehicle: 'Royal Enfield Classic 350',
-            date: '10 Apr 2026',
-            mechanicShare: 1200,
-            status: 'COMPLETED'
-        },
-        {
-            id: '1014',
-            category: 'General Service',
-            vehicle: 'Honda Activa 6G',
-            date: '05 Apr 2026',
-            mechanicShare: 800,
-            status: 'COMPLETED'
-        },
-        {
-            id: '1005',
-            category: 'Oil Change',
-            vehicle: 'TVS Jupiter',
-            date: '28 Mar 2026',
-            mechanicShare: 450,
-            status: 'COMPLETED'
-        }
-    ]);
-
-    // Modal state for Payment
     const [isBonusModalOpen, setIsBonusModalOpen] = useState(false);
     const [selectedService, setSelectedService] = useState(null);
     const [bonusAmount, setBonusAmount] = useState('');
@@ -65,7 +28,6 @@ const WorkshopMechanicDetail = () => {
     };
 
     const handlePayBonus = () => {
-        // Dummy logic
         if (!bonusAmount || isNaN(bonusAmount) || bonusAmount <= 0) {
             alert('Please enter a valid amount');
             return;
