@@ -15,7 +15,7 @@ from .serializers import (
     WorkshopSearchSerializer,
     MechanicRequestSerializer
 )
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, F
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -33,7 +33,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import serializers
 from django.db import transaction
-from service_request.models import MechanicEarning
+from service_request.models import MechanicEarning, ServiceExecution
+from payments.models import Wallet,WalletTransaction
 
 
 class BaseRegisterView(APIView):
@@ -882,3 +883,71 @@ class WorkshopMechanicDetailView(APIView):
         data['services'] = services_list
 
         return Response(data, status = status.HTTP_200_OK)
+    
+
+class PayMechanicBonus(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not hasattr(request.user, 'workshop'):
+            return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        mechanic_id = request.data.get('mechanicId')
+        service_id = request.data.get('serviceId')
+        amount = request.data.get('amount')
+
+        try:
+            amount = float(amount)
+            if amount <= 1:
+                return Response({'error' : 'Amount must be greater than 0'}, status= status.HTTP_400_BAD_REQUEST)
+        except (ValueError,TypeError):
+            return Response({'error' : 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            mechanic = Mechanic.objects.get(id = mechanic_id, workshop = request.user.workshop)
+        except Mechanic.DoesNotExist:
+            return Response({'error' : 'Mechanic not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            with transaction.atomic():
+                workshop_wallet, _ = Wallet.objects.get_or_create(user = request.user)
+                if workshop_wallet.balance < amount:
+                    return Response({'error' : 'Insufficient balance'}, status=status.HTTP_400_BAD_REQUEST)
+                
+                workshop_wallet.balance = F('balance') - amount
+                workshop_wallet.save()
+
+                WalletTransaction.objects.create(
+                    wallet = workshop_wallet,
+                    amount = amount,
+                    transaction_type = 'DEBIT',
+                    description=f"Bonus Paid to {mechanic.user.full_name}"
+                )
+
+                mechanic_wallet, _ = Wallet.objects.get_or_create(user = mechanic.user)
+                mechanic_wallet.balance = F('balance') + amount
+                mechanic_wallet.save()
+
+                WalletTransaction.objects.create(
+                    wallet = mechanic_wallet,
+                    amount = amount,
+                    transaction_type = 'CREDIT',
+                    description=f"Bonus Received from Workshop: {request.user.workshop.workshop_name}"
+                )
+
+                service_exec = None
+                if service_id:
+                    service_exec = ServiceExecution.objects.filter(service_request_id=service_id).first()
+
+                MechanicEarning.objects.create(
+                    mechanic=mechanic,
+                    service_execution=service_exec,
+                    amount=amount,
+                    earning_type='BONUS',
+                    description=f"Bonus from workshop admin: {request.user.workshop.workshop_name}"
+                )
+
+            return Response({'message': f'₹{amount} Bonus paid successfully to {mechanic.user.full_name}!'}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
