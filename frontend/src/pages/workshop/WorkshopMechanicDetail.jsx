@@ -33,14 +33,31 @@ const WorkshopMechanicDetail = () => {
         setBonusAmount('');
     };
 
-    const handlePayBonus = () => {
+    const handlePayBonus = async () => {
         if (!bonusAmount || isNaN(bonusAmount) || bonusAmount <= 0) {
-            alert('Please enter a valid amount');
+            toast.error('Please enter a valid amount');
             return;
         }
-        alert(`Processing bonus of ₹${bonusAmount} for Service #${selectedService?.id} to ${mechanic.name}`);
-        closeBonusModal();
+
+        try {
+            const result = await dispatch(payMechanicBonus({
+                mechanicId: mechanicDetail.id,
+                serviceId: selectedService?.id,
+                amount: bonusAmount
+            })).unwrap();
+            
+
+            toast.success(result?.message || `Successfully paid ₹${bonusAmount} bonus!`);
+            
+            closeBonusModal();
+
+            dispatch(fetchMechanicDetails(mechanicId));
+
+        } catch (error) {
+            toast.error(error || 'Failed to pay bonus');
+        }
     };
+
 
     if (detailLoading || !mechanicDetail || !mechanicDetail.services) {
         return (
@@ -165,7 +182,7 @@ const WorkshopMechanicDetail = () => {
                             
                             <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">Send Bonus</h3>
                             <p className="text-center text-gray-500 mb-8 text-sm">
-                                Reward <span className="font-semibold text-gray-800">{mechanic.name}</span> for their excellent work on Request #{selectedService?.id}.
+                                Reward <span className="font-semibold text-gray-800">{mechanicDetail.name}</span> for their excellent work on Request #{selectedService?.id}.
                             </p>
 
                             <div className="mb-6">

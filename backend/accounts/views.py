@@ -850,7 +850,7 @@ class WorkshopMechanicDetailView(APIView):
             return Response({'error' : 'Mechanic not found in your team'}, status = status.http_404_NOT_FOUND)
 
         data = {
-            'id' : mechanic.user.id,
+            'id' : mechanic.id,
             'name' : mechanic.user.full_name,
             'email': mechanic.user.email,
             'phone' : mechanic.contact_number,
