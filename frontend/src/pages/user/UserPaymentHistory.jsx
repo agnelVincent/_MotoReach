@@ -107,7 +107,7 @@ const UserPaymentHistory = () => {
                     </td>
                     <td className="p-4">
                       <div className="font-bold text-gray-900 flex items-center gap-1">
-                        ${parseFloat(payment.amount).toFixed(2)}
+                        ₹{parseFloat(payment.amount).toFixed(2)}
                       </div>
                     </td>
                     <td className="p-4">

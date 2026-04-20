@@ -56,7 +56,7 @@ const AdminWallet = () => {
              Net Ecosystem Revenue
           </p>
           <div className="text-3xl font-bold text-white">
-            ${calculateNetRevenue().toFixed(2)}
+            ₹{calculateNetRevenue().toFixed(2)}
           </div>
         </div>
       </div>
@@ -116,7 +116,7 @@ const AdminWallet = () => {
                     </td>
                     <td className="p-4 text-right">
                       <span className={`font-bold ${txn.transaction_type === 'CREDIT' ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {txn.transaction_type === 'CREDIT' ? '+' : '-'}${parseFloat(txn.amount).toFixed(2)}
+                        {txn.transaction_type === 'CREDIT' ? '+' : '-'}₹{parseFloat(txn.amount).toFixed(2)}
                       </span>
                     </td>
                   </tr>

@@ -162,7 +162,7 @@ const AdminComplaints = () => {
                                     <div><span className="text-gray-500">Issue:</span> <span className="font-medium text-slate-800">{complaint.service_request_details.issue}</span></div>
                                     <div><span className="text-gray-500">Status:</span> <span className="font-medium text-slate-800">{complaint.service_request_details.status}</span></div>
                                     {complaint.service_request_details.estimate_amount > 0 && (
-                                        <div><span className="text-gray-500">Estimate:</span> <span className="font-medium text-slate-800">${complaint.service_request_details.estimate_amount}</span></div>
+                                        <div><span className="text-gray-500">Estimate:</span> <span className="font-medium text-slate-800">₹{complaint.service_request_details.estimate_amount}</span></div>
                                     )}
                                 </div>
                             </div>

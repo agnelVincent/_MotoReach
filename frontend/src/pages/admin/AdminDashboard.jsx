@@ -1,8 +1,7 @@
-
 import { 
    User, AlertCircle, Building2, Users, CreditCard,
   UserPlus,
-  DollarSign,
+  IndianRupee,
   FileText,
   TrendingUp,
   TrendingDown,
@@ -72,7 +71,7 @@ const AdminDashboard = () => {
     {
       title: 'Total Revenue',
       value: stats.total_revenue,
-      icon: DollarSign,
+      icon: IndianRupee,
       gradient: 'from-yellow-500 to-orange-600',
       bgGradient: 'from-yellow-50 to-orange-50'
     }
