@@ -100,10 +100,10 @@ const AdminNavbar = () => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
             {/* Notification Bell */}
-            <button className="relative p-2 text-gray-700 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-300">
+            {/* <button className="relative p-2 text-gray-700 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all duration-300">
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            </button> */}
 
             {/* Profile Dropdown */}
             <div className="relative" ref={profileRef}>
