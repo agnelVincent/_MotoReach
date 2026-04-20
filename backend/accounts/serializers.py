@@ -20,8 +20,20 @@ contact_validators = [
     )
 ]
 
+name_validators = [
+    RegexValidator(
+        regex=r'^[A-Za-z\s]+$',
+        message='Name can only contain letters and spaces.'
+    )
+]
+
 class BaseRegistrationSerializer(serializers.Serializer):
-    full_name = serializers.CharField(max_length = 100)
+    full_name = serializers.CharField(
+        max_length=100, 
+        min_length=3, 
+        validators=name_validators,
+        error_messages={'min_length': 'Full name must be at least 3 characters long.'}
+    )
     email = serializers.EmailField()
     password = serializers.CharField(max_length = 128, style = {'input_type' : 'password'})
     confirm_password = serializers.CharField(max_length = 128, style ={'input_type' : 'password'})
@@ -92,7 +104,7 @@ class MechanicRegistrationSerializer(BaseRegistrationSerializer):
 
 class WorkshopRegistrationSerializer(BaseRegistrationSerializer):
     role = serializers.CharField(default='workshop_admin', read_only=True)
-    workshop_name = serializers.CharField(max_length = 255, required = True)
+    workshop_name = serializers.CharField(max_length=255, min_length=3, required=True, error_messages={'min_length': 'Workshop name must be at least 3 characters long.'})
     address_line = serializers.CharField(required = True)
     license_number = serializers.CharField(max_length = 255, required = True)
     state = serializers.CharField(max_length = 30, required = True)
