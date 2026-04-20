@@ -233,26 +233,6 @@ const MechanicDashboard = () => {
             </div>
           </div>
 
-          {/* Performance Highlights */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg text-white">
-              <TrendingUp className="w-12 h-12 mb-4 opacity-80" />
-              <h3 className="text-3xl font-bold mb-2">127</h3>
-              <p className="text-blue-100">Total Jobs Completed</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 shadow-lg text-white">
-              <Award className="w-12 h-12 mb-4 opacity-80" />
-              <h3 className="text-3xl font-bold mb-2">98.5%</h3>
-              <p className="text-green-100">Customer Satisfaction</p>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-600 to-pink-700 rounded-2xl p-6 shadow-lg text-white">
-              <Target className="w-12 h-12 mb-4 opacity-80" />
-              <h3 className="text-3xl font-bold mb-2">₹45,230</h3>
-              <p className="text-purple-100">Total Earnings</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
