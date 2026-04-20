@@ -135,20 +135,56 @@ const WorkshopRequestList = () => {
     return icons[status] || <Clock className="w-4 h-4" />;
   };
 
-  const filteredRequests = workshopRequests.filter(req =>
-    filterStatus === 'All' || req.status === filterStatus
-  );
+    const getDisplayStatus = (request) => {
+  const connectionStatus = request.status;
+  const serviceStatus = request.service_request.status;
 
-  const sortedRequests = [...filteredRequests].sort((a, b) => {
-    if (sortBy === 'newest') {
-      return new Date(b.requested_at) - new Date(a.requested_at);
-    } else if (sortBy === 'oldest') {
-      return new Date(a.requested_at) - new Date(b.requested_at);
-    } else if (sortBy === 'status') {
-      return a.status.localeCompare(b.status);
-    }
-    return 0;
-  });
+  const activeServiceStatuses = [
+    'IN_PROGRESS',
+    'ESTIMATE_SHARED',
+    'SERVICE_AMOUNT_PAID',
+    'COMPLETED',
+    'VERIFIED'
+  ];
+
+  if (
+    connectionStatus === 'ACCEPTED' &&
+    activeServiceStatuses.includes(serviceStatus)
+  ) {
+    return serviceStatus;
+  }
+
+  if (serviceStatus === 'EXPIRED') {
+    return 'EXPIRED';
+  }
+
+  return connectionStatus;
+};
+
+  const filteredRequests = workshopRequests.filter(req => {
+  const status = getDisplayStatus(req);
+  return filterStatus === 'All' || status === filterStatus;
+});
+
+
+const sortedRequests = [...filteredRequests].sort((a, b) => {
+  const statusA = getDisplayStatus(a);
+  const statusB = getDisplayStatus(b);
+
+  if (sortBy === 'newest') {
+    return new Date(b.requested_at) - new Date(a.requested_at);
+  }
+
+  if (sortBy === 'oldest') {
+    return new Date(a.requested_at) - new Date(b.requested_at);
+  }
+
+  if (sortBy === 'status') {
+    return statusA.localeCompare(statusB);
+  }
+
+  return 0;
+});
 
   const stats = {
     total: workshopRequests.length,
@@ -259,68 +295,90 @@ const WorkshopRequestList = () => {
         </div>
 
         <div className="space-y-4">
-          {sortedRequests.map((request) => (
-            <div
-              key={request.id}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
-            >
-              <div className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                          <User className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-gray-800">{request.user_name}</h3>
-                          <p className="text-sm text-gray-500 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(request.requested_at).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                            {request.status === 'REQUESTED' && (
-                              <ExpirationTimer requestedAt={request.requested_at} />
-                            )}
-                          </p>
-                        </div>
-                      </div>
+{sortedRequests.map((request) => {
+  const status = getDisplayStatus(request);
 
-                      <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusStyle(request.service_request.status === 'EXPIRED' ? 'EXPIRED' : request.status)}`}>
-                        {getStatusIcon(request.service_request.status === 'EXPIRED' ? 'EXPIRED' : request.status)}
-                        {request.service_request.status === 'EXPIRED' || request.status === 'AUTO_REJECTED' ? 'EXPIRED' : request.status.replace('_', ' ')}
-                      </span>
-                    </div>
+  return (
+    <div
+      key={request.id}
+      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden"
+    >
+      <div className="p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          
+          <div className="flex-1 space-y-3">
+            <div className="flex items-start justify-between">
+              
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                  <User className="w-6 h-6 text-white" />
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-15">
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Car className="w-5 h-5 text-gray-400" />
-                        <span className="font-medium">{request.service_request.vehicle_type}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Wrench className="w-5 h-5 text-gray-400" />
-                        <span className="font-medium">{request.service_request.issue_category}</span>
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">
+                    {request.user_name}
+                  </h3>
 
-                  <div>
-                    <button
-                      onClick={() => setSelectedRequest(request)}
-                      className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
-                    >
-                      <Eye className="w-5 h-5" />
-                      View Details
-                    </button>
-                  </div>
+                  <p className="text-sm text-gray-500 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    {new Date(request.requested_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+
+                    {status === 'REQUESTED' && (
+                      <ExpirationTimer requestedAt={request.requested_at} />
+                    )}
+                  </p>
                 </div>
               </div>
+
+              <span
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border-2 ${getStatusStyle(status)}`}
+              >
+                {getStatusIcon(status)}
+                {request.service_request.status === 'EXPIRED' ||
+                request.status === 'AUTO_REJECTED'
+                  ? 'EXPIRED'
+                  : status.replace('_', ' ')}
+              </span>
             </div>
-          ))}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-15">
+              <div className="flex items-center gap-2 text-gray-700">
+                <Car className="w-5 h-5 text-gray-400" />
+                <span className="font-medium">
+                  {request.service_request.vehicle_type}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-gray-700">
+                <Wrench className="w-5 h-5 text-gray-400" />
+                <span className="font-medium">
+                  {request.service_request.issue_category}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <button
+              onClick={() => setSelectedRequest(request)}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-300 flex items-center gap-2 shadow-md hover:shadow-lg"
+            >
+              <Eye className="w-5 h-5" />
+              View Details
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+})}
         </div>
 
         {sortedRequests.length === 0 && !loading && (
