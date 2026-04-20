@@ -2,7 +2,7 @@ import { XCircleIcon, EnvelopeIcon, DocumentTextIcon, ArrowPathIcon } from '@her
 import { useDispatch, useSelector } from 'react-redux';
 import { reApplyWorkshop } from '../../redux/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import { useEffect } from 'react';
 import { getRejectedReason } from '../../redux/slices/ProfileSlice';
 

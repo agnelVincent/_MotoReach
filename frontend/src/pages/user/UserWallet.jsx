@@ -47,12 +47,12 @@ const UserWallet = () => {
 
     useEffect(() => {
         if (addMoneySuccess) {
-            toast.success('Money added successfully!');
+            toast.success('Money added successfully!', { id: 'add-money-success' });
             dispatch(fetchWallet());
             navigate('/user/wallet', { replace: true });
         }
         if (addMoneyCanceled) {
-            toast.error('Payment was cancelled');
+            toast.error('Payment was cancelled', { id: 'add-money-canceled' });
             navigate('/user/wallet', { replace: true });
         }
     }, [addMoneySuccess, addMoneyCanceled, dispatch, navigate]);

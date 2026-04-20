@@ -43,29 +43,27 @@ export function useServiceFlowSocket(requestId, onUpdate) {
 
           // Show targeted toast for specific events
           if (eventName === 'otp_generated') {
-            toast('Check your email — the workshop has sent an OTP!');
+            toast('Check your email — the workshop has sent an OTP!', { id: 'socket-otp-generated' });
           } else if (eventName === 'estimate_sent') {
-            toast('The workshop has shared a new estimate. Review it below.');
+            toast('The workshop has shared a new estimate. Review it below.', { id: 'socket-estimate-sent' });
           } else if (eventName === 'estimate_resent') {
-            toast('The workshop has updated and resent the estimate.');
+            toast('The workshop has updated and resent the estimate.', { id: 'socket-estimate-resent' });
           } else if (eventName === 'estimate_approved') {
-            toast.success('Estimate approved! Please proceed with payment.');
+            toast.success('Estimate approved! Please proceed with payment.', { id: 'socket-estimate-approved' });
           } else if (eventName === 'estimate_rejected') {
-            toast('Estimate was rejected. Waiting for a new one.');
+            toast('Estimate was rejected. Waiting for a new one.', { id: 'socket-estimate-rejected' });
           } else if (eventName === 'mechanic_assigned') {
-            toast('A mechanic has been assigned to your service.');
+            toast('A mechanic has been assigned to your service.', { id: 'socket-mechanic-assigned' });
           } else if (eventName === 'mechanic_removed') {
-            toast('A mechanic has been removed from your service.');
-          }
-           else if (eventName === 'mechanic_removed') {
-            toast('A mechanic has been removed from your service.')
-          
+            toast('A mechanic has been removed from your service.', { id: 'socket-mechanic-removed' });
           } else if (eventName === 'service_started') {
             toast.success('The service has officially started at the workshop!', {
+              id: 'socket-service-started',
               icon: '🔧',
             });
           } else if (eventName === 'service_completed') {
             toast.success('Service completed! Awaiting final OTP generation and verification.', {
+              id: 'socket-service-completed',
               icon: '🎉',
             });
           }

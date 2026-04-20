@@ -61,11 +61,11 @@ const UserServiceFlow = () => {
     const escrowSuccess = searchParams.get('escrow_success');
     const escrowCanceled = searchParams.get('escrow_canceled');
     if (escrowSuccess === 'true') {
-      toast.success('Payment successful. Amount is held in escrow until service completion.');
+      toast.success('Payment successful. Amount is held in escrow until service completion.', { id: 'escrow-success' });
       setSearchParams({}, { replace: true });
     }
     if (escrowCanceled === 'true') {
-      toast.error('Payment was canceled.');
+      toast.error('Payment was canceled.', { id: 'escrow-canceled' });
       setSearchParams({}, { replace: true });
     }
   }, [searchParams, setSearchParams, dispatch, requestId]);
