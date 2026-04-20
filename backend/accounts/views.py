@@ -256,22 +256,25 @@ class ResendOTPView(APIView):
     
         try:
             pending_user = PendingUser.objects.get(email=email, role=role)
+            
+            otp_record, status_ok, message = send_otp_mail(
+                email=pending_user.email,
+                full_name=pending_user.full_name,
+                role=pending_user.role
+            )
+
+            if status_ok:
+                return Response({"message": message}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+                
         except PendingUser.DoesNotExist:
             return Response(
                 {'error': 'No pending registration found for this email and role. Please register first.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
-        otp_record, status_ok, message = send_otp_mail(
-            email=pending_user.email,
-            full_name=pending_user.full_name,
-            role=pending_user.role
-        )
-
-        if status_ok:
-            return Response({"message": message}, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
@@ -458,19 +461,33 @@ class ForgotPasswordSendOtpView(APIView):
     serializer_class = ForgotPasswordSendOtpSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
+        try:
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            email = serializer.validated_data['email']
 
-        otp_record, success, message = send_password_reset_otp(email)
+            otp_record, success, message = send_password_reset_otp(email)
 
-        if success:
-            return Response({"detail": message}, status=status.HTTP_200_OK)
-        else:
-            if message.startswith("User with this email"):
-                 return Response({"detail": "If the email is registered, an OTP has been sent."}, status=status.HTTP_200_OK)
-            print(message)
-            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+            if success:
+                return Response({"detail": message}, status=status.HTTP_200_OK)
+            else:
+                if message.startswith("User with this email"):
+                     return Response({"detail": "If the email is registered, an OTP has been sent."}, status=status.HTTP_200_OK)
+                print(message)
+                return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+        except serializers.ValidationError as e:
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ForgotPasswordVerifyOtpView(APIView):
@@ -478,26 +495,40 @@ class ForgotPasswordVerifyOtpView(APIView):
     serializer_class = ForgotPasswordVerifyOtpSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        otp = serializer.validated_data['otp']
-
         try:
-            otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
-        except EmailOTP.DoesNotExist:
-            return Response({"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            email = serializer.validated_data['email']
+            otp = serializer.validated_data['otp']
 
-        if otp_record.is_expired():
-            return Response({"detail": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if otp_record.otp != otp:
-            return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+            except EmailOTP.DoesNotExist:
+                return Response({"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-        otp_record.is_verified = True
-        otp_record.save()
+            if otp_record.is_expired():
+                return Response({"detail": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if otp_record.otp != otp:
+                return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"detail": "OTP verified successfully. You can now reset your password."}, status=status.HTTP_200_OK)
+            otp_record.is_verified = True
+            otp_record.save()
+
+            return Response({"detail": "OTP verified successfully. You can now reset your password."}, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ForgotPasswordResetView(APIView):
@@ -505,107 +536,133 @@ class ForgotPasswordResetView(APIView):
     serializer_class = ForgotPasswordResetSerializer
 
     def post(self, request):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        new_password = serializer.validated_data['new_password']
-
         try:
-            otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
-        except EmailOTP.DoesNotExist:
-            return Response({"detail": "Password reset flow not initiated or token expired."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            email = serializer.validated_data['email']
+            new_password = serializer.validated_data['new_password']
 
-        if not otp_record.is_verified:
-            return Response({"detail": "OTP must be verified before resetting the password."}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+            except EmailOTP.DoesNotExist:
+                return Response({"detail": "Password reset flow not initiated or token expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+            if not otp_record.is_verified:
+                return Response({"detail": "OTP must be verified before resetting the password."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            validate_password(new_password, user=user)
-        except DjangoValidationError as e:
-            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        user.set_password(new_password)
-        user.save()
+            try:
+                validate_password(new_password, user=user)
+            except DjangoValidationError as e:
+                return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
 
-        otp_record.delete() 
+            user.set_password(new_password)
+            user.save()
 
-        return Response({"detail": "Password reset successfully. Please log in with your new password."}, status=status.HTTP_200_OK)
+            otp_record.delete() 
+
+            return Response({"detail": "Password reset successfully. Please log in with your new password."}, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            error_detail = e.detail
+            if isinstance(error_detail, dict):
+                first_error = next(iter(error_detail.values()))
+                if isinstance(first_error, list):
+                    error_message = first_error[0]
+                else:
+                    error_message = str(first_error)
+            else:
+                error_message = str(error_detail)
+            return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
+        try:
+            user = request.user
 
-        role_data = None
+            role_data = None
+            try:
+                if user.role == "mechanic":
+                    role_data = {
+                        "contact_number": user.mechanic.contact_number,
+                        "availability": user.mechanic.availability
+                    }
+                elif user.role == "workshop_admin":
+                    workshop = user.workshop
+                    role_data = {
+                        "contact_number": workshop.contact_number,
+                        "workshop_name" : workshop.workshop_name,
+                        "city" : workshop.city,
+                        "locality" : workshop.locality,
+                        "pincode" : workshop.pincode,
+                        "address_line" : workshop.address_line,
+                        "state" : workshop.state,
+                        "type" : workshop.type,
+                        "verification_status" : workshop.verification_status,
+                        "license_number" : workshop.license_number
+                    }
+            except Exception as e:
+                print(f"Role data fetch error: {e}")
+                pass
 
-        if user.role == "mechanic":
-            role_data = {
-                "contact_number": user.mechanic.contact_number,
-                "availability": user.mechanic.availability
+            data = {
+                "id": user.id,
+                "full_name": user.full_name,
+                "email": user.email,
+                "role": user.role,
+                "profile_picture": user.profile_picture.url if user.profile_picture else None,
+                "role_details": role_data,
+                'memberSince': user.date_joined
             }
-        elif user.role == "workshop_admin":
-            workshop = user.workshop
-            role_data = {
-                "contact_number": workshop.contact_number,
-                "workshop_name" : workshop.workshop_name,
-                "city" : workshop.city,
-                "locality" : workshop.locality,
-                "pincode" : workshop.pincode,
-                "address_line" : workshop.address_line,
-                "state" : workshop.state,
-                "type" : workshop.type,
-                "verification_status" : workshop.verification_status,
-                "license_number" : workshop.license_number
-            }
 
-        data = {
-            "id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "role": user.role,
-            "profile_picture": user.profile_picture.url if user.profile_picture else None,
-            "role_details": role_data,
-            'memberSince': user.date_joined
-        }
-
-        return Response(data)
+            return Response(data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request):
-        user = request.user
-        serializer = ProfileUpdateSerializer(data=request.data)
-        
-        if serializer.is_valid():
-            serializer.update(user, serializer.validated_data)
-            return Response({"detail": "Profile updated successfully."})
+        try:
+            user = request.user
+            serializer = ProfileUpdateSerializer(data=request.data)
+            
+            if serializer.is_valid():
+                serializer.update(user, serializer.validated_data)
+                return Response({"detail": "Profile updated successfully."})
 
-        print(serializer.errors)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request):
-        serializer = ChangePasswordSerializer(data=request.data)
+        try:
+            serializer = ChangePasswordSerializer(data=request.data)
 
-        if not serializer.is_valid():
-            print(serializer.errors)
-            return Response(serializer.errors, status=400)
+            if not serializer.is_valid():
+                print(serializer.errors)
+                return Response(serializer.errors, status=400)
 
-        user = request.user
+            user = request.user
 
-        if not user.check_password(serializer.validated_data["old_password"]):
-            return Response({"detail": "Old password is incorrect."}, status=400)
+            if not user.check_password(serializer.validated_data["old_password"]):
+                return Response({"detail": "Old password is incorrect."}, status=400)
 
-        user.set_password(serializer.validated_data["new_password"])
-        user.save()
+            user.set_password(serializer.validated_data["new_password"])
+            user.save()
 
-        return Response({"detail": "Password updated successfully."}, status=200)
+            return Response({"detail": "Password updated successfully."}, status=200)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class WorkshopReApplyView(APIView):
     permission_classes = [IsAuthenticated]
@@ -625,21 +682,26 @@ class WorkshopReApplyView(APIView):
                  return Response({'error': 'Cannot re-apply. Status is not rejected.'}, status=status.HTTP_400_BAD_REQUEST)
         except Workshop.DoesNotExist:
             return Response({'error': 'Workshop profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class WorkshopSearchView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        query = request.GET.get('query', '').strip()
-        if not query:
-            return Response([], status=status.HTTP_200_OK)
-        
-        workshops = Workshop.objects.filter(
-            Q(workshop_name__icontains=query) | Q(city__icontains=query)
-        ).exclude(verification_status='REJECTED') 
+        try:
+            query = request.GET.get('query', '').strip()
+            if not query:
+                return Response([], status=status.HTTP_200_OK)
+            
+            workshops = Workshop.objects.filter(
+                Q(workshop_name__icontains=query) | Q(city__icontains=query)
+            ).exclude(verification_status='REJECTED') 
 
-        serializer = WorkshopSearchSerializer(workshops, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            serializer = WorkshopSearchSerializer(workshops, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class MechanicJoinRequestView(APIView):
     permission_classes = [IsAuthenticated]
@@ -826,6 +888,8 @@ class WorkshopRemoveMechanicView(APIView):
             return Response({'message': 'Mechanic removed successfully'}, status=status.HTTP_200_OK)
         except Mechanic.DoesNotExist:
              return Response({'error': 'Mechanic not found in your workshop'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class MechanicCancelJoinRequestView(APIView):
     permission_classes = [IsAuthenticated]
@@ -856,45 +920,48 @@ class WorkshopMechanicDetailView(APIView):
             return Response({'error' : 'Unauthorized'}, status = status.HTTP_403_FORBIDDEN)
 
         try:
-            mechanic = Mechanic.objects.get(id = mechanic_id, workshop = request.user.workshop)
-        except Mechanic.DoesNotExist:
-            return Response({'error' : 'Mechanic not found in your team'}, status = status.http_404_NOT_FOUND)
+            try:
+                mechanic = Mechanic.objects.get(id = mechanic_id, workshop = request.user.workshop)
+            except Mechanic.DoesNotExist:
+                return Response({'error' : 'Mechanic not found in your team'}, status = status.HTTP_404_NOT_FOUND)
 
-        data = {
-            'id' : mechanic.id,
-            'name' : mechanic.user.full_name,
-            'email': mechanic.user.email,
-            'phone' : mechanic.contact_number,
-            'joinedDate' : mechanic.created_at.strftime('%d %b %Y'),
-            'status' : mechanic.availability,
-            'rating_avg' : mechanic.rating_avg
-        }
+            data = {
+                'id' : mechanic.id,
+                'name' : mechanic.user.full_name,
+                'email': mechanic.user.email,
+                'phone' : mechanic.contact_number,
+                'joinedDate' : mechanic.created_at.strftime('%d %b %Y'),
+                'status' : mechanic.availability,
+                'rating_avg' : mechanic.rating_avg
+            }
 
-        earnings_qs = MechanicEarning.objects.filter(
-            mechanic = mechanic,
-            earning_type = 'SERVICE_SHARE'
-        ).select_related('service_execution__service_request').order_by('-created_at')
+            earnings_qs = MechanicEarning.objects.filter(
+                mechanic = mechanic,
+                earning_type = 'SERVICE_SHARE'
+            ).select_related('service_execution__service_request').order_by('-created_at')
 
-        data['totalServices'] = earnings_qs.count()
-        data['totalEarnings'] = earnings_qs.aggregate(total = Sum('amount'))['total'] or 0.00
+            data['totalServices'] = earnings_qs.count()
+            data['totalEarnings'] = earnings_qs.aggregate(total = Sum('amount'))['total'] or 0.00
 
-        services_list = []
+            services_list = []
 
-        for earn in earnings_qs:
-            sr = earn.service_execution.service_request if earn.service_execution else None
-            if sr:
-                services_list.append({
-                    'id' : str(sr.id),
-                    'category' : sr.issue_category,
-                    'vehicle' : sr.vehicle_model,
-                    'date' : earn.created_at.strftime('%d %b %Y'),
-                    'mechanicShare' : float(earn.amount),
-                    'status' : sr.status
-                })
+            for earn in earnings_qs:
+                sr = earn.service_execution.service_request if earn.service_execution else None
+                if sr:
+                    services_list.append({
+                        'id' : str(sr.id),
+                        'category' : sr.issue_category,
+                        'vehicle' : sr.vehicle_model,
+                        'date' : earn.created_at.strftime('%d %b %Y'),
+                        'mechanicShare' : float(earn.amount),
+                        'status' : sr.status
+                    })
 
-        data['services'] = services_list
+            data['services'] = services_list
 
-        return Response(data, status = status.HTTP_200_OK)
+            return Response(data, status = status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 class PayMechanicBonus(APIView):
