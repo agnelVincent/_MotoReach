@@ -106,8 +106,6 @@ class CreateServiceEscrowCheckoutView(APIView):
 
         if amount <= 0:
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        amount_usd = amount * settings.INR_TO_USD_RATE
 
         sr_id = estimate.service_request.id
         base_url = 'http://localhost:5173'
@@ -119,7 +117,7 @@ class CreateServiceEscrowCheckoutView(APIView):
                 line_items=[{
                     'price_data': {
                         'currency': settings.STRIPE_CURRENCY,
-                        'unit_amount': int(round(amount_usd * 100)),
+                        'unit_amount': int(round(amount * 100)),
                         'product_data': {
                             'name': 'Service Amount (Escrow)',
                             'description': f'Service request #{sr_id} – amount held until completion',
@@ -224,7 +222,7 @@ class StripeWebhookView(APIView):
                     wallet=wallet,
                     amount=payment.amount,
                     transaction_type='CREDIT',
-                    description=f"Added ${payment.amount:.2f} to wallet"
+                    description=f"Added ₹{payment.amount:.2f} to wallet"
                 )
             print(f"Wallet balance updated (Atomic)")
             return
@@ -354,8 +352,8 @@ class AddMoneyCheckoutView(APIView):
             amount = float(amount)
             if amount <= 0:
                 return Response({'error': 'Amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
-            if amount > 10000:  
-                return Response({'error': 'Amount cannot exceed $10,000'}, status=status.HTTP_400_BAD_REQUEST)
+            if amount > 100000:  
+                return Response({'error': 'Amount cannot exceed ₹1,00,000'}, status=status.HTTP_400_BAD_REQUEST)
         except (ValueError, TypeError):
             return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -369,7 +367,7 @@ class AddMoneyCheckoutView(APIView):
                             'unit_amount': int(amount * 100),
                             'product_data': {
                                 'name': 'Add Money to Wallet',
-                                'description': f'Add ${amount:.2f} to your wallet balance',
+                                'description': f'Add ₹{amount:.2f} to your wallet balance',
                             },
                         },
                         'quantity': 1,
