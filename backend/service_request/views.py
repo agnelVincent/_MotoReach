@@ -307,59 +307,62 @@ class CancelConnectionRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Only workshop admins can cancel connections"}, status=status.HTTP_403_FORBIDDEN)
-        
         try:
-            workshop = request.user.workshop
-        except AttributeError:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        try:
-            connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
-        except WorkshopConnection.DoesNotExist:
-            return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        if connection.status != 'ACCEPTED':
-            return Response({"error": "Only accepted connections can be cancelled"}, status=status.HTTP_400_BAD_REQUEST)
-
-        sr = connection.service_request
-        if sr.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
-            return Response(
-                {"error": "Cannot cancel connection after the customer has paid. Contact support if needed."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        connection.status = 'CANCELLED'
-        connection.cancelled_by = 'WORKSHOP'
-        connection.responded_at = timezone.now()
-        connection.save()
-        
-        try:
-            execution = connection.service_request.execution
-            for mechanic in execution.mechanics.all():
-                mechanic.availability = 'AVAILABLE'
-                mechanic.save()
+            if request.user.role != 'workshop_admin':
+                return Response({"error": "Only workshop admins can cancel connections"}, status=status.HTTP_403_FORBIDDEN)
             
-            execution.mechanics.clear()
-            execution.assigned_to = None
-            execution.estimate_amount = 0
-            execution.escrow_paid = False
-            execution.escrow_txn_id = None
-            execution.otp_code = None
-            execution.cancelled_at = timezone.now()
-            execution.started_at = None
-            execution.completed_at = None
-            execution.save()
-            
-        except ServiceExecution.DoesNotExist:
-            pass
-        
-        connection.service_request.status = 'PLATFORM_FEE_PAID'
-        connection.service_request.save()
-        notify_service_flow_update(connection.service_request_id)
+            try:
+                workshop = request.user.workshop
+            except AttributeError:
+                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({"message": "Connection cancelled successfully"}, status=status.HTTP_200_OK)
+            try:
+                connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
+            except WorkshopConnection.DoesNotExist:
+                return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            if connection.status != 'ACCEPTED':
+                return Response({"error": "Only accepted connections can be cancelled"}, status=status.HTTP_400_BAD_REQUEST)
+
+            sr = connection.service_request
+            if sr.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
+                return Response(
+                    {"error": "Cannot cancel connection after the customer has paid. Contact support if needed."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            connection.status = 'CANCELLED'
+            connection.cancelled_by = 'WORKSHOP'
+            connection.responded_at = timezone.now()
+            connection.save()
+            
+            try:
+                execution = connection.service_request.execution
+                for mechanic in execution.mechanics.all():
+                    mechanic.availability = 'AVAILABLE'
+                    mechanic.save()
+                
+                execution.mechanics.clear()
+                execution.assigned_to = None
+                execution.estimate_amount = 0
+                execution.escrow_paid = False
+                execution.escrow_txn_id = None
+                execution.otp_code = None
+                execution.cancelled_at = timezone.now()
+                execution.started_at = None
+                execution.completed_at = None
+                execution.save()
+                
+            except ServiceExecution.DoesNotExist:
+                pass
+            
+            connection.service_request.status = 'PLATFORM_FEE_PAID'
+            connection.service_request.save()
+            notify_service_flow_update(connection.service_request_id)
+
+            return Response({"message": "Connection cancelled successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class UserCancelConnectionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -377,77 +380,79 @@ class UserCancelConnectionView(APIView):
                 if service_request and service_request.status == 'PLATFORM_FEE_PAID':
                      return Response({"message": "Connection already cancelled"}, status=status.HTTP_200_OK)
                 return Response({"error": "No active connection found to cancel"}, status=status.HTTP_404_NOT_FOUND)
-                
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        if connection.service_request.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
-            return Response(
-                {"error": "Cannot cancel connection after payment has been made."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-             
-        if connection.status == 'REQUESTED':
-            connection.status = 'WITHDRAWN'
-            connection.cancelled_by = 'USER'
-        else:
-             connection.status = 'CANCELLED'
-             connection.cancelled_by = 'USER'
-             try:
-                 execution = connection.service_request.execution
-                 for mechanic in execution.mechanics.all():
-                     mechanic.availability = 'AVAILABLE'
-                     mechanic.save()
+            if connection.service_request.status in ('SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'):
+                return Response(
+                    {"error": "Cannot cancel connection after payment has been made."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
                  
-                 # Clear mechanics and reset execution details instead of deletion
-                 execution.mechanics.clear()
-                 execution.assigned_to = None
-                 execution.estimate_amount = 0
-                 execution.escrow_paid = False
-                 execution.escrow_txn_id = None
-                 execution.otp_code = None
-                 execution.cancelled_at = timezone.now()
-                 execution.started_at = None
-                 execution.completed_at = None
-                 execution.save()
+            if connection.status == 'REQUESTED':
+                connection.status = 'WITHDRAWN'
+                connection.cancelled_by = 'USER'
+            else:
+                 connection.status = 'CANCELLED'
+                 connection.cancelled_by = 'USER'
+                 try:
+                     execution = connection.service_request.execution
+                     for mechanic in execution.mechanics.all():
+                         mechanic.availability = 'AVAILABLE'
+                         mechanic.save()
+                     
+                     # Clear mechanics and reset execution details instead of deletion
+                     execution.mechanics.clear()
+                     execution.assigned_to = None
+                     execution.estimate_amount = 0
+                     execution.escrow_paid = False
+                     execution.escrow_txn_id = None
+                     execution.otp_code = None
+                     execution.cancelled_at = timezone.now()
+                     execution.started_at = None
+                     execution.completed_at = None
+                     execution.save()
 
-             except ServiceExecution.DoesNotExist:
-                 pass
+                 except ServiceExecution.DoesNotExist:
+                     pass
 
-        connection.responded_at = timezone.now()
-        connection.save()
-        
-        connection.service_request.status = 'PLATFORM_FEE_PAID'
-        connection.service_request.save()
-        notify_service_flow_update(connection.service_request_id)
+            connection.responded_at = timezone.now()
+            connection.save()
+            
+            connection.service_request.status = 'PLATFORM_FEE_PAID'
+            connection.service_request.save()
+            notify_service_flow_update(connection.service_request_id)
 
-        return Response({"message": "Connection cancelled"}, status=status.HTTP_200_OK)
+            return Response({"message": "Connection cancelled"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class DeleteServiceRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, pk):
         try:
-            service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
-        except ServiceRequest.DoesNotExist:
-            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
+            except ServiceRequest.DoesNotExist:
+                return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if service_request.platform_fee_paid:
-            return Response({"error": "Cannot delete request because platform fee is already paid."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if service_request.status not in ['CREATED', 'CANCELLED', 'EXPIRED']:
-            return Response({"error": "Cannot delete active or processed service request."}, status=status.HTTP_400_BAD_REQUEST)
+            if service_request.platform_fee_paid:
+                return Response({"error": "Cannot delete request because platform fee is already paid."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if service_request.status not in ['CREATED', 'CANCELLED', 'EXPIRED']:
+                return Response({"error": "Cannot delete active or processed service request."}, status=status.HTTP_400_BAD_REQUEST)
 
-        active_connections = WorkshopConnection.objects.filter(
-            service_request=service_request,
-            status__in=['REQUESTED', 'ACCEPTED']
-        ).exists()
-        
-        if active_connections:
-             return Response({"error": "Cannot delete request with ongoing connections."}, status=status.HTTP_400_BAD_REQUEST)
+            active_connections = WorkshopConnection.objects.filter(
+                service_request=service_request,
+                status__in=['REQUESTED', 'ACCEPTED']
+            ).exists()
+            
+            if active_connections:
+                 return Response({"error": "Cannot delete request with ongoing connections."}, status=status.HTTP_400_BAD_REQUEST)
 
-        service_request.delete()
-        return Response({"message": "Service request deleted successfully"}, status=status.HTTP_200_OK)
+            service_request.delete()
+            return Response({"message": "Service request deleted successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class WorkshopMechanicsView(APIView):
