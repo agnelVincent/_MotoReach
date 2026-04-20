@@ -695,7 +695,7 @@ class WorkshopSearchView(APIView):
                 return Response([], status=status.HTTP_200_OK)
             
             workshops = Workshop.objects.filter(
-                Q(workshop_name__icontains=query) | Q(city__icontains=query)
+                Q(workshop_name__icontains=query) | Q(city__icontains=query), type='TEAM'
             ).exclude(verification_status='REJECTED') 
 
             serializer = WorkshopSearchSerializer(workshops, many=True)
