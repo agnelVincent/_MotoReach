@@ -951,3 +951,15 @@ class PayMechanicBonus(APIView):
         
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetRejectedReason(APIView):
+    def get(self, request):
+        if not hasattr(request.user, 'workshop'):
+            return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            rejected_reason  = request.user.workshop.rejected_reason
+            return Response({'rejected_reason' : rejected_reason}, status= status.HTTP_200_OK)
+        except Exception:
+            return Response({'error' : 'Failed to fetch rejected reason'})
