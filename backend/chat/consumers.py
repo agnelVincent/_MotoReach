@@ -240,89 +240,100 @@ def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
 class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
-        self.service_request_id = int(
-            self.scope["url_route"]["kwargs"]["service_request_id"]
-        )
-        self.room_group_name = f"chat_{self.service_request_id}"
+        try:
+            self.service_request_id = int(
+                self.scope["url_route"]["kwargs"]["service_request_id"]
+            )
+            self.room_group_name = f"chat_{self.service_request_id}"
 
-        user: User = self.scope.get("user")  
-        if not user or not user.is_authenticated:
+            user: User = self.scope.get("user")  
+            if not user or not user.is_authenticated:
+                await self.close()
+                return
+
+            service_request = await _get_service_request(self.service_request_id)
+            if not service_request:
+                await self.close()
+                return
+
+            allowed = await _user_has_active_connection(user, service_request)
+            if not allowed:
+                await self.close()
+                return
+
+            self.service_request = service_request
+
+            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+            await self.accept()
+
+            history = await _get_chat_history(service_request)
+            await self.send_json({"type": "chat.history", "messages": history})
+
+            await _mark_messages_as_read(user, service_request)
+            await self._notify_unread_update(user)
+        except Exception as e:
+            print(f"Error in ChatConsumer connect: {e}")
             await self.close()
-            return
-
-        service_request = await _get_service_request(self.service_request_id)
-        if not service_request:
-            await self.close()
-            return
-
-        allowed = await _user_has_active_connection(user, service_request)
-        if not allowed:
-            await self.close()
-            return
-
-        self.service_request = service_request
-
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
-
-        history = await _get_chat_history(service_request)
-        await self.send_json({"type": "chat.history", "messages": history})
-
-        await _mark_messages_as_read(user, service_request)
-        await self._notify_unread_update(user)
 
     async def disconnect(self, code):
         if hasattr(self, 'room_group_name'):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive_json(self, content: Dict[str, Any], **kwargs):
-        msg_type = content.get("type")
-        user: User = self.scope.get("user") 
+        try:
+            msg_type = content.get("type")
+            user: User = self.scope.get("user") 
 
-        if msg_type == "message":
-            raw_message = (content.get("message") or "").strip()
-            if not raw_message:
-                return
+            if msg_type == "message":
+                raw_message = (content.get("message") or "").strip()
+                if not raw_message:
+                    return
 
+                try:
+                    message_data, receiver_ids = await _create_message(
+                        user, self.service_request, raw_message
+                    )
+                except PermissionError:
+                    await self.send_json(
+                        {"type": "chat.error", "message": "Chat not available."}
+                    )
+                    return
+
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "chat.message",
+                        "message": message_data,
+                    },
+                )
+
+                for rid in receiver_ids:
+                    await self._send_notification_to_user(rid)
+
+            elif msg_type == "fetch_history":
+
+                before_id = content.get("before_id")
+                if before_id is None:
+                    return
+                older_messages = await _get_chat_history(
+                    self.service_request, limit=50, before_id=int(before_id)
+                )
+
+                await self.send_json({
+                    "type": "chat.history_page",
+                    "messages": older_messages,
+                    "has_more": len(older_messages) == 50,
+                })
+
+            elif msg_type == "mark_read":
+                await _mark_messages_as_read(user, self.service_request)
+                await self._notify_unread_update(user)
+        except Exception as e:
+            print(f"Error in ChatConsumer receive_json: {e}")
             try:
-                message_data, receiver_ids = await _create_message(
-                    user, self.service_request, raw_message
-                )
-            except PermissionError:
-                await self.send_json(
-                    {"type": "chat.error", "message": "Chat not available."}
-                )
-                return
-
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    "type": "chat.message",
-                    "message": message_data,
-                },
-            )
-
-            for rid in receiver_ids:
-                await self._send_notification_to_user(rid)
-
-        elif msg_type == "fetch_history":
-
-            before_id = content.get("before_id")
-            if before_id is None:
-                return
-            older_messages = await _get_chat_history(
-                self.service_request, limit=50, before_id=int(before_id)
-            )
-
-            await self.send_json({
-                "type": "chat.history_page",
-                "messages": older_messages,
-                "has_more": len(older_messages) == 50,
-            })
-
-        elif msg_type == "mark_read":
-            await _mark_messages_as_read(user, self.service_request)
-            await self._notify_unread_update(user)
+                await self.send_json({"type": "chat.error", "message": "An unexpected error occurred."})
+            except Exception:
+                pass
 
     async def chat_message(self, event: Dict[str, Any]):
         await self.send_json({"type": "chat.message", "message": event["message"]})
@@ -363,25 +374,29 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
 
     async def connect(self):
-        user: User = self.scope.get("user")  # type: ignore[assignment]
-        if not user or not user.is_authenticated:
+        try:
+            user: User = self.scope.get("user")  # type: ignore[assignment]
+            if not user or not user.is_authenticated:
+                await self.close()
+                return
+
+            self.user = user
+            self.user_group_name = f"notifications_user_{user.id}"
+
+            await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+            await self.accept()
+
+            # Send initial unread summary on connect
+            summaries = await _get_unread_summaries_for_user(user)
+            await self.send_json(
+                {
+                    "type": "notifications.initial",
+                    "items": summaries,
+                }
+            )
+        except Exception as e:
+            print(f"Error in NotificationConsumer connect: {e}")
             await self.close()
-            return
-
-        self.user = user
-        self.user_group_name = f"notifications_user_{user.id}"
-
-        await self.channel_layer.group_add(self.user_group_name, self.channel_name)
-        await self.accept()
-
-        # Send initial unread summary on connect
-        summaries = await _get_unread_summaries_for_user(user)
-        await self.send_json(
-            {
-                "type": "notifications.initial",
-                "items": summaries,
-            }
-        )
 
     async def disconnect(self, code):
         if hasattr(self, 'user_group_name'):
@@ -391,12 +406,15 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         """
         Receive updates from chat consumers and forward to the connected client.
         """
-        await self.send_json(
-            {
-                "type": "notifications.update",
-                "item": event["item"],
-            }
-        )
+        try:
+            await self.send_json(
+                {
+                    "type": "notifications.update",
+                    "item": event["item"],
+                }
+            )
+        except Exception as e:
+            print(f"Error in NotificationConsumer notification_update: {e}")
 
 
 class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
@@ -404,26 +422,30 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
 
     async def connect(self):
         try:
-            self.service_request_id = int(
-                self.scope["url_route"]["kwargs"]["service_request_id"]
-            )
-        except (KeyError, TypeError, ValueError):
-            await self.close()
-            return
+            try:
+                self.service_request_id = int(
+                    self.scope["url_route"]["kwargs"]["service_request_id"]
+                )
+            except (KeyError, TypeError, ValueError):
+                await self.close()
+                return
 
-        user: User = self.scope.get("user")
-        if not user or not user.is_authenticated:
-            await self.close()
-            return
+            user: User = self.scope.get("user")
+            if not user or not user.is_authenticated:
+                await self.close()
+                return
 
-        allowed = await _user_can_subscribe_service_flow(user, self.service_request_id)
-        if not allowed:
-            await self.close()
-            return
+            allowed = await _user_can_subscribe_service_flow(user, self.service_request_id)
+            if not allowed:
+                await self.close()
+                return
 
-        self.room_group_name = f"service_flow_{self.service_request_id}"
-        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
-        await self.accept()
+            self.room_group_name = f"service_flow_{self.service_request_id}"
+            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+            await self.accept()
+        except Exception as e:
+            print(f"Error in ServiceFlowConsumer connect: {e}")
+            await self.close()
 
     async def disconnect(self, code):
         if hasattr(self, "room_group_name"):

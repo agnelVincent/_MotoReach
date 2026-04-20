@@ -310,33 +310,39 @@ class WalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        wallet, created = Wallet.objects.get_or_create(user=request.user)
-        serializer = WalletSerializer(wallet)
-        return Response(serializer.data)
+        try:
+            wallet, created = Wallet.objects.get_or_create(user=request.user)
+            serializer = WalletSerializer(wallet)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch wallet details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class WalletTransactionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        wallet, created = Wallet.objects.get_or_create(user=request.user)
-        transactions = wallet.transactions.all().order_by('-created_at')
-        
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 20))
-        start = (page - 1) * page_size
-        end = start + page_size
-        
-        paginated_transactions = transactions[start:end]
-        serializer = WalletTransactionSerializer(paginated_transactions, many=True)
-        
-        return Response({
-            'transactions': serializer.data,
-            'total': transactions.count(),
-            'page': page,
-            'page_size': page_size,
-            'has_more': end < transactions.count()
-        })
+        try:
+            wallet, created = Wallet.objects.get_or_create(user=request.user)
+            transactions = wallet.transactions.all().order_by('-created_at')
+            
+            page = int(request.GET.get('page', 1))
+            page_size = int(request.GET.get('page_size', 20))
+            start = (page - 1) * page_size
+            end = start + page_size
+            
+            paginated_transactions = transactions[start:end]
+            serializer = WalletTransactionSerializer(paginated_transactions, many=True)
+            
+            return Response({
+                'transactions': serializer.data,
+                'total': transactions.count(),
+                'page': page,
+                'page_size': page_size,
+                'has_more': end < transactions.count()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch transactions'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AddMoneyCheckoutView(APIView):
@@ -501,21 +507,27 @@ class UserPaymentHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        payments = Payment.objects.filter(user=request.user).order_by('-created_at')
-        serializer = PaymentHistorySerializer(payments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            payments = Payment.objects.filter(user=request.user).order_by('-created_at')
+            serializer = PaymentHistorySerializer(payments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch payment history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class WorkshopPaymentHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        escrow_payments = Payment.objects.filter(
-            payment_type='SERVICE_ESCROW',
-            service_request__execution__workshop__user=request.user
-        ).select_related('service_request').order_by('-created_at')
+        try:
+            escrow_payments = Payment.objects.filter(
+                payment_type='SERVICE_ESCROW',
+                service_request__execution__workshop__user=request.user
+            ).select_related('service_request').order_by('-created_at')
 
-        serializer = PaymentHistorySerializer(escrow_payments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            serializer = PaymentHistorySerializer(escrow_payments, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to fetch workshop payment history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 class MechanicWalletView(APIView):
@@ -531,72 +543,74 @@ class MechanicWalletView(APIView):
         from accounts.models import Mechanic
 
         try:
-            mechanic = request.user.mechanic
-        except Mechanic.DoesNotExist:
-            return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        wallet, _ = Wallet.objects.get_or_create(user = request.user)
-        print(wallet.balance)
+            try:
+                mechanic = request.user.mechanic
+            except Mechanic.DoesNotExist:
+                return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            wallet, _ = Wallet.objects.get_or_create(user = request.user)
 
-        earning_qs = MechanicEarning.objects.filter(mechanic=mechanic)
+            earning_qs = MechanicEarning.objects.filter(mechanic=mechanic)
 
-        total_earned = earning_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-        total_bonuses = earning_qs.filter(earning_type = 'BONUS').aggregate(total = Sum('amount'))['total'] or Decimal('0.00')
-        total_services = earning_qs.filter(earning_type = 'SERVICE_SHARE').values('service_execution').distinct().count()
+            total_earned = earning_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            total_bonuses = earning_qs.filter(earning_type = 'BONUS').aggregate(total = Sum('amount'))['total'] or Decimal('0.00')
+            total_services = earning_qs.filter(earning_type = 'SERVICE_SHARE').values('service_execution').distinct().count()
 
-        from django.utils import timezone
-        now = timezone.now()
+            from django.utils import timezone
+            now = timezone.now()
 
-        this_month = earning_qs.filter(
-            created_at__year = now.year,
-            created_at__month = now.month
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            this_month = earning_qs.filter(
+                created_at__year = now.year,
+                created_at__month = now.month
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        page = int(request.GET.get('page',1))
-        page_size = int(request.GET.get('page_size',20))
-        start = (page - 1) * page_size
-        end = start + page_size
+            page = int(request.GET.get('page',1))
+            page_size = int(request.GET.get('page_size',20))
+            start = (page - 1) * page_size
+            end = start + page_size
 
 
-        earning_list = earning_qs.select_related(
-            'service_execution__service_request'
-        ).order_by('-created_at')[start:end]
+            earning_list = earning_qs.select_related(
+                'service_execution__service_request'
+            ).order_by('-created_at')[start:end]
 
-        earning_data = []
+            earning_data = []
 
-        for e in earning_list:
-            se = e.service_execution
-            sr = se.service_request if se else None
-            mechanic_count = se.mechanics.count() if se else 0
+            for e in earning_list:
+                se = e.service_execution
+                sr = se.service_request if se else None
+                mechanic_count = se.mechanics.count() if se else 0
 
-            earning_data.append({
-                'id' : e.id,
-                'earning_type' : e.earning_type,
-                'amount' : str(e.amount),
-                'description' : e.description,
-                'created_at' : e.created_at,
-                'service_execution' : {
-                    'id' : se.id,
-                    'mechanic_count' : mechanic_count,
-                    'service_request' : {
-                        'id' : sr.id,
-                        'issue_category' : sr.issue_category,
-                        'vehicle_model' : sr.vehicle_model
-                    } if sr else None
-                } if se else None
-            })
+                earning_data.append({
+                    'id' : e.id,
+                    'earning_type' : e.earning_type,
+                    'amount' : str(e.amount),
+                    'description' : e.description,
+                    'created_at' : e.created_at,
+                    'service_execution' : {
+                        'id' : se.id,
+                        'mechanic_count' : mechanic_count,
+                        'service_request' : {
+                            'id' : sr.id,
+                            'issue_category' : sr.issue_category,
+                            'vehicle_model' : sr.vehicle_model
+                        } if sr else None
+                    } if se else None
+                })
 
-        return Response({
-            'balance' : str(wallet.balance),
-            'total_earned' : str(total_earned),
-            'this_month' : str(this_month),
-            'total_bonuses' : str(total_bonuses),
-            'total_services' : total_services,
-            'earnings' : earning_data,
-            'total' : earning_qs.count(),
-            'page' : page,
-            'page_size' : page_size,
-            'has_more' : end < earning_qs.count()
-        })
+            return Response({
+                'balance' : str(wallet.balance),
+                'total_earned' : str(total_earned),
+                'this_month' : str(this_month),
+                'total_bonuses' : str(total_bonuses),
+                'total_services' : total_services,
+                'earnings' : earning_data,
+                'total' : earning_qs.count(),
+                'page' : page,
+                'page_size' : page_size,
+                'has_more' : end < earning_qs.count()
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': 'Failed to load mechanic wallet details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
