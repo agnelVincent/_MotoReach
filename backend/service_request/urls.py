@@ -30,6 +30,7 @@ from .views import (
     VerifyServiceOTPView,
     ReportComplaintView,
     WorkshopDashboardStatsView,
+    SubmitRatingView,
 )
 
 urlpatterns = [
@@ -64,5 +65,6 @@ urlpatterns = [
     path('execution/<int:pk>/end/', EndServiceView.as_view(), name='end-service'),
     path('execution/<int:pk>/generate-otp/', GenerateServiceOTPView.as_view(), name='generate-service-otp'),
     path('execution/<int:pk>/verify-otp/', VerifyServiceOTPView.as_view(), name='verify-service-otp'),
+    path('execution/<int:pk>/rate/', SubmitRatingView.as_view(), name='submit-rating'),
     path('<int:pk>/complaint/', ReportComplaintView.as_view(), name='report-complaint'),
 ]

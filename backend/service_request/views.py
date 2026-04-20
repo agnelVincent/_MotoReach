@@ -4,7 +4,10 @@ from rest_framework.response import Response
 from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import ServiceRequest, WorkshopConnection, ServiceExecution, Estimate, EstimateLineItem
+from .models import (
+    ServiceRequest, WorkshopConnection, ServiceExecution, 
+    Estimate, EstimateLineItem, WorkshopReview, MechanicReview
+)
 from accounts.models import Workshop, Mechanic
 from .serializers import (
     ServiceRequestSerializer, NearbyWorkshopSerializer, WorkshopConnectionSerializer,
@@ -1287,3 +1290,56 @@ class WorkshopDashboardStatsView(APIView):
             "top_mechanics": top_mechanics_data,
             "monthly_data": monthly_data,
         }, status=status.HTTP_200_OK)
+
+class SubmitRatingView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            execution = ServiceExecution.objects.get(pk=pk)
+        except ServiceExecution.DoesNotExist:
+            return Response({"error": "Service Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        if execution.service_request.user != request.user:
+            return Response({"error": "Unauthorized to review this service"}, status=status.HTTP_403_FORBIDDEN)
+            
+        if execution.service_request.status not in ['COMPLETED', 'VERIFIED']:
+            return Response({"error": "You can only rate completed services"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        workshop_rating_data = request.data.get('workshop_rating')
+        mechanic_ratings_data = request.data.get('mechanic_ratings', [])
+        
+        with transaction.atomic():
+            if workshop_rating_data:
+                rating = workshop_rating_data.get('rating')
+                comment = workshop_rating_data.get('comment')
+                if rating:
+                    WorkshopReview.objects.update_or_create(
+                        service_execution=execution,
+                        workshop=execution.workshop,
+                        reviewer=request.user,
+                        defaults={
+                            'rating': rating,
+                            'comment': comment
+                        }
+                    )
+            
+            for mech_data in mechanic_ratings_data:
+                mech_id = mech_data.get('mechanic_id')
+                rating = mech_data.get('rating')
+                comment = mech_data.get('comment')
+                if mech_id and rating:
+                    # Verify mechanic was actually assigned
+                    if execution.mechanics.filter(id=mech_id).exists():
+                        mechanic = Mechanic.objects.get(id=mech_id)
+                        MechanicReview.objects.update_or_create(
+                            service_execution=execution,
+                            mechanic=mechanic,
+                            reviewer=request.user,
+                            defaults={
+                                'rating': rating,
+                                'comment': comment
+                            }
+                        )
+                        
+        return Response({"message": "Ratings submitted successfully!"}, status=status.HTTP_200_OK)

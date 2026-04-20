@@ -257,6 +257,17 @@ class WorkshopReview(BaseReview):
     
     class Meta:
         unique_together = ('service_execution', 'workshop', 'reviewer')
+
+    def update_workshop_average(self):
+        avg = WorkshopReview.objects.filter(workshop=self.workshop).aggregate(Avg('rating'))['rating__avg']
+        self.workshop.rating_avg = avg if avg else 0.00
+        self.workshop.save()
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.update_workshop_average()
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        self.update_workshop_average()
         
 class MechanicReview(BaseReview):
     mechanic = models.ForeignKey('accounts.Mechanic', on_delete=models.CASCADE, related_name='reviews')
