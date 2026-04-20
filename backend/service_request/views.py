@@ -1343,3 +1343,75 @@ class SubmitRatingView(APIView):
                         )
                         
         return Response({"message": "Ratings submitted successfully!"}, status=status.HTTP_200_OK)
+
+class MechanicDashboardStatsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'mechanic' or not hasattr(request.user, 'mechanic'):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+            
+        mechanic = request.user.mechanic
+        
+        from django.db.models import Sum
+        from .models import MechanicEarning, ServiceExecution
+        from django.utils import timezone
+        
+        today = timezone.now().date()
+        
+        # 1. Today's Earnings
+        todays_earnings = MechanicEarning.objects.filter(
+            mechanic=mechanic,
+            created_at__date=today
+        ).aggregate(total=Sum('amount'))['total'] or 0.00
+        
+        # 2. Completed Today
+        completed_today = ServiceExecution.objects.filter(
+            mechanics=mechanic,
+            completed_at__date=today,
+            service_request__status__in=['COMPLETED', 'VERIFIED']
+        ).count()
+        
+        # 3. Active Jobs
+        active_jobs = ServiceExecution.objects.filter(
+            mechanics=mechanic
+        ).exclude(
+            service_request__status__in=['COMPLETED', 'VERIFIED', 'CANCELLED', 'EXPIRED']
+        ).count()
+        
+        # 4. Rating
+        rating = mechanic.rating_avg
+        
+        # 5. Workshop State
+        workshop_join_state = mechanic.joining_status
+        workshop_name = mechanic.workshop.workshop_name if mechanic.workshop else None
+        
+        # 6. Recent Requests
+        recent_executions = ServiceExecution.objects.filter(
+            mechanics=mechanic
+        ).order_by('-started_at', '-service_request__created_at')[:5]
+        
+        recent_requests_data = []
+        for execution in recent_executions:
+            sr = execution.service_request
+            recent_requests_data.append({
+                "userId": f"USR-{sr.user.id}",
+                "requestId": f"REQ-{sr.id}",
+                "problem": sr.issue_category,
+                "status": sr.get_status_display(),
+                "priority": "high" if "Emergency" in sr.issue_category else "medium",
+                "location": "Client Location",
+                "scheduledTime": sr.created_at.strftime("%I:%M %p, %b %d"),
+                "customerName": sr.user.full_name or sr.user.email
+            })
+            
+        return Response({
+            "todays_earnings": todays_earnings,
+            "completed_today": completed_today,
+            "active_jobs": active_jobs,
+            "rating": rating,
+            "workshop_join_state": workshop_join_state,
+            "workshop_name": workshop_name,
+            "recent_requests": recent_requests_data
+        }, status=status.HTTP_200_OK)
+

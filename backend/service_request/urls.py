@@ -31,6 +31,7 @@ from .views import (
     ReportComplaintView,
     WorkshopDashboardStatsView,
     SubmitRatingView,
+    MechanicDashboardStatsView,
 )
 
 urlpatterns = [
@@ -51,6 +52,7 @@ urlpatterns = [
     path('execution/<int:pk>/assign/', AssignMechanicView.as_view(), name='assign-mechanic'),
     path('execution/<int:pk>/remove/', RemoveMechanicView.as_view(), name='remove-mechanic'),
     path('mechanic/assigned-services/', MechanicAssignedServicesView.as_view(), name='mechanic-assigned-services'),
+    path('mechanic/dashboard-stats/', MechanicDashboardStatsView.as_view(), name='mechanic-dashboard-stats'),
     
     path('connection/<int:connection_id>/estimates/', ListEstimatesView.as_view(), name='list-estimates'),
     path('connection/<int:connection_id>/estimates/create/', CreateEstimateView.as_view(), name='create-estimate'),
