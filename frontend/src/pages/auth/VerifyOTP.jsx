@@ -3,6 +3,7 @@ import { Mail, CheckCircle, AlertCircle, Clock, } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { verifyOtp, resendOtp, clearError } from '../../redux/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 
 const VerifyOTP = () => {
   const dispatch = useDispatch();
@@ -49,6 +50,7 @@ const VerifyOTP = () => {
 
   useEffect(() => {
     if (otpVerified) {
+      toast.success('Account created successfully! Please log in.');
       navigate('/login');
     }
   }, [otpVerified, navigate]);
