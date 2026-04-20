@@ -1,5 +1,5 @@
 
-import { Wrench, MapPin, DollarSign, Calendar, PackageCheck, Shield, Clock, TrendingDown, Sparkles, Users, Zap } from 'lucide-react';
+import { Wrench, MapPin, IndianRupee, Calendar, PackageCheck, Shield, Clock, TrendingDown, Sparkles, Users, Zap } from 'lucide-react';
 
 
 const LandingPage = () => {
@@ -15,7 +15,7 @@ const LandingPage = () => {
       description: 'Request professional mechanics to come to your location for convenient repairs.'
     },
     {
-      icon: DollarSign,
+      icon: IndianRupee,
       title: 'Transparent Platform Fee',
       description: 'Clear pricing with no hidden charges. Know exactly what you pay upfront.'
     },

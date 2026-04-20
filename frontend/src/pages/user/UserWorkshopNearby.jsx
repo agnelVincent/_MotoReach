@@ -12,7 +12,7 @@ import { fetchWallet } from '../../redux/slices/walletSlice';
 import { toast } from 'react-hot-toast';
 
 // ─── PLATFORM FEE CONSTANT ────────────────────────────────────────────────────
-const PLATFORM_FEE = 5.00;
+const PLATFORM_FEE = 200.00;
 
 const UserWorkshopNearby = () => {
   const navigate = useNavigate();
@@ -212,7 +212,7 @@ const UserWorkshopNearby = () => {
                     <p style={styles.feeTotalLabel}>Total Amount Due</p>
                     <p style={styles.feeNote}>One-time fee · Valid for this service request</p>
                   </div>
-                  <div style={styles.feeAmount}>${PLATFORM_FEE.toFixed(2)}</div>
+                  <div style={styles.feeAmount}>₹{PLATFORM_FEE.toFixed(2)}</div>
                 </div>
                 <div style={styles.feeInfoRow}>
                   <Info size={13} color="#6B7280" />
@@ -252,12 +252,12 @@ const UserWorkshopNearby = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <p style={styles.methodName}>Wallet Balance</p>
                       <span style={{ ...styles.balanceBadge, ...(insufficientBalance ? styles.balanceBadgeInsufficient : styles.balanceBadgeSufficient) }}>
-                        ${Number(balance).toFixed(2)}
+                        ₹{Number(balance).toFixed(2)}
                       </span>
                     </div>
                     {insufficientBalance
-                      ? <p style={styles.methodSubDanger}>Insufficient balance — need ${PLATFORM_FEE.toFixed(2)}</p>
-                      : <p style={styles.methodSub}>After payment: ${(Number(balance) - PLATFORM_FEE).toFixed(2)} remaining</p>
+                      ? <p style={styles.methodSubDanger}>Insufficient balance — need ₹{PLATFORM_FEE.toFixed(2)}</p>
+                      : <p style={styles.methodSub}>After payment: ₹{(Number(balance) - PLATFORM_FEE).toFixed(2)} remaining</p>
                     }
                   </div>
                   <div style={{ ...styles.methodRadio, ...(paymentMethod === 'wallet' ? styles.methodRadioActive : {}) }}>
@@ -279,7 +279,7 @@ const UserWorkshopNearby = () => {
                   {isProcessing ? (
                     <><span style={styles.btnSpinner} className="spin" /> Processing…</>
                   ) : (
-                    <>Pay ${PLATFORM_FEE.toFixed(2)} <ArrowRight size={16} /></>
+                    <>Pay ₹{PLATFORM_FEE.toFixed(2)} <ArrowRight size={16} /></>
                   )}
                 </button>
               </div>
@@ -378,7 +378,7 @@ const UserWorkshopNearby = () => {
                 <div style={styles.feeNoticeIcon}><CreditCard size={16} color="#4F46E5" /></div>
                 <div>
                   <p style={styles.feeNoticeLabel}>One-time platform fee</p>
-                  <p style={styles.feeNoticeAmount}>${PLATFORM_FEE.toFixed(2)}</p>
+                  <p style={styles.feeNoticeAmount}>₹{PLATFORM_FEE.toFixed(2)}</p>
                 </div>
                 <div style={styles.feeNoticeBadge}>Required to connect</div>
               </div>

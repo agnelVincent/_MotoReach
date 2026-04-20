@@ -5,7 +5,7 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle,
-  DollarSign,
+  IndianRupee,
   Wrench,
   MapPin,
   Calendar,
@@ -48,7 +48,7 @@ const MechanicDashboard = () => {
   const stats = [
     { label: 'Completed Today', value: dashboardData.completed_today?.toString() || '0', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', gradient: 'from-green-500 to-emerald-600' },
     { label: 'Active Jobs', value: dashboardData.active_jobs?.toString() || '0', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', gradient: 'from-blue-500 to-indigo-600' },
-    { label: 'Today\'s Earnings', value: `₹${dashboardData.todays_earnings || '0'}`, icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50', gradient: 'from-orange-500 to-red-600' },
+    { label: 'Today\'s Earnings', value: `₹${dashboardData.todays_earnings || '0'}`, icon: IndianRupee, color: 'text-orange-600', bg: 'bg-orange-50', gradient: 'from-orange-500 to-red-600' },
     { label: 'Rating', value: dashboardData.rating?.toString() || '0.0', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-50', gradient: 'from-yellow-500 to-orange-600' },
   ];
 

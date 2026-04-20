@@ -10,7 +10,7 @@ import {
     ArrowUpRight,
     ArrowDownLeft,
     Calendar,
-    DollarSign,
+    IndianRupee,
     CheckCircle,
     XCircle,
     Clock,
@@ -70,8 +70,8 @@ const UserWallet = () => {
             return;
         }
 
-        if (numAmount > 10000) {
-            toast.error('Amount cannot exceed $10,000');
+        if (numAmount > 100000) {
+            toast.error('Amount cannot exceed ₹1,00,000');
             return;
         }
 
@@ -158,7 +158,7 @@ const UserWallet = () => {
                                 Enter Amount
                             </label>
                             <div className="relative">
-                                <DollarSign className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <IndianRupee className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                                 <input
                                     type="number"
                                     value={amount}
@@ -170,7 +170,7 @@ const UserWallet = () => {
                                     max="10000"
                                 />
                             </div>
-                            <p className="text-xs text-gray-500 mt-2">Maximum: $10,000</p>
+                            <p className="text-xs text-gray-500 mt-2">Maximum: ₹1,00,000</p>
                         </div>
 
                         <div className="mb-6">
@@ -182,7 +182,7 @@ const UserWallet = () => {
                                         onClick={() => setAmount(quickAmount.toString())}
                                         className="px-4 py-3 bg-gray-100 hover:bg-blue-100 hover:text-blue-700 text-gray-700 font-semibold rounded-lg transition-all border-2 border-transparent hover:border-blue-300"
                                     >
-                                        ${quickAmount}
+                                        ₹{quickAmount}
                                     </button>
                                 ))}
                             </div>
@@ -239,7 +239,7 @@ const UserWallet = () => {
                                 </div>
                                 <div>
                                     <p className="text-blue-100 text-sm font-medium">Available Balance</p>
-                                    <h2 className="text-5xl font-bold text-white">${parseFloat(balance || 0).toFixed(2)}</h2>
+                                    <h2 className="text-5xl font-bold text-white">₹{parseFloat(balance || 0).toFixed(2)}</h2>
                                 </div>
                             </div>
 
@@ -259,7 +259,7 @@ const UserWallet = () => {
                                     <p className="text-blue-100 text-sm">Total Credits</p>
                                 </div>
                                 <p className="text-2xl font-bold text-white">
-                                    ${recentTransactions
+                                    ₹{recentTransactions
                                         .filter(t => t.transaction_type === 'CREDIT')
                                         .reduce((sum, t) => sum + parseFloat(t.amount), 0)
                                         .toFixed(2)}
@@ -272,7 +272,7 @@ const UserWallet = () => {
                                     <p className="text-blue-100 text-sm">Total Debits</p>
                                 </div>
                                 <p className="text-2xl font-bold text-white">
-                                    ${recentTransactions
+                                    ₹{recentTransactions
                                         .filter(t => t.transaction_type === 'DEBIT')
                                         .reduce((sum, t) => sum + parseFloat(t.amount), 0)
                                         .toFixed(2)}
@@ -332,7 +332,7 @@ const UserWallet = () => {
                                     <div className="text-right">
                                         <p className={`text-xl font-bold ${transaction.transaction_type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
                                             }`}>
-                                            {transaction.transaction_type === 'CREDIT' ? '+' : '-'}${parseFloat(transaction.amount).toFixed(2)}
+                                            {transaction.transaction_type === 'CREDIT' ? '+' : '-'}₹{parseFloat(transaction.amount).toFixed(2)}
                                         </p>
                                     </div>
                                 </div>

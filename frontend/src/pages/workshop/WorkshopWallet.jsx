@@ -96,7 +96,7 @@ const WorkshopWallet = () => {
                                 </div>
                                 <div>
                                     <p className="text-blue-100 text-sm font-medium">Available Balance</p>
-                                    <h2 className="text-5xl font-bold text-white">${parseFloat(balance || 0).toFixed(2)}</h2>
+                                    <h2 className="text-5xl font-bold text-white">₹{parseFloat(balance || 0).toFixed(2)}</h2>
                                 </div>
                             </div>
                         </div>
@@ -108,7 +108,7 @@ const WorkshopWallet = () => {
                                     <p className="text-blue-100 text-sm">Total Credits</p>
                                 </div>
                                 <p className="text-2xl font-bold text-white">
-                                    ${totalCredits.toFixed(2)}
+                                    ₹{totalCredits.toFixed(2)}
                                 </p>
                             </div>
 
@@ -118,7 +118,7 @@ const WorkshopWallet = () => {
                                     <p className="text-blue-100 text-sm">Total Debits</p>
                                 </div>
                                 <p className="text-2xl font-bold text-white">
-                                    ${totalDebits.toFixed(2)}
+                                    ₹{totalDebits.toFixed(2)}
                                 </p>
                             </div>
                         </div>
@@ -175,7 +175,7 @@ const WorkshopWallet = () => {
                                     <div className="text-right">
                                         <p className={`text-xl font-bold ${transaction.transaction_type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
                                             }`}>
-                                            {transaction.transaction_type === 'CREDIT' ? '+' : '-'}${parseFloat(transaction.amount).toFixed(2)}
+                                            {transaction.transaction_type === 'CREDIT' ? '+' : '-'}₹{parseFloat(transaction.amount).toFixed(2)}
                                         </p>
                                     </div>
                                 </div>
