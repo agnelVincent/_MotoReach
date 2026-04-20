@@ -52,22 +52,24 @@ class CreateServiceRequestView(generics.CreateAPIView):
         serializer.save(user = self.request.user)
 
     def create(self, request , *args, **kwargs):
-        serializer = self.get_serializer(data = request.data)
-        serializer.is_valid(raise_exception = True)
+        try:
+            serializer = self.get_serializer(data = request.data)
+            serializer.is_valid(raise_exception = True)
 
-        self.perform_create(serializer)
+            self.perform_create(serializer)
 
-        u_lat = serializer.data['user_latitude']
-        u_long = serializer.data['user_longitude']
+            u_lat = serializer.data['user_latitude']
+            u_long = serializer.data['user_longitude']
 
-        nearby_list = get_nearby_workshops(u_lat, u_long)
-        print(nearby_list)
-        nearby_serializer = NearbyWorkshopSerializer(nearby_list, many = True)
-    
-        return Response({
-            'request' : serializer.data,
-            'nearby_workshops' : nearby_serializer.data
-        }, status=status.HTTP_201_CREATED)
+            nearby_list = get_nearby_workshops(u_lat, u_long)
+            nearby_serializer = NearbyWorkshopSerializer(nearby_list, many = True)
+        
+            return Response({
+                'request' : serializer.data,
+                'nearby_workshops' : nearby_serializer.data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     
 
@@ -76,23 +78,26 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
     queryset = ServiceRequest.objects.all()
 
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        
-        check_request_expiration(instance)
-        instance.refresh_from_db()
+        try:
+            instance = self.get_object()
+            
+            check_request_expiration(instance)
+            instance.refresh_from_db()
 
-        u_lat = instance.user_latitude
-        u_lon = instance.user_longitude
-        
-        nearby_list = get_nearby_workshops(u_lat, u_lon)
-        
-        req_serializer = self.get_serializer(instance)
-        ws_serializer = NearbyWorkshopSerializer(nearby_list, many=True)
-        
-        return Response({
-            "request": req_serializer.data,
-            "nearby_workshops": ws_serializer.data,
-        })
+            u_lat = instance.user_latitude
+            u_lon = instance.user_longitude
+            
+            nearby_list = get_nearby_workshops(u_lat, u_lon)
+            
+            req_serializer = self.get_serializer(instance)
+            ws_serializer = NearbyWorkshopSerializer(nearby_list, many=True)
+            
+            return Response({
+                "request": req_serializer.data,
+                "nearby_workshops": ws_serializer.data,
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ServiceFlowDetailView(generics.RetrieveAPIView):
@@ -102,16 +107,19 @@ class ServiceFlowDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
+        try:
+            instance = self.get_object()
 
-        check_request_expiration(instance)
-        instance.refresh_from_db()
+            check_request_expiration(instance)
+            instance.refresh_from_db()
 
-        req_serializer = self.get_serializer(instance)
+            req_serializer = self.get_serializer(instance)
 
-        return Response({
-            "request": req_serializer.data,
-        })
+            return Response({
+                "request": req_serializer.data,
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class UserServiceRequestListView(generics.ListAPIView):
@@ -119,20 +127,24 @@ class UserServiceRequestListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
-        
-        user_connections = WorkshopConnection.objects.filter(
-            service_request__in=qs,
-            status='REQUESTED'
-        )
-        check_expired_connections(user_connections)
-        
-        for req in qs:
-            check_request_expiration(req)
+        try:
+            qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
             
-        qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
+            user_connections = WorkshopConnection.objects.filter(
+                service_request__in=qs,
+                status='REQUESTED'
+            )
+            check_expired_connections(user_connections)
+            
+            for req in qs:
+                check_request_expiration(req)
+                
+            qs = ServiceRequest.objects.filter(user=self.request.user).order_by('-created_at')
 
-        return qs
+            return qs
+        except Exception as e:
+            print(f"List Fetch Error: {e}")
+            return ServiceRequest.objects.none()
 
 class ConnectWorkshopView(APIView):
     permission_classes = [permissions.IsAuthenticated]
