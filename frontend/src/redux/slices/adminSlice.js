@@ -15,9 +15,9 @@ export const fetchAdminStats = createAsyncThunk(
 
 export const verifyWorkshop = createAsyncThunk(
     'admin/verifyWorkshop',
-    async ({ workshopId, action }, { rejectWithValue, dispatch }) => {
+    async ({ workshopId, action, reason }, { rejectWithValue, dispatch }) => {
         try {
-            const response = await axiosInstance.patch(`admin-panel/workshops/${workshopId}/verify/`, { action });
+            const response = await axiosInstance.patch(`admin-panel/workshops/${workshopId}/verify/`, { action, reason });
             dispatch(fetchAdminStats()); 
             return { workshopId, action };
         } catch (error) {
