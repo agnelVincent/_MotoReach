@@ -71,6 +71,7 @@ class Workshop(models.Model):
     pincode = models.CharField(max_length=6)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
     type = models.CharField(
         max_length=20,
         choices=[('INDIVIDUAL','Individual'),('TEAM','Team')],
