@@ -352,6 +352,19 @@ export const verifyServiceOTP = createAsyncThunk(
   }
 );
 
+export const submitServiceRating = createAsyncThunk(
+  'serviceRequest/submitServiceRating',
+  async ({ executionId, ratingData }, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.post(`service-request/execution/${executionId}/rate/`, ratingData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.error || "Failed to submit rating");
+    }
+  }
+);
+
+
 
 const serviceRequestSlice = createSlice({
   name: 'serviceRequest',
@@ -368,7 +381,8 @@ const serviceRequestSlice = createSlice({
     error: null,
   },
   reducers: {
-    clearRequestError: (state) => { state.error = null; }
+    clearRequestError: (state) => { state.error = null; },
+    clearCurrentRequest: (state) => { state.currentRequest = null; }
   },
   extraReducers: (builder) => {
     builder
@@ -549,5 +563,5 @@ const serviceRequestSlice = createSlice({
   }
 });
 
-export const { clearRequestError } = serviceRequestSlice.actions;
+export const { clearRequestError, clearCurrentRequest } = serviceRequestSlice.actions;
 export default serviceRequestSlice.reducer;

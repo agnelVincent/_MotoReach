@@ -15,6 +15,7 @@ import {
   fetchEstimates,
   startService,
   endService,
+  clearCurrentRequest
 } from '../../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
 import Chat from '../../components/Chat';
@@ -34,6 +35,9 @@ const WorkshopServiceFlow = () => {
   useEffect(() => {
     if (!requestId) return;
     dispatch(fetchServiceRequestDetails(requestId));
+    return () => {
+      dispatch(clearCurrentRequest());
+    };
   }, [dispatch, requestId]);
 
   useServiceFlowSocket(requestId, () => {
@@ -245,6 +249,7 @@ onEnd={async () => {
           {/* Messages Section */}
           <div className="lg:col-span-2">
             <Chat
+              key={requestId}
               serviceRequestId={requestId}
               canChat={!!activeConnection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
               headerTitle={

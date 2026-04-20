@@ -5,7 +5,7 @@ import {
   CheckCircle, Phone, Star, MapPin, Mail, AlertCircle, Ban,
   DollarSign, FileCheck, Wrench, CreditCard, Shield, Clock, Link2, User, Users
 } from 'lucide-react';
-import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates, approveEstimate, rejectEstimate, verifyServiceOTP } from '../../redux/slices/serviceRequestSlice';
+import { fetchNearbyWorkshops, userCancelConnection, fetchServiceRequestDetails, fetchEstimates, approveEstimate, rejectEstimate, verifyServiceOTP, submitServiceRating, clearCurrentRequest } from '../../redux/slices/serviceRequestSlice';
 import { createEscrowCheckout, resetPaymentState } from '../../redux/slices/paymentSlice';
 import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
@@ -22,11 +22,20 @@ const UserServiceFlow = () => {
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [ratingState, setRatingState] = useState({
+    workshop_rating: { rating: 0, comment: '' },
+    mechanic_ratings: {}
+  });
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   useEffect(() => {
     if (requestId) {
       dispatch(fetchServiceRequestDetails(requestId));
     }
+    return () => {
+      dispatch(clearCurrentRequest());
+    };
   }, [dispatch, requestId]);
 
   const currentRequestRef = useRef(currentRequest);
@@ -206,6 +215,44 @@ const UserServiceFlow = () => {
     }
   };
 
+  const handleSubmitRatings = async () => {
+    const executionId = currentRequest?.execution?.id;
+    if (!executionId) return;
+
+    // Build mechanics rating array
+    const mechanicArray = [];
+    Object.keys(ratingState.mechanic_ratings).forEach(mechId => {
+      if (ratingState.mechanic_ratings[mechId].rating > 0) {
+        mechanicArray.push({
+          mechanic_id: mechId,
+          rating: ratingState.mechanic_ratings[mechId].rating,
+          comment: ratingState.mechanic_ratings[mechId].comment
+        });
+      }
+    });
+
+    const payload = {
+      workshop_rating: ratingState.workshop_rating.rating > 0 ? ratingState.workshop_rating : null,
+      mechanic_ratings: mechanicArray
+    };
+
+    if (!payload.workshop_rating && payload.mechanic_ratings.length === 0) {
+      toast.error("Please provide at least one rating.");
+      return;
+    }
+
+    setSubmittingRating(true);
+    try {
+      await dispatch(submitServiceRating({ executionId, ratingData: payload })).unwrap();
+      toast.success("Ratings submitted successfully! Thank you for your feedback.");
+      setRatingSubmitted(true);
+    } catch(e) {
+      toast.error(e?.error || "Failed to submit ratings.");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   if (loading && !currentRequest) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -298,6 +345,7 @@ const UserServiceFlow = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <div className="lg:col-span-2">
             <Chat
+              key={requestId}
               serviceRequestId={requestId}
               canChat={!!connection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
               headerTitle={connection ? connection.workshop_name : 'Finding Workshop...'}
@@ -681,14 +729,94 @@ const UserServiceFlow = () => {
               <p className="text-gray-600 text-sm md:text-base mb-6">
                 Payment has been released to the workshop. Thank you for using our service!
               </p>
-              <div className="bg-white rounded-xl p-4 inline-block">
-                <p className="text-sm text-gray-600 mb-2">Rate your experience</p>
-                <div className="flex gap-2 justify-center">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star key={star} className="w-8 h-8 text-yellow-400 fill-yellow-400 cursor-pointer hover:scale-110 transition-transform" />
+              {!ratingSubmitted ? (
+                <div className="bg-white rounded-xl p-6 w-full shadow-md text-left">
+                  <h4 className="text-xl font-bold text-gray-800 mb-6 text-center border-b pb-4">Rate your experience</h4>
+                  
+                  {/* Workshop Rating */}
+                  <div className="mb-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
+                    <p className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                        <Wrench className="w-4 h-4 text-blue-600" />
+                        Workshop: {connection?.workshop_name || "Workshop"}
+                    </p>
+                    <div className="flex gap-2 mb-3">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star 
+                          key={`ws-${star}`} 
+                          onClick={() => setRatingState(prev => ({...prev, workshop_rating: {...prev.workshop_rating, rating: star}}))}
+                          className={`w-7 h-7 cursor-pointer hover:scale-110 transition-transform ${star <= ratingState.workshop_rating.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+                        />
+                      ))}
+                    </div>
+                    <textarea 
+                       className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                       placeholder="Leave a comment about the workshop..."
+                       value={ratingState.workshop_rating.comment}
+                       onChange={(e) => setRatingState(prev => ({...prev, workshop_rating: {...prev.workshop_rating, comment: e.target.value}}))}
+                    />
+                  </div>
+
+                  {/* Mechanics Rating */}
+                  {currentRequest?.execution?.mechanics?.length > 0 && currentRequest.execution.mechanics.map(mechanic => (
+                     <div key={`mech-${mechanic.id}`} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <p className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-600" />
+                          Mechanic: {mechanic.name}
+                        </p>
+                        <div className="flex gap-2 mb-3">
+                          {[1, 2, 3, 4, 5].map((star) => {
+                             const currentRating = ratingState.mechanic_ratings[mechanic.id]?.rating || 0;
+                             return (
+                                <Star 
+                                  key={`mech-${mechanic.id}-${star}`} 
+                                  onClick={() => setRatingState(prev => ({
+                                    ...prev, 
+                                    mechanic_ratings: {
+                                        ...prev.mechanic_ratings, 
+                                        [mechanic.id]: {
+                                            ...prev.mechanic_ratings[mechanic.id],
+                                            rating: star
+                                        }
+                                    }
+                                  }))}
+                                  className={`w-6 h-6 cursor-pointer hover:scale-110 transition-transform ${star <= currentRating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
+                                />
+                             )
+                          })}
+                        </div>
+                        <textarea 
+                           className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                           placeholder={`Leave a comment about ${mechanic.name}...`}
+                           value={ratingState.mechanic_ratings[mechanic.id]?.comment || ''}
+                           onChange={(e) => setRatingState(prev => ({
+                             ...prev, 
+                             mechanic_ratings: {
+                               ...prev.mechanic_ratings, 
+                               [mechanic.id]: {
+                                  ...prev.mechanic_ratings[mechanic.id],
+                                  comment: e.target.value
+                               }
+                             }
+                           }))}
+                        />
+                     </div>
                   ))}
+
+                  <button 
+                    onClick={handleSubmitRatings}
+                    disabled={submittingRating}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-70"
+                  >
+                    {submittingRating ? "Submitting..." : "Submit Review"}
+                  </button>
+
                 </div>
-              </div>
+              ) : (
+                <div className="bg-white rounded-xl p-6 inline-block shadow-md border border-green-100">
+                   <h4 className="text-xl font-bold text-gray-800 mb-2">Thank you!</h4>
+                   <p className="text-gray-600 text-sm">Your feedback helps us improve our service.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
