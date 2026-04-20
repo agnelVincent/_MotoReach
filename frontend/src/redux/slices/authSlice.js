@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosInstance from '../../api/axiosInstance';
+import { getProfile } from './ProfileSlice';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const USER_KEY = 'user';
@@ -516,6 +517,15 @@ const authSlice = createSlice({
             .addCase(reApplyWorkshop.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload?.error || 'Re-application failed';
+            })
+            .addCase(getProfile.fulfilled, (state, action) => {
+                if (state.user && state.user.role === 'workshop_admin') {
+                    const newStatus = action.payload?.role_details?.verification_status;
+                    if (newStatus && state.user.workshop_status !== newStatus) {
+                        state.user.workshop_status = newStatus;
+                        localStorage.setItem(USER_KEY, JSON.stringify(state.user));
+                    }
+                }
             });
 
     }

@@ -1,9 +1,17 @@
-import { useSelector } from "react-redux"
+import { useSelector, useDispatch } from "react-redux"
 import WorkshopPendingPage from "../WorkshopPendingPage"
 import WorkshopRejectedPage from "../WorkshopRejectedPage"
+import { useEffect } from "react";
+import { getProfile } from "../../../redux/slices/ProfileSlice";
 
 const WorkshopGuard = ({ children }) => {
-    const { user } = useSelector(state => state.auth)
+    const dispatch = useDispatch();
+    const { user } = useSelector(state => state.auth);
+    useEffect(() => {
+        if (user?.role === 'workshop_admin') {
+            dispatch(getProfile());
+        }
+    }, [dispatch, user?.role]);
     if (user && user.role == 'workshop_admin' && user.workshop_status) {
         const status = user.workshop_status
         if (status === 'PENDING' || status === 'REQUESTED_AGAIN') {
