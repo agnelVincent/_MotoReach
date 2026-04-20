@@ -7,11 +7,11 @@ import { verifyWorkshop } from '../redux/slices/adminSlice';
 export const useWorkshopVerification = () => {
   const dispatch = useDispatch();
 
-  const confirmAction = (workshopId, action) => {
+  const confirmAction = (workshopId, action, reason = null) => {
 
     const loadingToast = toast.loading(`Processing ${action}...`);
 
-    dispatch(verifyWorkshop({ workshopId, action }))
+    dispatch(verifyWorkshop({ workshopId, action, reason }))
       .unwrap()
       .then(() => {
         toast.success(`Workshop ${action === 'approve' ? 'approved' : 'rejected'} successfully!`, {
@@ -51,6 +51,14 @@ export const useWorkshopVerification = () => {
               <p className="mt-1 text-sm text-gray-500">
                 Are you sure you want to <span className="font-bold">{action}</span> this workshop?
               </p>
+                            {action === 'reject' && (
+                <textarea 
+                  id={`reject-reason-${workshopId}`}
+                  className="w-full mt-3 p-2 border border-gray-300 rounded text-sm text-gray-700 focus:outline-none focus:border-red-500"
+                  placeholder="Type the reason for rejection here..."
+                  rows={2}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -59,7 +67,19 @@ export const useWorkshopVerification = () => {
             type="button" 
             onClick={(btnEvent) => {
               btnEvent.stopPropagation(); 
-              confirmAction(workshopId, action);
+
+              let reason = null;
+              if (action === 'reject') {
+                const textarea = document.getElementById(`reject-reason-${workshopId}`);
+                reason = textarea ? textarea.value.trim() : "";
+                
+                if (!reason) {
+                  toast.error("Please provide a reason for rejection");
+                  return; 
+                }
+              }
+
+              confirmAction(workshopId, action, reason);
               toast.dismiss(t.id);
             }}
             className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none cursor-pointer"
