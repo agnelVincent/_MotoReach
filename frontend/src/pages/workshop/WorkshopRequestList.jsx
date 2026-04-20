@@ -189,8 +189,14 @@ const sortedRequests = [...filteredRequests].sort((a, b) => {
   const stats = {
     total: workshopRequests.length,
     pending: workshopRequests.filter(r => r.status === 'REQUESTED').length,
-    approved: workshopRequests.filter(r => r.status === 'ACCEPTED').length,
-    rejected: workshopRequests.filter(r => ['REJECTED', 'AUTO_REJECTED'].includes(r.status)).length
+    active: workshopRequests.filter(r => {
+      const s = getDisplayStatus(r);
+      return ['ACCEPTED', 'IN_PROGRESS', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID'].includes(s);
+    }).length,
+    completed: workshopRequests.filter(r => {
+      const s = getDisplayStatus(r);
+      return ['COMPLETED', 'VERIFIED'].includes(s);
+    }).length
   };
 
   if (loading && workshopRequests.length === 0) {
@@ -237,11 +243,11 @@ const sortedRequests = [...filteredRequests].sort((a, b) => {
           <div className="bg-white rounded-xl p-6 shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Approved</p>
-                <p className="text-3xl font-bold text-green-600">{stats.approved}</p>
+                <p className="text-sm text-gray-600 mb-1">Active Jobs</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.active}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Wrench className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </div>
@@ -249,11 +255,11 @@ const sortedRequests = [...filteredRequests].sort((a, b) => {
           <div className="bg-white rounded-xl p-6 shadow-md">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
+                <p className="text-sm text-gray-600 mb-1">Completed</p>
+                <p className="text-3xl font-bold text-emerald-600">{stats.completed}</p>
               </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-red-600" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
               </div>
             </div>
           </div>
@@ -282,12 +288,23 @@ const sortedRequests = [...filteredRequests].sort((a, b) => {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-300 appearance-none bg-white cursor-pointer"
                 >
-                  <option value="All">All Status</option>
-                  <option value="REQUESTED">Pending</option>
-                  <option value="ACCEPTED">Approved</option>
-                  <option value="REJECTED">Rejected</option>
-                  <option value="AUTO_REJECTED">Expired</option>
-                  <option value="CANCELLED">Cancelled</option>
+                  <option value="All">🌐 All Requests</option>
+                  <optgroup label="📋 Connection Phase">
+                    <option value="REQUESTED">⏳ Pending</option>
+                    <option value="REJECTED">❌ Rejected</option>
+                    <option value="AUTO_REJECTED">⏰ Expired</option>
+                    <option value="CANCELLED">🚫 Cancelled</option>
+                  </optgroup>
+                  <optgroup label="🔧 Service Active">
+                    <option value="ACCEPTED">✅ Accepted (Starting)</option>
+                    <option value="IN_PROGRESS">⚙️ In Progress</option>
+                    <option value="ESTIMATE_SHARED">📄 Estimate Shared</option>
+                    <option value="SERVICE_AMOUNT_PAID">💳 Amount Paid</option>
+                  </optgroup>
+                  <optgroup label="🏆 Completion Phase">
+                    <option value="COMPLETED">🏁 Completed</option>
+                    <option value="VERIFIED">⭐ Verified & Closed</option>
+                  </optgroup>
                 </select>
               </div>
             </div>
