@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 import datetime
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models import Avg
 
 class ServiceRequest(models.Model):
     STATUS_CHOICES = [
@@ -238,3 +240,26 @@ class MechanicEarning(models.Model):
     earning_type = models.CharField(max_length=20, choices=EARNING_TYPE_CHOICES, default='SERVICE_SHARE')
     description = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class BaseReview(models.Model):
+    service_execution = models.ForeignKey('service_request.ServiceExecution', on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        abstract = True
+
+class WorkshopReview(BaseReview):
+    workshop = models.ForeignKey('accounts.Workshop', on_delete=models.CASCADE, related_name='reviews')
+    
+    class Meta:
+        unique_together = ('service_execution', 'workshop', 'reviewer')
+        
+class MechanicReview(BaseReview):
+    mechanic = models.ForeignKey('accounts.Mechanic', on_delete=models.CASCADE, related_name='reviews')
+    
+    class Meta:
+        unique_together = ('service_execution', 'mechanic', 'reviewer')
