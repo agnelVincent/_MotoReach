@@ -3,11 +3,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { reApplyWorkshop } from '../../redux/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { useEffect } from 'react';
+import { getRejectedReason } from '../../redux/slices/ProfileSlice';
 
 const WorkshopRejectedPage = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const { loading } = useSelector((state) => state.auth);
+    const {get_rejected_reason} = useSelector(state => state.profile)
 
     const handleReApply = async () => {
         try {
@@ -18,6 +21,10 @@ const WorkshopRejectedPage = () => {
             toast.error(error.error || 'Failed to re-apply');
         }
     };
+
+    useEffect(()=>{
+        dispatch(getRejectedReason())
+    },[dispatch])
 
     return (
         <div className="flex justify-center items-center min-h-screen p-4 md:p-8 bg-gray-900">
@@ -35,7 +42,7 @@ const WorkshopRejectedPage = () => {
                     </h1>
 
                     <p className="text-lg md:text-xl text-red-100 font-medium">
-                        We regret to inform you that your workshop application was not approved by the Super Admin.
+                        We regret to inform you that your workshop application was not approved by the Super Admin because of {get_rejected_reason}
                     </p>
                 </div>
 

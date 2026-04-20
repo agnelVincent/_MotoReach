@@ -53,6 +53,19 @@ export const updateAvailability = createAsyncThunk(
   }
 );
 
+export const getRejectedReason = createAsyncThunk(
+  'profile/getRejectedReason',
+  async (_, {rejectWithValue}) => {
+    try{
+      const response = await axiosInstance.get('/accounts/workshop/rejected/')
+      return response.data
+    }
+    catch(error){
+      return rejectWithValue(error.response?.data || 'Failed fetching rejected reason')
+    }
+  }
+)
+
 
 const profileSlice = createSlice({
   name: "profile",
@@ -61,6 +74,7 @@ const profileSlice = createSlice({
     loading: false,
     error: null,
     success: null,
+    get_rejected_reason : ''
   },
 
   reducers: {
@@ -72,6 +86,14 @@ const profileSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
+
+      .addCase(getRejectedReason.pending, (state) => {
+        state.get_rejected_reason = 'loading'
+      })
+
+      .addCase(getRejectedReason.fulfilled, (state, action) => {
+        state.get_rejected_reason = action.payload.rejected_reason
+      })
 
       .addCase(getProfile.pending, (state) => {
         state.loading = true;
