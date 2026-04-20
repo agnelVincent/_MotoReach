@@ -263,3 +263,14 @@ class MechanicReview(BaseReview):
     
     class Meta:
         unique_together = ('service_execution', 'mechanic', 'reviewer')
+
+    def update_mechanic_average(self):
+        avg = MechanicReview.objects.filter(mechanic=self.mechanic).aggregate(Avg('rating'))['rating__avg']
+        self.mechanic.rating_avg = avg if avg else 0.00
+        self.mechanic.save()
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.update_mechanic_average()
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        self.update_mechanic_average()
