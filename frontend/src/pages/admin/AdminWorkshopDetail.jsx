@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
-import { Building2, Mail, Phone, MapPin, FileText, Calendar, CheckCircle, Clock, XCircle, ArrowLeft } from 'lucide-react';
+import { Building2, Mail, Phone, MapPin, FileText, Calendar, CheckCircle, Clock, XCircle, ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
 
 const AdminWorkshopDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [workshop, setWorkshop] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [editingStatus, setEditingStatus] = useState(null);
+
+    const { handleStatusUpdate: confirmVerification } = useWorkshopVerification();
+    const { workshops } = useSelector((state) => state.userManagement);
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -23,6 +29,25 @@ const AdminWorkshopDetail = () => {
         };
         fetchDetails();
     }, [id]);
+
+    useEffect(() => {
+        // Sync with redux state if updated via hook
+        const updatedInRedux = workshops.find((w) => w.id === parseInt(id));
+        if (updatedInRedux && workshop && updatedInRedux.verificationStatus !== workshop.verificationStatus) {
+            setWorkshop((prev) => ({
+                ...prev,
+                verificationStatus: updatedInRedux.verificationStatus,
+            }));
+            setEditingStatus(null);
+        }
+    }, [workshops, id]);
+
+    const handleUpdateStatus = (e) => {
+        if (editingStatus && editingStatus !== 'Pending') {
+            const action = editingStatus === 'Approved' ? 'approve' : 'reject';
+            confirmVerification(e, workshop.id, action);
+        }
+    };
 
     const getStatusBadge = (status) => {
         const styles = {
@@ -50,6 +75,7 @@ const AdminWorkshopDetail = () => {
     } = workshop;
 
     const normalizedStatus = verificationStatus === 'Requested Again' ? 'Pending' : verificationStatus;
+    const currentStatus = editingStatus || normalizedStatus;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-100 p-6 mt-14">
@@ -77,10 +103,29 @@ const AdminWorkshopDetail = () => {
                                     </span>
                                 )}
                             </div>
-                            <div className="mt-4 md:mt-0">
-                                <span className={`px-4 py-2 rounded-full font-bold border-2 ${getStatusBadge(normalizedStatus)} bg-white/10 backdrop-blur-sm text-white border-white/30 shadow-lg`}>
-                                    {normalizedStatus}
-                                </span>
+                            <div className="mt-4 md:mt-0 flex items-center gap-2 bg-white/10 p-2 rounded-xl backdrop-blur-sm shadow-lg border border-white/30">
+                                <select
+                                    value={currentStatus}
+                                    onChange={(e) => setEditingStatus(e.target.value)}
+                                    className={`px-4 py-2 rounded-lg font-bold border-2 transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-white/50 ${editingStatus && editingStatus !== normalizedStatus
+                                            ? 'border-white text-purple-900 bg-white'
+                                            : getStatusBadge(currentStatus)
+                                        }`}
+                                >
+                                    <option className="text-gray-900 bg-white" value="Approved">Approved</option>
+                                    <option className="text-gray-900 bg-white" value="Pending">Pending</option>
+                                    <option className="text-gray-900 bg-white" value="Rejected">Rejected</option>
+                                </select>
+
+                                {editingStatus && editingStatus !== normalizedStatus && (
+                                    <button
+                                        onClick={handleUpdateStatus}
+                                        className="p-2 bg-white text-purple-600 rounded-lg shadow-md hover:bg-gray-100 transition-all duration-300"
+                                        title="Save Status"
+                                    >
+                                        <Save className="w-5 h-5" />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
