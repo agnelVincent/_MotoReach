@@ -4,9 +4,12 @@ import { Building2, Shield, ShieldOff, Search, Filter, CheckCircle, Clock, XCirc
 import { fetchWorkshops, toggleBlockStatus } from '../../redux/slices/userManagementSlice';
 import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
 import { toast } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { Eye } from 'lucide-react';
 
 const AdminWorkshop = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { workshops, loading } = useSelector((state) => state.userManagement);
   const { handleStatusUpdate: confirmVerification } = useWorkshopVerification();
 
@@ -249,6 +252,14 @@ const AdminWorkshop = () => {
                                 Block
                               </>
                             )}
+                          </button>
+                          <button
+                            onClick={() => navigate(`/admin/workshop-details/${workshop.id}`)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium transition-all duration-300"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
                           </button>
                         </div>
                       </td>

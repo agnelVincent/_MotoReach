@@ -161,6 +161,34 @@ class AdminWorkshopListView(APIView):
             })
         return Response(data, status=status.HTTP_200_OK)
 
+class AdminWorkshopDetailView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, workshop_id):
+        workshop = get_object_or_404(Workshop.objects.select_related('user'), id=workshop_id)
+        data = {
+            'id': workshop.id,
+            'workshopName': workshop.workshop_name,
+            'ownerName': workshop.user.full_name,
+            'email': workshop.user.email,
+            'contactNumber': workshop.contact_number,
+            'licenseNumber': workshop.license_number,
+            'type': workshop.get_type_display(),
+            'addressLine': workshop.address_line,
+            'locality': workshop.locality,
+            'city': workshop.city,
+            'state': workshop.state,
+            'pincode': workshop.pincode,
+            'latitude': workshop.latitude,
+            'longitude': workshop.longitude,
+            'verificationStatus': workshop.get_verification_status_display(),
+            'rejectionReason': workshop.rejection_reason,
+            'createdAt': workshop.created_at,
+            'isBlocked': not workshop.user.is_active,
+            'userId': workshop.user.id
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
 class AdminMechanicListView(APIView):
     permission_classes = [IsAdminUser]
 
