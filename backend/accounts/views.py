@@ -855,7 +855,8 @@ class WorkshopMechanicDetailView(APIView):
             'email': mechanic.user.email,
             'phone' : mechanic.contact_number,
             'joinedDate' : mechanic.created_at.strftime('%d %b %Y'),
-            'status' : mechanic.availability
+            'status' : mechanic.availability,
+            'rating_avg' : mechanic.rating_avg
         }
 
         earnings_qs = MechanicEarning.objects.filter(

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserPlus, Search, Phone, Mail, Calendar, CheckCircle, XCircle, MoreVertical, Briefcase } from 'lucide-react';
+import { Users, UserPlus, Search, Phone, Mail, Calendar, CheckCircle, XCircle, MoreVertical, Briefcase, Star } from 'lucide-react';
 import { fetchMechanicRequests, fetchMyMechanics, respondToRequest, clearMessages, removeMechanic } from '../../redux/slices/workshopMechanicSlice';
 import { toast } from 'react-hot-toast';
 
@@ -177,7 +177,13 @@ const WorkshopMechanicManager = () => {
                                                     </div>
                                                 </div>
 
-                                                <h3 className="text-lg font-bold text-gray-900 mb-1">{mechanic.mechanic_name}</h3>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <h3 className="text-lg font-bold text-gray-900">{mechanic.mechanic_name}</h3>
+                                                    <div className="flex items-center gap-1 bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-100">
+                                                        <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+                                                        <span className="text-xs font-bold text-yellow-700">{mechanic.rating_avg ? Number(mechanic.rating_avg).toFixed(1) : 'No ratings'}</span>
+                                                    </div>
+                                                </div>
                                                 <div className="space-y-2.5 mt-4">
                                                     <div className="flex items-center gap-3 text-sm text-gray-600">
                                                         <Mail className="w-4 h-4 text-gray-400" />
@@ -223,6 +229,7 @@ const WorkshopMechanicManager = () => {
                                                 <tr>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mechanic</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                                 </tr>
@@ -243,6 +250,12 @@ const WorkshopMechanicManager = () => {
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="text-sm text-gray-900">{req.contact_number}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                                                <span className="text-sm font-medium text-gray-700">{req.rating_avg ? Number(req.rating_avg).toFixed(1) : 'N/A'}</span>
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="text-sm text-gray-500">{formatDate(req.created_at)}</div>

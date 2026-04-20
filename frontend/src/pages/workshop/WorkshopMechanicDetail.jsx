@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
     User, Phone, Mail, ArrowLeft, Wrench, IndianRupee, Gift, Calendar, CheckCircle, 
-    TrendingUp, Award
+    TrendingUp, Award, Star
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMechanicDetails, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice'
@@ -95,6 +95,10 @@ const WorkshopMechanicDetail = () => {
                                     <h1 className="text-3xl font-extrabold text-gray-900">{mechanicDetail.name}</h1>
                                     <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 rounded-full flex items-center gap-1">
                                         <CheckCircle className="w-3 h-3" /> {mechanicDetail.status}
+                                    </span>
+                                    <span className="px-3 py-1 text-xs font-bold tracking-wider bg-yellow-100 text-yellow-700 rounded-full flex items-center gap-1 border border-yellow-200">
+                                        <Star className="w-3 h-3 fill-yellow-600 text-yellow-600" />
+                                        {mechanicDetail.rating_avg ? Number(mechanicDetail.rating_avg).toFixed(1) : 'No ratings'}
                                     </span>
                                 </div>
                                 <p className="text-gray-500 font-medium tracking-wide">ID: MECH-{mechanicDetail.id}</p>
