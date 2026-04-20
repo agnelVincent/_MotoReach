@@ -809,6 +809,17 @@ class WorkshopRemoveMechanicView(APIView):
             workshop = request.user.workshop
             mechanic = Mechanic.objects.get(id=mechanic_id, workshop=workshop)
             
+            from service_request.models import ServiceExecution
+            ongoing_services = ServiceExecution.objects.filter(
+                mechanics=mechanic,
+                service_request__status__in=['CONNECTED', 'ESTIMATE_SHARED', 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS']
+            ).exists()
+            
+            if ongoing_services:
+                return Response({
+                    'error': 'Cannot remove mechanic because they are currently assigned to an ongoing service. Please complete or transfer their services first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             mechanic.workshop = None
             mechanic.joining_status = 'PENDING' 
             mechanic.save()
