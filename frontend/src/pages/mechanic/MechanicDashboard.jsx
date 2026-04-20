@@ -16,57 +16,43 @@ import {
   Target
 } from 'lucide-react';
 import MechanicNavbar from '../../components/navbars/MechanicNavbar';
+import { Link } from 'react-router-dom';
+import axiosInstance from '../../api/axiosInstance';
 
 const MechanicDashboard = () => {
-  const recentRequests = [
-    {
-      userId: 'USR-1001',
-      requestId: 'REQ-5678',
-      problem: 'Engine Oil Change',
-      status: 'In Progress',
-      priority: 'medium',
-      location: 'Koramangala, Bangalore',
-      scheduledTime: 'Today, 2:00 PM',
-      customerName: 'Rajesh Kumar'
-    },
-    {
-      userId: 'USR-1002',
-      requestId: 'REQ-5679',
-      problem: 'Brake System Repair',
-      status: 'Pending',
-      priority: 'high',
-      location: 'Indiranagar, Bangalore',
-      scheduledTime: 'Today, 4:30 PM',
-      customerName: 'Priya Sharma'
-    },
-    {
-      userId: 'USR-1003',
-      requestId: 'REQ-5680',
-      problem: 'Battery Replacement',
-      status: 'Scheduled',
-      priority: 'low',
-      location: 'Whitefield, Bangalore',
-      scheduledTime: 'Tomorrow, 10:00 AM',
-      customerName: 'Amit Patel'
-    },
-    {
-      userId: 'USR-1004',
-      requestId: 'REQ-5681',
-      problem: 'Tire Puncture Fix',
-      status: 'Completed',
-      priority: 'high',
-      location: 'HSR Layout, Bangalore',
-      scheduledTime: 'Yesterday, 3:00 PM',
-      customerName: 'Sneha Reddy'
-    },
-  ];
+  const [dashboardData, setDashboardData] = useState({
+    todays_earnings: 0.00,
+    completed_today: 0,
+    active_jobs: 0,
+    rating: '0.0',
+    workshop_join_state: 'PENDING',
+    workshop_name: null,
+    recent_requests: []
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axiosInstance.get('/service-request/mechanic/dashboard-stats/');
+        setDashboardData(response.data);
+      } catch (error) {
+        console.error("Dashboard stats error", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const stats = [
-    { label: 'Completed Today', value: '5', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', gradient: 'from-green-500 to-emerald-600' },
-    { label: 'Active Jobs', value: '3', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', gradient: 'from-blue-500 to-indigo-600' },
-    { label: 'Today\'s Earnings', value: '₹2,450', icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50', gradient: 'from-orange-500 to-red-600' },
-    { label: 'Rating', value: '4.8', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-50', gradient: 'from-yellow-500 to-orange-600' },
+    { label: 'Completed Today', value: dashboardData.completed_today?.toString() || '0', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', gradient: 'from-green-500 to-emerald-600' },
+    { label: 'Active Jobs', value: dashboardData.active_jobs?.toString() || '0', icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', gradient: 'from-blue-500 to-indigo-600' },
+    { label: 'Today\'s Earnings', value: `₹${dashboardData.todays_earnings || '0'}`, icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50', gradient: 'from-orange-500 to-red-600' },
+    { label: 'Rating', value: dashboardData.rating?.toString() || '0.0', icon: Star, color: 'text-yellow-600', bg: 'bg-yellow-50', gradient: 'from-yellow-500 to-orange-600' },
   ];
+
+  const recentRequests = dashboardData.recent_requests || [];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -139,6 +125,7 @@ const MechanicDashboard = () => {
           </div>
 
           {/* Apply for Workshop Section */}
+          {dashboardData.workshop_join_state !== 'ACCEPTED' && (
           <div className="mb-8">
             <div className="relative bg-gradient-to-r from-orange-600 via-red-600 to-pink-600 rounded-2xl p-8 shadow-2xl overflow-hidden">
               <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHptMjAgMjBjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHpNMTYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-10"></div>
@@ -158,13 +145,14 @@ const MechanicDashboard = () => {
                   </div>
                 </div>
                 
-                <button className="group px-8 py-4 bg-white text-orange-700 font-bold rounded-xl shadow-2xl hover:shadow-white/50 transition-all duration-300 transform hover:scale-105 flex items-center gap-3 whitespace-nowrap">
+                <Link to="/mechanic/workshop" className="group px-8 py-4 bg-white text-orange-700 font-bold rounded-xl shadow-2xl hover:shadow-white/50 transition-all duration-300 transform hover:scale-105 flex items-center gap-3 whitespace-nowrap">
                   Apply Now
                   <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" />
-                </button>
+                </Link>
               </div>
             </div>
           </div>
+          )}
 
           {/* Recent/Ongoing Requests Section */}
           <div className="bg-white rounded-2xl p-6 shadow-lg">
