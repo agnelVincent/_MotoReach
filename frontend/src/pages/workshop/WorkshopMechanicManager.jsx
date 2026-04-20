@@ -66,6 +66,38 @@ const WorkshopMechanicManager = () => {
         });
     };
 
+    const handleApproveConfirm = (mechanicId, mechanicName) => {
+        toast((t) => (
+            <div className="flex flex-col gap-3">
+                <div className="font-medium text-gray-900">
+                    Are you sure you want to approve {mechanicName}?
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => {
+                            dispatch(respondToRequest({ mechanicId, action: 'APPROVE' }));
+                            toast.dismiss(t.id);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                        Approve
+                    </button>
+                </div>
+            </div>
+        ), {
+            duration: 5000,
+            position: 'top-center',
+        });
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -269,7 +301,7 @@ const WorkshopMechanicManager = () => {
                                                                     Reject
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => handleAction(req.mechanic_id, 'APPROVE')}
+                                                                    onClick={() => handleApproveConfirm(req.mechanic_id, req.mechanic_name)}
                                                                     className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center gap-1 mx-auto md:mx-0 shadow-sm"
                                                                 >
                                                                     Accept <CheckCircle className="w-3.5 h-3.5" />
