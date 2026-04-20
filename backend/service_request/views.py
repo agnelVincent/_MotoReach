@@ -151,48 +151,51 @@ class ConnectWorkshopView(APIView):
 
     def post(self, request, pk):
         try:
-            service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
-        except ServiceRequest.DoesNotExist:
-            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        workshop_id = request.data.get('workshop_id')
-        try:
-            workshop = Workshop.objects.get(pk=workshop_id)
-        except Workshop.DoesNotExist:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
+            except ServiceRequest.DoesNotExist:
+                return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            workshop_id = request.data.get('workshop_id')
+            try:
+                workshop = Workshop.objects.get(pk=workshop_id)
+            except Workshop.DoesNotExist:
+                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not service_request.platform_fee_paid:
-             return Response({"error": "Platform fee not paid"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if service_request.status == 'EXPIRED':
-             return Response({"error": "This service request has expired."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        existing_connection = WorkshopConnection.objects.filter(
-            service_request=service_request, 
-            status__in=['REQUESTED', 'ACCEPTED']
-        ).exists()
+            if not service_request.platform_fee_paid:
+                 return Response({"error": "Platform fee not paid"}, status=status.HTTP_400_BAD_REQUEST)
+            
+            if service_request.status == 'EXPIRED':
+                 return Response({"error": "This service request has expired."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            existing_connection = WorkshopConnection.objects.filter(
+                service_request=service_request, 
+                status__in=['REQUESTED', 'ACCEPTED']
+            ).exists()
 
-        if existing_connection:
-            return Response({"error": "You already have an active connection request for this service."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        previous_attempts = WorkshopConnection.objects.filter(
-            service_request=service_request,
-            workshop=workshop
-        ).count()
+            if existing_connection:
+                return Response({"error": "You already have an active connection request for this service."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            previous_attempts = WorkshopConnection.objects.filter(
+                service_request=service_request,
+                workshop=workshop
+            ).count()
 
-        if previous_attempts >= 3:
-            return Response({"error": "You have reached the maximum limit of 3 connection attempts for this workshop."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        WorkshopConnection.objects.create(
-            service_request=service_request,
-            workshop=workshop,
-            status='REQUESTED'
-        )
-        
-        service_request.status = 'CONNECTING'
-        service_request.save()
+            if previous_attempts >= 3:
+                return Response({"error": "You have reached the maximum limit of 3 connection attempts for this workshop."}, status=status.HTTP_400_BAD_REQUEST)
+            
+            WorkshopConnection.objects.create(
+                service_request=service_request,
+                workshop=workshop,
+                status='REQUESTED'
+            )
+            
+            service_request.status = 'CONNECTING'
+            service_request.save()
 
-        return Response({"message": "Connection requested successfully"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Connection requested successfully"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class WorkshopConnectionRequestsView(APIView):
@@ -200,95 +203,104 @@ class WorkshopConnectionRequestsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Only workshop admins can access this"}, status=status.HTTP_403_FORBIDDEN)
-        
         try:
-            workshop = request.user.workshop
-        except AttributeError:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        check_expired_connections(WorkshopConnection.objects.filter(workshop=workshop))
+            if request.user.role != 'workshop_admin':
+                return Response({"error": "Only workshop admins can access this"}, status=status.HTTP_403_FORBIDDEN)
+            
+            try:
+                workshop = request.user.workshop
+            except AttributeError:
+                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            check_expired_connections(WorkshopConnection.objects.filter(workshop=workshop))
 
-        connections = WorkshopConnection.objects.filter(workshop=workshop).order_by('-requested_at')
-        serializer = WorkshopConnectionSerializer(connections, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            connections = WorkshopConnection.objects.filter(workshop=workshop).order_by('-requested_at')
+            serializer = WorkshopConnectionSerializer(connections, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AcceptConnectionRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Only workshop admins can accept requests"}, status=status.HTTP_403_FORBIDDEN)
-        
         try:
-            workshop = request.user.workshop
-        except AttributeError:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+            if request.user.role != 'workshop_admin':
+                return Response({"error": "Only workshop admins can accept requests"}, status=status.HTTP_403_FORBIDDEN)
+            
+            try:
+                workshop = request.user.workshop
+            except AttributeError:
+                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
-        except WorkshopConnection.DoesNotExist:
-            return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
+            except WorkshopConnection.DoesNotExist:
+                return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if connection.status != 'REQUESTED':
-            return Response({"error": f"Connection request is already {connection.status}"}, status=status.HTTP_400_BAD_REQUEST)
+            if connection.status != 'REQUESTED':
+                return Response({"error": f"Connection request is already {connection.status}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        connection.status = 'ACCEPTED'
-        connection.responded_at = timezone.now()
-        connection.save()
+            connection.status = 'ACCEPTED'
+            connection.responded_at = timezone.now()
+            connection.save()
 
-        connection.service_request.status = 'CONNECTED'
-        connection.service_request.save()
-        notify_service_flow_update(connection.service_request_id)
+            connection.service_request.status = 'CONNECTED'
+            connection.service_request.save()
+            notify_service_flow_update(connection.service_request_id)
 
-        execution, created = ServiceExecution.objects.get_or_create(
-            service_request=connection.service_request,
-            defaults={
-                'workshop': workshop,
-                'assigned_to': request.user,
-                'estimate_amount': 0
-            }
-        )
-        
-        if not created:
-            execution.workshop = workshop
-            execution.assigned_to = request.user
-            execution.save()
+            execution, created = ServiceExecution.objects.get_or_create(
+                service_request=connection.service_request,
+                defaults={
+                    'workshop': workshop,
+                    'assigned_to': request.user,
+                    'estimate_amount': 0
+                }
+            )
+            
+            if not created:
+                execution.workshop = workshop
+                execution.assigned_to = request.user
+                execution.save()
 
-        return Response({"message": "Connection request accepted successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "Connection request accepted successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class RejectConnectionRequestView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Only workshop admins can reject requests"}, status=status.HTTP_403_FORBIDDEN)
-        
         try:
-            workshop = request.user.workshop
-        except AttributeError:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+            if request.user.role != 'workshop_admin':
+                return Response({"error": "Only workshop admins can reject requests"}, status=status.HTTP_403_FORBIDDEN)
+            
+            try:
+                workshop = request.user.workshop
+            except AttributeError:
+                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
-        except WorkshopConnection.DoesNotExist:
-            return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
+            try:
+                connection = WorkshopConnection.objects.get(pk=pk, workshop=workshop)
+            except WorkshopConnection.DoesNotExist:
+                return Response({"error": "Connection request not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if connection.status != 'REQUESTED':
-            return Response({"error": f"Connection request is already {connection.status}"}, status=status.HTTP_400_BAD_REQUEST)
+            if connection.status != 'REQUESTED':
+                return Response({"error": f"Connection request is already {connection.status}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        connection.status = 'REJECTED'
-        connection.responded_at = timezone.now()
-        connection.save()
+            connection.status = 'REJECTED'
+            connection.responded_at = timezone.now()
+            connection.save()
 
-        connection.service_request.status = 'PLATFORM_FEE_PAID'
-        connection.service_request.save()
-        notify_service_flow_update(connection.service_request_id)
+            connection.service_request.status = 'PLATFORM_FEE_PAID'
+            connection.service_request.save()
+            notify_service_flow_update(connection.service_request_id)
 
-        return Response({"message": "Connection request rejected successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "Connection request rejected successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CancelConnectionRequestView(APIView):
