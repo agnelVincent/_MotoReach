@@ -331,6 +331,7 @@ class LoginView(TokenObtainPairView):
         data = serializer.validated_data
 
         response_data = {
+            'user_id': user.id,
             'access': data['access'],
             'full_name': data['full_name'],
             'role': data['role'],
