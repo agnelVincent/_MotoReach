@@ -106,8 +106,11 @@ class WorkshopVerificationView(APIView):
         workshop = get_object_or_404(Workshop, id=workshop_id)
         action = request.data.get('action')
         if action == 'approve':
+            workshop.rejection_reason = None
             workshop.verification_status = 'APPROVED'
         elif action == 'reject':
+            reason = request.data.get('reason')
+            workshop.rejection_reason = reason
             workshop.verification_status = 'REJECTED'
         else:
             return Response({'error' : 'Invalid action'},status=status.HTTP_400_BAD_REQUEST)
@@ -118,7 +121,8 @@ class WorkshopVerificationView(APIView):
             {
                 'message' : f'workshop {action}ed successfully',
                 'workshop_id' : workshop_id,
-                'status' : workshop.get_verification_status_display()
+                'status' : workshop.get_verification_status_display(),
+                "rejection_reason": workshop.rejection_reason
             },
             status=status.HTTP_200_OK
         )
