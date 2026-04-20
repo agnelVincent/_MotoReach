@@ -364,10 +364,6 @@ const WorkshopProfile = () => {
                     </label>
                   )}
                 </div>
-
-                {isEditMode && profilePictureFile && (
-                  <p className="text-sm text-gray-600 mt-2 self-center md:self-auto">File selected: **{profilePictureFile.name}**</p>
-                )}
               </div>
 
               {/* Owner Info Fields */}

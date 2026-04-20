@@ -394,10 +394,6 @@ const handleAvailabilityToggle = () => {
                   )}
                 </div>
 
-                {/* Optional: Display file name in edit mode */}
-                {isEditMode && profilePictureFile && (
-                    <p className="text-sm text-gray-600 mt-2 self-center md:self-auto">File selected: **{profilePictureFile.name}**</p>
-                )}
               </div>
 
               {/* Basic Info Fields */}
