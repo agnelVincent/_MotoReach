@@ -12,6 +12,7 @@ const WorkshopGuard = ({ children }) => {
             dispatch(getProfile());
         }
     }, [dispatch, user?.role]);
+    
     if (user && user.role == 'workshop_admin' && user.workshop_status) {
         const status = user.workshop_status
         if (status === 'PENDING' || status === 'REQUESTED_AGAIN') {
