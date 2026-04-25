@@ -17,7 +17,7 @@ from .serializers import (
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update
+from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, notify_connection_request
 from django.db import DatabaseError
 
 
@@ -192,6 +192,12 @@ class ConnectWorkshopView(APIView):
             
             service_request.status = 'CONNECTING'
             service_request.save()
+
+            notify_connection_request(
+                workshop_user_id=workshop.user.id,
+                service_request_id=service_request.id,
+                user_name=request.user.full_name or request.user.email,
+            )
 
             return Response({"message": "Connection requested successfully"}, status=status.HTTP_201_CREATED)
         except Exception as e:
