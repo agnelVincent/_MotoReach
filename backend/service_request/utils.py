@@ -35,14 +35,12 @@ def notify_connection_request(workshop_user_id : int, service_request_id : int, 
             {
                 'type' : 'notification.update',
                 'item' : {
-                    'type' : {
                         'type' : 'connection_request',
                         'service_request_id' : service_request_id,
                         'unread_count' : 1,
                         'counterpart_name' : user_name
                     }
                 }
-            }
         )
     
     transaction.on_commit(send)
