@@ -186,7 +186,7 @@ const WorkshopNavbar = () => {
       <button
         key={`msg-${n.service_request_id}`}
         onClick={() => {
-          navigate(`/workshop/service-flow/${n.service_request_id}`);
+          navigate(`/workshop/requests`);
           setIsNotificationOpen(false);
         }}
         className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
