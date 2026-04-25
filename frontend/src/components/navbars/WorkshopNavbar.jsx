@@ -35,6 +35,9 @@ const WorkshopNavbar = () => {
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
   const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
+  const messageNotifications  = notifications.filter(n => n.notification_type !== 'connection_request');
+  const requestNotifications  = notifications.filter(n => n.notification_type === 'connection_request');
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
 
@@ -144,28 +147,64 @@ const WorkshopNavbar = () => {
                     Messages
                   </p>
                   <div className="max-h-64 overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
-                        <button
-                          key={n.service_request_id}
-                          onClick={() => {
-                            navigate(`/workshop/service-flow/${n.service_request_id}`);
-                            setIsNotificationOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-                        >
-                          <span className="text-sm font-medium text-gray-800">
-                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
-                            from {n.counterpart_name || 'user'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Request #{n.service_request_id}
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-                    )}
+                    {/* Section 1 — Connection Requests */}
+{requestNotifications.length > 0 && (
+  <>
+    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      Connection Requests
+    </p>
+    <div className="max-h-32 overflow-y-auto">
+      {requestNotifications.map((n) => (
+        <button
+          key={`req-${n.service_request_id}`}
+          onClick={() => {
+            navigate('/workshop/requests');
+            setIsNotificationOpen(false);
+          }}
+          className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex flex-col"
+        >
+          <span className="text-sm font-medium text-indigo-700">
+            New request from {n.counterpart_name || 'a user'}
+          </span>
+          <span className="text-xs text-gray-500">
+            Service Request #{n.service_request_id}
+          </span>
+        </button>
+      ))}
+    </div>
+    <div className="border-t border-gray-100 my-1" />
+  </>
+)}
+
+{/* Section 2 — Messages (existing, just rename variable) */}
+<p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+  Messages
+</p>
+<div className="max-h-64 overflow-y-auto">
+  {messageNotifications.length > 0 ? (
+    messageNotifications.map((n) => (
+      <button
+        key={`msg-${n.service_request_id}`}
+        onClick={() => {
+          navigate(`/workshop/service-flow/${n.service_request_id}`);
+          setIsNotificationOpen(false);
+        }}
+        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+      >
+        <span className="text-sm font-medium text-gray-800">
+          {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+          from {n.counterpart_name || 'user'}
+        </span>
+        <span className="text-xs text-gray-500">
+          Request #{n.service_request_id}
+        </span>
+      </button>
+    ))
+  ) : (
+    <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+  )}
+</div>
+
                   </div>
                 </div>
               )}
