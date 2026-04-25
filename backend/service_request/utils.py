@@ -2,15 +2,14 @@ from django.utils import timezone
 from payments.utils import check_and_process_refund
 from math import radians, cos, sin, asin, sqrt
 from django.db import transaction
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
 
     def send_notification():
         try:
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
-
             channel_layer = get_channel_layer()
             if not channel_layer:
                 return
@@ -23,6 +22,30 @@ def notify_service_flow_update(service_request_id: int, event: str = "update") -
             print(e)
             pass  
     transaction.on_commit(send_notification)
+
+
+def notify_connection_request(workshop_user_id : int, service_request_id : int, user_name : str):
+
+    def send():
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_user_{workshop_user_id}',
+            {
+                'type' : 'notification.update',
+                'item' : {
+                    'type' : {
+                        'type' : 'connection_request',
+                        'service_request_id' : service_request_id,
+                        'unread_count' : 1,
+                        'counterpart_name' : user_name
+                    }
+                }
+            }
+        )
+    
+    transaction.on_commit(send)
 
 def calculate_distance(lat1, long1, lat2, long2):
     if lat1 is None or long1 is None or lat2 is None or long2 is None:
