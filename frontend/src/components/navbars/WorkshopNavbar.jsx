@@ -192,7 +192,7 @@ const WorkshopNavbar = () => {
         className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
       >
         <span className="text-sm font-medium text-gray-800">
-          {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+          Connection request from 
           from {n.counterpart_name || 'user'}
         </span>
         <span className="text-xs text-gray-500">
