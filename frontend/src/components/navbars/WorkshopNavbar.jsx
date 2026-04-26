@@ -35,8 +35,9 @@ const WorkshopNavbar = () => {
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
   const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
-  const messageNotifications  = notifications.filter(n => n.notification_type !== 'connection_request');
-  const requestNotifications  = notifications.filter(n => n.notification_type === 'connection_request');
+  const messageNotifications  = notifications.filter(n => n.type !== 'connection_request');
+  const requestNotifications  = notifications.filter(n => n.type === 'connection_request');
+  console.log(notifications)
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
