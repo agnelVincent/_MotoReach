@@ -8,13 +8,15 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer, PaymentHistorySerializer
 from service_request.models import ServiceRequest, ServiceExecution, Estimate
-from service_request.utils import notify_service_flow_update
+from service_request.utils import notify_service_flow_update, notify_connection_request
 from .utils import get_platform_admin
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
 from django.db.models import F
 from django.db import transaction
+from accounts.models import Workshop
+from service_request.models import WorkshopConnection
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -249,8 +251,6 @@ class StripeWebhookView(APIView):
 
             workshop_id = metadata.get('workshop_id')
             if workshop_id:
-                from accounts.models import Workshop
-                from service_request.models import WorkshopConnection
                 try:
                     workshop = Workshop.objects.get(pk=workshop_id)
                     existing_connection = WorkshopConnection.objects.filter(
@@ -272,6 +272,13 @@ class StripeWebhookView(APIView):
                         payment.service_request.status = 'CONNECTING'
                     else:
                         payment.service_request.status = 'PLATFORM_FEE_PAID'
+
+                    notify_connection_request(
+                        workshop_user_id=workshop.user.id,
+                        service_request_id=payment.service_request.id,
+                        user_name=payment.user.full_name or payment.user.email,
+                    )
+
                 except Workshop.DoesNotExist:
                     payment.service_request.status = 'PLATFORM_FEE_PAID'
             else:
