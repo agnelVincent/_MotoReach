@@ -269,15 +269,16 @@ class StripeWebhookView(APIView):
                             workshop=workshop,
                             status='REQUESTED'
                         )
+
+                        notify_connection_request(
+                            workshop_user_id=workshop.user.id,
+                            service_request_id=payment.service_request.id,
+                            user_name=payment.user.full_name or payment.user.email,
+                        )
+                        
                         payment.service_request.status = 'CONNECTING'
                     else:
                         payment.service_request.status = 'PLATFORM_FEE_PAID'
-
-                    notify_connection_request(
-                        workshop_user_id=workshop.user.id,
-                        service_request_id=payment.service_request.id,
-                        user_name=payment.user.full_name or payment.user.email,
-                    )
 
                 except Workshop.DoesNotExist:
                     payment.service_request.status = 'PLATFORM_FEE_PAID'
@@ -475,8 +476,6 @@ class PayPlatformFeeWithWalletView(APIView):
                 service_request.platform_fee_paid = True
                 
                 if workshop_id:
-                    from accounts.models import Workshop
-                    from service_request.models import WorkshopConnection
                     try:
                         workshop = Workshop.objects.get(pk=workshop_id)
                         existing_connection = WorkshopConnection.objects.filter(
@@ -495,6 +494,13 @@ class PayPlatformFeeWithWalletView(APIView):
                                 workshop=workshop,
                                 status='REQUESTED'
                             )
+
+                            notify_connection_request(
+                                workshop_user_id=workshop.user.id,
+                                service_request_id=service_request.id,
+                                user_name=request.user.full_name or request.user.email,
+                            )
+
                             service_request.status = 'CONNECTING'
                         else:
                             service_request.status = 'PLATFORM_FEE_PAID'
