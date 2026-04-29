@@ -4,6 +4,7 @@ from math import radians, cos, sin, asin, sqrt
 from django.db import transaction
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from chat.models import ChatMessageRecipient
 
 
 def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
@@ -142,6 +143,10 @@ def check_request_expiration(service_request):
         
         service_request.status = 'EXPIRED'
         service_request.save()
+        ChatMessageRecipient.objects.filter(
+            message__service_request=service_request,
+            is_read=False
+        ).update(is_read=True)
         notify_service_flow_update(service_request.id)
 
         try:
