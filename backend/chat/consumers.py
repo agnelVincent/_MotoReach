@@ -220,9 +220,14 @@ def _build_unread_summary_item(
 
 @database_sync_to_async
 def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
+
+    ACTIVE_SR_STATUSES = [
+    'CONNECTED', 'ESTIMATE_SHARED',
+    'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
+    ]
     
     service_request_ids = (
-        ChatMessageRecipient.objects.filter(user=user, is_read=False)
+        ChatMessageRecipient.objects.filter(user=user, is_read=False, message__service_request__status__in=ACTIVE_SR_STATUSES)
         .values_list("message__service_request_id", flat=True)
         .distinct()
     )
