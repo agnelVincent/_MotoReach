@@ -34,7 +34,7 @@ const WorkshopNavbar = () => {
   const serviceFlowMatch = location.pathname.match(/^\/workshop\/service-flow\/(\d+)/);
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
-  const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
+  const { notifications, hasUnread, dismissNotification } = useNotifications(currentServiceRequestId);
   const messageNotifications  = notifications.filter(n => n.type !== 'connection_request');
   const requestNotifications  = notifications.filter(n => n.type === 'connection_request');
   console.log(notifications)
@@ -161,6 +161,7 @@ const WorkshopNavbar = () => {
           onClick={() => {
             navigate('/workshop/requests');
             setIsNotificationOpen(false);
+            dismissNotification(n.service_request_id);
           }}
           className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex flex-col"
         >
@@ -189,6 +190,7 @@ const WorkshopNavbar = () => {
         onClick={() => {
           navigate(`/workshop/requests`);
           setIsNotificationOpen(false);
+          dismissNotification(n.service_request_id)
         }}
         className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
       >
