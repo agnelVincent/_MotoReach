@@ -17,7 +17,7 @@ from .serializers import (
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, notify_connection_request
+from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, notify_connection_request, notify_connection_withdrawn
 from django.db import DatabaseError
 
 
@@ -396,6 +396,10 @@ class UserCancelConnectionView(APIView):
             if connection.status == 'REQUESTED':
                 connection.status = 'WITHDRAWN'
                 connection.cancelled_by = 'USER'
+                notify_connection_withdrawn(
+                    workshop_user_id=connection.workshop.user.id,
+                    service_request_id=connection.service_request_id,
+                )
             else:
                  connection.status = 'CANCELLED'
                  connection.cancelled_by = 'USER'
