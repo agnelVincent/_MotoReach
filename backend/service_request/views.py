@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from .models import (
     ServiceRequest, WorkshopConnection, ServiceExecution, 
-    Estimate, EstimateLineItem, WorkshopReview, MechanicReview
+    Estimate, WorkshopReview, MechanicReview
 )
 from accounts.models import Workshop, Mechanic
 from .serializers import (
@@ -19,6 +19,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, notify_connection_request, notify_connection_withdrawn
 from django.db import DatabaseError
+from chat.models import ChatMessageRecipient
 
 
 def check_expired_connections(queryset):
@@ -341,6 +342,10 @@ class CancelConnectionRequestView(APIView):
             connection.cancelled_by = 'WORKSHOP'
             connection.responded_at = timezone.now()
             connection.save()
+            ChatMessageRecipient.objects.filter(
+                message__service_request=connection.service_request,
+                is_read=False
+            ).update(is_read=True)
             
             try:
                 execution = connection.service_request.execution
