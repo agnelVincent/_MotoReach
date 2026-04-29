@@ -90,9 +90,14 @@ export const useNotifications = (currentServiceRequestId) => {
     return true;
   });
 
+  const dismissNotification = (serviceRequestId) => {
+    setItems(prev => prev.filter(n => n.service_request_id !== serviceRequestId));
+  };
+
   return {
     notifications: visibleNotifications,
     hasUnread: visibleNotifications.length > 0,
+    dismissNotification
   };
 };
 
