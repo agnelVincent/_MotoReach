@@ -45,6 +45,27 @@ def notify_connection_request(workshop_user_id : int, service_request_id : int, 
     
     transaction.on_commit(send)
 
+
+def notify_connection_withdrawn(workshop_user_id: int, service_request_id: int) -> None:
+    def send():
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f'notifications_user_{workshop_user_id}',
+            {
+                'type': 'notification.update',
+                'item': {
+                    'type': 'connection_request',
+                    'service_request_id': service_request_id,
+                    'unread_count': 0,        
+                    'counterpart_name': '',
+                }
+            }
+        )
+    transaction.on_commit(send)
+
+
 def calculate_distance(lat1, long1, lat2, long2):
     if lat1 is None or long1 is None or lat2 is None or long2 is None:
         return float('inf')
