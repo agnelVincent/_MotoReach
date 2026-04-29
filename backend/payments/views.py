@@ -1,22 +1,22 @@
 import stripe
 from django.conf import settings
-from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer, PaymentHistorySerializer
-from service_request.models import ServiceRequest, ServiceExecution, Estimate
+from service_request.models import ServiceRequest, ServiceExecution, Estimate, WorkshopConnection, MechanicEarning
 from service_request.utils import notify_service_flow_update, notify_connection_request
 from .utils import get_platform_admin
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
-from django.db.models import F
+from django.db.models import F, Sum
 from django.db import transaction
-from accounts.models import Workshop
-from service_request.models import WorkshopConnection
+from accounts.models import Workshop, Mechanic
+from decimal import Decimal
+from django.utils import timezone
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -549,11 +549,6 @@ class MechanicWalletView(APIView):
     def get(self, request):
         if not hasattr(request.user, 'mechanic'):
             return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_403_FORBIDDEN)
-        
-        from service_request.models import MechanicEarning
-        from django.db.models import Sum,Count,Q
-        from decimal import Decimal
-        from accounts.models import Mechanic
 
         try:
             try:
@@ -569,7 +564,6 @@ class MechanicWalletView(APIView):
             total_bonuses = earning_qs.filter(earning_type = 'BONUS').aggregate(total = Sum('amount'))['total'] or Decimal('0.00')
             total_services = earning_qs.filter(earning_type = 'SERVICE_SHARE').values('service_execution').distinct().count()
 
-            from django.utils import timezone
             now = timezone.now()
 
             this_month = earning_qs.filter(
