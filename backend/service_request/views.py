@@ -425,6 +425,10 @@ class UserCancelConnectionView(APIView):
                      execution.started_at = None
                      execution.completed_at = None
                      execution.save()
+                     ChatMessageRecipient.objects.filter(
+                        message__service_request=connection.service_request,
+                        is_read=False
+                    ).update(is_read=True)
 
                  except ServiceExecution.DoesNotExist:
                      pass
