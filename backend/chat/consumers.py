@@ -402,12 +402,13 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_add(self.user_group_name, self.channel_name)
             await self.accept()
 
-            # Send initial unread summary on connect
             summaries = await _get_unread_summaries_for_user(user)
+            pending_count = await _get_pending_connection_count_for_workshop(user)
             await self.send_json(
                 {
                     "type": "notifications.initial",
                     "items": summaries,
+                    'connection_request_count' : pending_count
                 }
             )
         except Exception as e:
