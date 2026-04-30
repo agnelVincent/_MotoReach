@@ -3,7 +3,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth import get_user_model
 from django.db import DatabaseError
-from service_request.models import ServiceRequest, WorkshopConnection
+from service_request.models import ServiceRequest, WorkshopConnection, ServiceExecution
 from .models import ChatMessage, ChatMessageRecipient
 
 
@@ -252,6 +252,27 @@ def _get_pending_connection_count_for_workshop(user : User) -> int:
         ).count()
     except Exception:
         return 0
+    
+@database_sync_to_async
+def _get_assigned_task_count_for_mechanic(user : User) -> int:
+    try:
+
+        if user.role != 'mechanic' or not hasattr(user, 'mechanic'):
+            return 0
+
+        service_status = [
+                'CONNECTED', 'ESTIMATE_SHARED',
+                'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
+        ]
+        count = ServiceExecution.objects.filter(mechanics__user_id = user.mechanic, service_request__status__in = service_status).count()
+        return count
+    
+    except Exception as e:
+        print(e)
+        return 0
+
+
+
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
 
