@@ -433,6 +433,15 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         except Exception as e:
             print(f"Error in NotificationConsumer notification_update: {e}")
 
+    async def connection_count_update(self, event : Dict[str, any]):
+        try:
+            await self.send_json({
+                'type' : 'notifications.connection_count',
+                'count' : event['count']
+            })
+        except Exception as e:
+            print(e)
+
 
 class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
 
