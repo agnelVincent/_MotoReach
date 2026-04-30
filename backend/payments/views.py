@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Payment, Wallet, WalletTransaction
 from .serializers import WalletSerializer, WalletTransactionSerializer, PaymentHistorySerializer
 from service_request.models import ServiceRequest, ServiceExecution, Estimate, WorkshopConnection, MechanicEarning
-from service_request.utils import notify_service_flow_update, notify_connection_request
+from service_request.utils import notify_service_flow_update,  push_connection_count_to_workshop
 from .utils import get_platform_admin
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -226,6 +226,7 @@ class StripeWebhookView(APIView):
                     transaction_type='CREDIT',
                     description=f"Added ₹{payment.amount:.2f} to wallet"
                 )
+                
             print(f"Wallet balance updated (Atomic)")
             return
 
@@ -270,11 +271,7 @@ class StripeWebhookView(APIView):
                             status='REQUESTED'
                         )
 
-                        notify_connection_request(
-                            workshop_user_id=workshop.user.id,
-                            service_request_id=payment.service_request.id,
-                            user_name=payment.user.full_name or payment.user.email,
-                        )
+                        push_connection_count_to_workshop(workshop.user.id)
                         
                         payment.service_request.status = 'CONNECTING'
                     else:
@@ -495,11 +492,7 @@ class PayPlatformFeeWithWalletView(APIView):
                                 status='REQUESTED'
                             )
 
-                            notify_connection_request(
-                                workshop_user_id=workshop.user.id,
-                                service_request_id=service_request.id,
-                                user_name=request.user.full_name or request.user.email,
-                            )
+                            push_connection_count_to_workshop(workshop.user.id)
 
                             service_request.status = 'CONNECTING'
                         else:

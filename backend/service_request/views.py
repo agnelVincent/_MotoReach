@@ -41,6 +41,7 @@ def check_expired_connections(queryset):
             conn.service_request.save()
             notify_service_flow_update(conn.service_request_id)
         updated_count += 1
+        push_connection_count_to_workshop(conn.workshop.user.id)
     
     return updated_count
 
