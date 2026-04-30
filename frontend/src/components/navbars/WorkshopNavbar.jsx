@@ -34,9 +34,8 @@ const WorkshopNavbar = () => {
   const serviceFlowMatch = location.pathname.match(/^\/workshop\/service-flow\/(\d+)/);
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
-  const { notifications, hasUnread, dismissNotification } = useNotifications(currentServiceRequestId);
-  const messageNotifications  = notifications.filter(n => n.type !== 'connection_request');
-  const requestNotifications  = notifications.filter(n => n.type === 'connection_request');
+  const { notifications, hasUnread, connectionRequestCount  } = useNotifications(currentServiceRequestId);
+
   console.log(notifications)
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -149,34 +148,26 @@ const WorkshopNavbar = () => {
                   </p>
                   <div className="max-h-64 overflow-y-auto">
                     {/* Section 1 — Connection Requests */}
-{requestNotifications.length > 0 && (
-  <>
-    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-      Connection Requests
-    </p>
-    <div className="max-h-32 overflow-y-auto">
-      {requestNotifications.map((n) => (
+{connectionRequestCount > 0 && (
+    <>
+        <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Connection Requests
+        </p>
         <button
-          key={`req-${n.service_request_id}`}
-          onClick={() => {
-            navigate('/workshop/requests');
-            setIsNotificationOpen(false);
-            dismissNotification(n.service_request_id);
-          }}
-          className="w-full text-left px-4 py-2 hover:bg-indigo-50 flex flex-col"
+            onClick={() => {
+                navigate('/workshop/requests');
+                setIsNotificationOpen(false);
+            }}
+            className="w-full text-left px-4 py-3 hover:bg-indigo-50 flex items-center gap-2"
         >
-          <span className="text-sm font-medium text-indigo-700">
-            New request from {n.counterpart_name || 'a user'}
-          </span>
-          <span className="text-xs text-gray-500">
-            Service Request #{n.service_request_id}
-          </span>
+            <span className="text-sm font-medium text-indigo-700">
+                {connectionRequestCount} new connection request{connectionRequestCount > 1 ? 's' : ''}
+            </span>
         </button>
-      ))}
-    </div>
-    <div className="border-t border-gray-100 my-1" />
-  </>
+        <div className="border-t border-gray-100 my-1" />
+    </>
 )}
+
 
 {/* Section 2 — Messages (existing, just rename variable) */}
 <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -188,14 +179,14 @@ const WorkshopNavbar = () => {
       <button
         key={`msg-${n.service_request_id}`}
         onClick={() => {
-          navigate(`/workshop/requests`);
+          navigate(`/workshop/service-flow/${n.service_request_id}`);
           setIsNotificationOpen(false);
           dismissNotification(n.service_request_id)
         }}
         className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
       >
         <span className="text-sm font-medium text-gray-800">
-          Connection request from 
+          {n.unread_count} message
           from {n.counterpart_name || 'user'}
         </span>
         <span className="text-xs text-gray-500">
