@@ -27,16 +27,14 @@ const WorkshopNavbar = () => {
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
 
-  const { logout } = useLogout()
+  const { logout } = useLogout();
 
   // Detect if workshop is currently on a specific service flow page
   // e.g. /workshop/service-flow/:requestId
   const serviceFlowMatch = location.pathname.match(/^\/workshop\/service-flow\/(\d+)/);
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
-  const { notifications, hasUnread, connectionRequestCount  } = useNotifications(currentServiceRequestId);
-
-  console.log(notifications)
+  const { notifications, hasUnread, connectionRequestCount, dismissNotification } = useNotifications(currentServiceRequestId);
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
@@ -72,11 +70,9 @@ const WorkshopNavbar = () => {
   };
 
   const handleProfileMenuClick = (action) => {
-    console.log('Profile action:', action);
     setIsProfileOpen(false);
 
     if (action === 'profile') {
-      console.log("Navigate to profile here");
       navigate('/workshop/profile');
     }
 
@@ -86,6 +82,63 @@ const WorkshopNavbar = () => {
   };
 
   const isActive = (path) => location.pathname === path;
+
+  // Shared notification dropdown content — used by both desktop and mobile
+  const NotificationDropdown = () => (
+    <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+
+      {/* Section 1 — Connection Requests (only when count > 0) */}
+      {connectionRequestCount > 0 && (
+        <>
+          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Connection Requests
+          </p>
+          <button
+            onClick={() => {
+              navigate('/workshop/requests');
+              setIsNotificationOpen(false);
+            }}
+            className="w-full text-left px-4 py-3 hover:bg-indigo-50 flex items-center gap-2"
+          >
+            <span className="text-sm font-medium text-indigo-700">
+              {connectionRequestCount} new connection request{connectionRequestCount > 1 ? 's' : ''}
+            </span>
+          </button>
+          <div className="border-t border-gray-100 my-1" />
+        </>
+      )}
+
+      {/* Section 2 — Messages */}
+      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        Messages
+      </p>
+      <div className="max-h-64 overflow-y-auto">
+        {notifications.length > 0 ? (
+          notifications.map((n) => (
+            <button
+              key={`msg-${n.service_request_id}`}
+              onClick={() => {
+                dismissNotification(n.service_request_id);
+                navigate(`/workshop/service-flow/${n.service_request_id}`);
+                setIsNotificationOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+            >
+              <span className="text-sm font-medium text-gray-800">
+                {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                from {n.counterpart_name || 'user'}
+              </span>
+              <span className="text-xs text-gray-500">
+                Request #{n.service_request_id}
+              </span>
+            </button>
+          ))
+        ) : (
+          <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
@@ -129,11 +182,10 @@ const WorkshopNavbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
-            {/* Notification Bell */}
+            {/* Desktop Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setIsNotificationOpen((v) => !v)}
-
                 className="relative p-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-300"
               >
                 <Bell className="w-5 h-5" />
@@ -141,67 +193,7 @@ const WorkshopNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
-                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Messages
-                  </p>
-                  <div className="max-h-64 overflow-y-auto">
-                    {/* Section 1 — Connection Requests */}
-{connectionRequestCount > 0 && (
-    <>
-        <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Connection Requests
-        </p>
-        <button
-            onClick={() => {
-                navigate('/workshop/requests');
-                setIsNotificationOpen(false);
-            }}
-            className="w-full text-left px-4 py-3 hover:bg-indigo-50 flex items-center gap-2"
-        >
-            <span className="text-sm font-medium text-indigo-700">
-                {connectionRequestCount} new connection request{connectionRequestCount > 1 ? 's' : ''}
-            </span>
-        </button>
-        <div className="border-t border-gray-100 my-1" />
-    </>
-)}
-
-
-{/* Section 2 — Messages (existing, just rename variable) */}
-<p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-  Messages
-</p>
-<div className="max-h-64 overflow-y-auto">
-  {messageNotifications.length > 0 ? (
-    messageNotifications.map((n) => (
-      <button
-        key={`msg-${n.service_request_id}`}
-        onClick={() => {
-          navigate(`/workshop/service-flow/${n.service_request_id}`);
-          setIsNotificationOpen(false);
-          dismissNotification(n.service_request_id)
-        }}
-        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-      >
-        <span className="text-sm font-medium text-gray-800">
-          {n.unread_count} message
-          from {n.counterpart_name || 'user'}
-        </span>
-        <span className="text-xs text-gray-500">
-          Request #{n.service_request_id}
-        </span>
-      </button>
-    ))
-  ) : (
-    <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-  )}
-</div>
-
-                  </div>
-                </div>
-              )}
+              {isNotificationOpen && <NotificationDropdown />}
             </div>
 
             {/* Profile Dropdown */}
@@ -257,37 +249,7 @@ const WorkshopNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
-                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Messages
-                  </p>
-                  <div className="max-h-64 overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
-                        <button
-                          key={n.service_request_id}
-                          onClick={() => {
-                            navigate(`/workshop/service-flow/${n.service_request_id}`);
-                            setIsNotificationOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-                        >
-                          <span className="text-sm font-medium text-gray-800">
-                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
-                            from {n.counterpart_name || 'user'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Request #{n.service_request_id}
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              {isNotificationOpen && <NotificationDropdown />}
             </div>
 
             <button
