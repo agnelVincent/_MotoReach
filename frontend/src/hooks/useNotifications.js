@@ -17,11 +17,14 @@ export const useNotifications = (currentServiceRequestId) => {
   const [items, setItems] = useState([]);
 
   const { accessToken, isAuthenticated } = useSelector((state) => state.auth);
+  const [connectionRequestCount, setConnectionRequestCount] = useState(0);
+
 
   useEffect(() => {
 
     if (!isAuthenticated || !accessToken) {
       setItems([]);
+      setConnectionRequestCount(0);
       return;
     }
 
@@ -40,7 +43,12 @@ export const useNotifications = (currentServiceRequestId) => {
         if (data.type === 'notifications.initial') {
           const serverItems = data.items || [];
           setItems(serverItems);
-        } else if (data.type === 'notifications.update') {
+          setConnectionRequestCount(data.connection_request_count || 0);
+        } 
+        else if (data.type === 'notifications.connection_count') {          // ← NEW
+          setConnectionRequestCount(data.count || 0);
+        }
+        else if (data.type === 'notifications.update') {
           const item = data.item;
           if (!item) return;
 
@@ -96,7 +104,8 @@ export const useNotifications = (currentServiceRequestId) => {
 
   return {
     notifications: visibleNotifications,
-    hasUnread: visibleNotifications.length > 0,
+    hasUnread: visibleNotifications.length > 0 || connectionRequestCount > 0,
+    connectionRequestCount,
     dismissNotification
   };
 };
