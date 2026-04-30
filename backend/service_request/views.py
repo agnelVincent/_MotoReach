@@ -401,7 +401,6 @@ class UserCancelConnectionView(APIView):
             if connection.status == 'REQUESTED':
                 connection.status = 'WITHDRAWN'
                 connection.cancelled_by = 'USER'
-                push_connection_count_to_workshop(connection.workshop.user.id)
             else:
                  connection.status = 'CANCELLED'
                  connection.cancelled_by = 'USER'
@@ -432,6 +431,7 @@ class UserCancelConnectionView(APIView):
 
             connection.responded_at = timezone.now()
             connection.save()
+            push_connection_count_to_workshop(connection.workshop.user.id)
             
             connection.service_request.status = 'PLATFORM_FEE_PAID'
             connection.service_request.save()
