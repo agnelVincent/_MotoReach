@@ -5,6 +5,7 @@ from django.db import transaction
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from chat.models import ChatMessageRecipient
+from service_request.models import WorkshopConnection
 
 
 def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
@@ -25,46 +26,25 @@ def notify_service_flow_update(service_request_id: int, event: str = "update") -
     transaction.on_commit(send_notification)
 
 
-def notify_connection_request(workshop_user_id : int, service_request_id : int, user_name : str):
-
+def push_connection_count_to_workshop(workshop_user_id : int) -> None:
     def send():
-        channel_layer = get_channel_layer()
-        if not channel_layer:
-            return
-        async_to_sync(channel_layer.group_send)(
-            f'notifications_user_{workshop_user_id}',
-            {
-                'type' : 'notification.update',
-                'item' : {
-                        'type' : 'connection_request',
-                        'service_request_id' : service_request_id,
-                        'unread_count' : 1,
-                        'counterpart_name' : user_name
-                    }
-                }
-        )
-    
+        try:
+            count = WorkshopConnection.objects.filter(
+                workshop__user_id = workshop_user_id,
+                status = 'REQUESTED'
+            ).count()
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+            async_to_sync(channel_layer.send)(
+                f'notifications_user_{workshop_user_id}',
+                {'type': 'connection_count.update', 'count': count}
+            )
+        except Exception as e:
+            print(e)
+        
     transaction.on_commit(send)
 
-
-def notify_connection_withdrawn(workshop_user_id: int, service_request_id: int) -> None:
-    def send():
-        channel_layer = get_channel_layer()
-        if not channel_layer:
-            return
-        async_to_sync(channel_layer.group_send)(
-            f'notifications_user_{workshop_user_id}',
-            {
-                'type': 'notification.update',
-                'item': {
-                    'type': 'connection_request',
-                    'service_request_id': service_request_id,
-                    'unread_count': 0,        
-                    'counterpart_name': '',
-                }
-            }
-        )
-    transaction.on_commit(send)
 
 
 def calculate_distance(lat1, long1, lat2, long2):
