@@ -241,6 +241,17 @@ def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
         summaries.append(item)
     return summaries
 
+@database_sync_to_async
+def _get_pending_connection_count_for_workshop(user : User) -> int:
+    try:
+        if user.role != 'workshop_admin' or not hasattr(user, 'workshop'):
+            return 0
+        return WorkshopConnection.objects.filter(
+            workshop = user.workshop,
+            status = 'REQUESTED'
+        ).count()
+    except Exception:
+        return 0
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
 
