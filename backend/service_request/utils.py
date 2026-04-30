@@ -36,7 +36,7 @@ def push_connection_count_to_workshop(workshop_user_id : int) -> None:
             channel_layer = get_channel_layer()
             if not channel_layer:
                 return
-            async_to_sync(channel_layer.send)(
+            async_to_sync(channel_layer.group_send)(
                 f'notifications_user_{workshop_user_id}',
                 {'type': 'connection_count.update', 'count': count}
             )
