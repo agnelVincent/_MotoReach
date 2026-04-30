@@ -17,7 +17,7 @@ from .serializers import (
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, notify_connection_request, notify_connection_withdrawn
+from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, push_connection_count_to_workshop
 from django.db import DatabaseError
 from chat.models import ChatMessageRecipient
 
@@ -194,11 +194,7 @@ class ConnectWorkshopView(APIView):
             service_request.status = 'CONNECTING'
             service_request.save()
 
-            notify_connection_request(
-                workshop_user_id=workshop.user.id,
-                service_request_id=service_request.id,
-                user_name=request.user.full_name or request.user.email,
-            )
+            push_connection_count_to_workshop(workshop.user.id)
 
             return Response({"message": "Connection requested successfully"}, status=status.HTTP_201_CREATED)
         except Exception as e:
@@ -255,6 +251,7 @@ class AcceptConnectionRequestView(APIView):
 
             connection.service_request.status = 'CONNECTED'
             connection.service_request.save()
+            push_connection_count_to_workshop(workshop.user.id)
             notify_service_flow_update(connection.service_request_id)
 
             execution, created = ServiceExecution.objects.get_or_create(
@@ -303,6 +300,7 @@ class RejectConnectionRequestView(APIView):
 
             connection.service_request.status = 'PLATFORM_FEE_PAID'
             connection.service_request.save()
+            push_connection_count_to_workshop(workshop.user.id)
             notify_service_flow_update(connection.service_request_id)
 
             return Response({"message": "Connection request rejected successfully"}, status=status.HTTP_200_OK)
@@ -342,6 +340,7 @@ class CancelConnectionRequestView(APIView):
             connection.cancelled_by = 'WORKSHOP'
             connection.responded_at = timezone.now()
             connection.save()
+            push_connection_count_to_workshop(workshop.user.id)
             ChatMessageRecipient.objects.filter(
                 message__service_request=connection.service_request,
                 is_read=False
@@ -401,10 +400,7 @@ class UserCancelConnectionView(APIView):
             if connection.status == 'REQUESTED':
                 connection.status = 'WITHDRAWN'
                 connection.cancelled_by = 'USER'
-                notify_connection_withdrawn(
-                    workshop_user_id=connection.workshop.user.id,
-                    service_request_id=connection.service_request_id,
-                )
+                push_connection_count_to_workshop(connection.workshop.user.id)
             else:
                  connection.status = 'CANCELLED'
                  connection.cancelled_by = 'USER'
