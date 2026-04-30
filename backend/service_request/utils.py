@@ -5,7 +5,7 @@ from django.db import transaction
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from chat.models import ChatMessageRecipient
-from service_request.models import WorkshopConnection
+from service_request.models import WorkshopConnection, ServiceExecution
 
 
 def notify_service_flow_update(service_request_id: int, event: str = "update") -> None:
@@ -44,6 +44,30 @@ def push_connection_count_to_workshop(workshop_user_id : int) -> None:
             print(e)
         
     transaction.on_commit(send)
+
+
+def push_assigned_task_count_to_mechanic(mechanic_user_id : int) -> None:
+    def send():
+
+        service_status = [
+                    'CONNECTED', 'ESTIMATE_SHARED',
+                    'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
+                ]
+        try:
+            count = ServiceExecution.objects.filter(mechanics__user_id = mechanic_user_id, service_request__status__in = service_status).count()
+
+            channel_layer = get_channel_layer()
+            if not channel_layer:
+                return
+            async_to_sync(channel_layer.group_send)(
+                f'notification_user_{mechanic_user_id}',
+                {'type' : 'assigned_task_count.update', 'count' : count}
+            )
+        except Exception as e:
+            print(e)
+
+    transaction.on_commit(send)
+
 
 
 
