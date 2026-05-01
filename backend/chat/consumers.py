@@ -425,11 +425,13 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
 
             summaries = await _get_unread_summaries_for_user(user)
             pending_count = await _get_pending_connection_count_for_workshop(user)
+            task_count = await _get_assigned_task_count_for_mechanic(user)
             await self.send_json(
                 {
                     "type": "notifications.initial",
                     "items": summaries,
-                    'connection_request_count' : pending_count
+                    'connection_request_count' : pending_count,
+                    'assigned_task_count': task_count
                 }
             )
         except Exception as e:
@@ -462,6 +464,16 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             })
         except Exception as e:
             print(e)
+
+    async def assigned_task_count_update(self, event: Dict[str, Any]):
+        try:
+            await self.send_json({
+                'type': 'notifications.assigned_task_count',
+                'count': event['count'],
+            })
+        except Exception as e:
+            print(e)
+
 
 
 class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
