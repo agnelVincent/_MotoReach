@@ -60,7 +60,7 @@ def push_assigned_task_count_to_mechanic(mechanic_user_id : int) -> None:
             if not channel_layer:
                 return
             async_to_sync(channel_layer.group_send)(
-                f'notification_user_{mechanic_user_id}',
+                f'notifications_user_{mechanic_user_id}',
                 {'type' : 'assigned_task_count.update', 'count' : count}
             )
         except Exception as e:

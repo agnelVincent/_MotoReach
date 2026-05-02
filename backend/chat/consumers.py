@@ -259,19 +259,17 @@ def _get_assigned_task_count_for_mechanic(user : User) -> int:
 
         if user.role != 'mechanic' or not hasattr(user, 'mechanic'):
             return 0
-
+ 
         service_status = [
                 'CONNECTED', 'ESTIMATE_SHARED',
                 'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
         ]
-        count = ServiceExecution.objects.filter(mechanics__user_id = user.mechanic, service_request__status__in = service_status).count()
+        count = ServiceExecution.objects.filter(mechanics = user.mechanic, service_request__status__in = service_status).count()
         return count
     
     except Exception as e:
         print(e)
         return 0
-
-
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
