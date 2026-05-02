@@ -15,6 +15,7 @@ const getWebSocketBase = () => {
 export const useNotifications = (currentServiceRequestId) => {
 
   const [items, setItems] = useState([]);
+  const [assignedTaskCount, setAssignedTaskCount] = useState(0);
 
   const { accessToken, isAuthenticated } = useSelector((state) => state.auth);
   const [connectionRequestCount, setConnectionRequestCount] = useState(0);
@@ -25,6 +26,7 @@ export const useNotifications = (currentServiceRequestId) => {
     if (!isAuthenticated || !accessToken) {
       setItems([]);
       setConnectionRequestCount(0);
+      setAssignedTaskCount(0);
       return;
     }
 
@@ -43,7 +45,11 @@ export const useNotifications = (currentServiceRequestId) => {
         if (data.type === 'notifications.initial') {
           const serverItems = data.items || [];
           setItems(serverItems);
+          setAssignedTaskCount(data.assigned_task_count || 0);
           setConnectionRequestCount(data.connection_request_count || 0);
+        } 
+        else if (data.type === 'notifications.assigned_task_count') {  // ← NEW
+          setAssignedTaskCount(data.count || 0);
         } 
         else if (data.type === 'notifications.connection_count') {          // ← NEW
           setConnectionRequestCount(data.count || 0);
@@ -104,8 +110,9 @@ export const useNotifications = (currentServiceRequestId) => {
 
   return {
     notifications: visibleNotifications,
-    hasUnread: visibleNotifications.length > 0 || connectionRequestCount > 0,
+    hasUnread: visibleNotifications.length > 0 || connectionRequestCount > 0 || assignedTaskCount > 0,
     connectionRequestCount,
+    assignedTaskCount,
     dismissNotification
   };
 };
