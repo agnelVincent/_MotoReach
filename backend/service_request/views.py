@@ -17,7 +17,7 @@ from .serializers import (
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
-from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, push_connection_count_to_workshop
+from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, push_connection_count_to_workshop, push_assigned_task_count_to_mechanic
 from django.db import DatabaseError
 from chat.models import ChatMessageRecipient
 
@@ -542,6 +542,7 @@ class AssignMechanicView(APIView):
             execution.mechanics.add(mechanic)
             mechanic.availability = 'BUSY'
             mechanic.save()
+            push_assigned_task_count_to_mechanic(mechanic.user.id)
             notify_service_flow_update(pk, event='mechanic_assigned')
             return Response({"message": "Mechanic assigned successfully"})
             
@@ -575,6 +576,7 @@ class RemoveMechanicView(APIView):
                   execution.mechanics.remove(mechanic)
                   mechanic.availability = 'AVAILABLE'
                   mechanic.save()
+                  push_assigned_task_count_to_mechanic(mechanic.user.id)
                   notify_service_flow_update(execution.service_request_id, event='mechanic_removed')
              return Response({"message": "Mechanic removed successfully"})
              
