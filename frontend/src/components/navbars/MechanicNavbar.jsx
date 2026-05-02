@@ -1,8 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Car, Bell, User, Menu, X, LayoutDashboard, FileText, Building2, LogOut, ChevronDown, Wallet } from 'lucide-react';
-// 👇 1. Import useNavigate for routing
 import { useNavigate, useLocation } from 'react-router-dom';
-// 👇 2. Import your custom hook for logout
 import { useLogout } from '../../hooks/useLogout';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useSelector } from 'react-redux';
@@ -26,14 +24,14 @@ const MechanicNavbar = () => {
     { name: 'Logout', icon: LogOut, action: 'logout' },
   ];
 
-  // 👇 Get the navigation and logout functions
   const navigate = useNavigate();
   const { logout } = useLogout();
 
   const serviceFlowMatch = location.pathname.match(/^\/mechanic\/service-flow\/(\d+)/);
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
-  const { notifications, hasUnread } = useNotifications(currentServiceRequestId);
+  const { notifications, hasUnread, assignedTaskCount, dismissNotification } = useNotifications(currentServiceRequestId);
+
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
   const mobileNotificationRef = useRef(null);
@@ -45,7 +43,6 @@ const MechanicNavbar = () => {
         setIsProfileOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -55,42 +52,93 @@ const MechanicNavbar = () => {
     const handleClickOutside = (event) => {
       const isOutsideDesktop = notificationRef.current && !notificationRef.current.contains(event.target);
       const isOutsideMobile = mobileNotificationRef.current && !mobileNotificationRef.current.contains(event.target);
-
       if (isOutsideDesktop && isOutsideMobile) {
         setIsNotificationOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleNavClick = (path) => {
-    // 👇 Navigate to the path for main nav links
     navigate(path);
     setIsMobileMenuOpen(false);
   };
 
   const handleProfileMenuClick = (action) => {
     setIsProfileOpen(false);
-
     if (action === 'profile') {
-      // 👇 Navigate to the ABSOLUTE route for profile
       navigate('/mechanic/profile');
     }
-
     if (action === 'logout') {
-      // 👇 Execute the logout function from your hook
       logout();
     }
   };
 
   const isActive = (path) => location.pathname === path;
 
+  // Shared notification dropdown — used by both desktop and mobile
+  const NotificationDropdown = () => (
+    <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+
+      {/* Section 1 — Assigned Tasks (only when count > 0) */}
+      {assignedTaskCount > 0 && (
+        <>
+          <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Assigned Tasks
+          </p>
+          <button
+            onClick={() => {
+              navigate('/mechanic/requests');
+              setIsNotificationOpen(false);
+            }}
+            className="w-full text-left px-4 py-3 hover:bg-orange-50 flex items-center gap-2"
+          >
+            <span className="text-sm font-medium text-orange-700">
+              {assignedTaskCount} active assigned task{assignedTaskCount > 1 ? 's' : ''}
+            </span>
+          </button>
+          <div className="border-t border-gray-100 my-1" />
+        </>
+      )}
+
+      {/* Section 2 — Messages */}
+      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        Messages
+      </p>
+      <div className="max-h-64 overflow-y-auto">
+        {notifications.length > 0 ? (
+          notifications.map((n) => (
+            <button
+              key={`msg-${n.service_request_id}`}
+              onClick={() => {
+                dismissNotification(n.service_request_id);
+                navigate(`/mechanic/service-flow/${n.service_request_id}`);
+                setIsNotificationOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
+            >
+              <span className="text-sm font-medium text-gray-800">
+                {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
+                from {n.counterpart_name || 'user'}
+              </span>
+              <span className="text-xs text-gray-500">
+                Request #{n.service_request_id}
+              </span>
+            </button>
+          ))
+        ) : (
+          <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <nav className="bg-white shadow-md fixed top-0 left-0 right-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
+
           {/* Logo */}
           <button
             onClick={() => handleNavClick('/dashboard')}
@@ -115,10 +163,11 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 relative ${isActive(link.path)
-                    ? 'text-orange-600 bg-orange-50'
-                    : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
-                    }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
+                    isActive(link.path)
+                      ? 'text-orange-600 bg-orange-50'
+                      : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
+                  }`}
                 >
                   <Icon className="w-4 h-4" />
                   {link.name}
@@ -129,7 +178,8 @@ const MechanicNavbar = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-3">
-            {/* Notification Bell */}
+
+            {/* Desktop Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setIsNotificationOpen((v) => !v)}
@@ -140,37 +190,7 @@ const MechanicNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
-                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Messages
-                  </p>
-                  <div className="max-h-64 overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
-                        <button
-                          key={n.service_request_id}
-                          onClick={() => {
-                            navigate(`/mechanic/service-flow/${n.service_request_id}`);
-                            setIsNotificationOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-                        >
-                          <span className="text-sm font-medium text-gray-800">
-                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
-                            from {n.counterpart_name || 'user'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Request #{n.service_request_id}
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              {isNotificationOpen && <NotificationDropdown />}
             </div>
 
             {/* Profile Dropdown */}
@@ -185,7 +205,6 @@ const MechanicNavbar = () => {
                 <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Profile Dropdown Menu */}
               {isProfileOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 animate-fadeIn">
                   <div className="px-4 py-2 border-b border-gray-100">
@@ -198,10 +217,11 @@ const MechanicNavbar = () => {
                       <button
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
-                          ? 'text-red-600 hover:bg-red-50'
-                          : 'text-gray-700 hover:bg-gray-50'
-                          }`}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${
+                          item.action === 'logout'
+                            ? 'text-red-600 hover:bg-red-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
                       >
                         <Icon className="w-4 h-4" />
                         {item.name}
@@ -213,8 +233,9 @@ const MechanicNavbar = () => {
             </div>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile: Bell + Hamburger */}
           <div className="md:hidden flex items-center space-x-3">
+
             {/* Mobile Notification Bell */}
             <div className="relative" ref={mobileNotificationRef}>
               <button
@@ -226,37 +247,7 @@ const MechanicNavbar = () => {
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
-                  <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Messages
-                  </p>
-                  <div className="max-h-64 overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
-                        <button
-                          key={n.service_request_id}
-                          onClick={() => {
-                            navigate(`/mechanic/service-flow/${n.service_request_id}`);
-                            setIsNotificationOpen(false);
-                          }}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 flex flex-col"
-                        >
-                          <span className="text-sm font-medium text-gray-800">
-                            {n.unread_count} new message{n.unread_count > 1 ? 's' : ''}{' '}
-                            from {n.counterpart_name || 'user'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Request #{n.service_request_id}
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
-                    )}
-                  </div>
-                </div>
-              )}
+              {isNotificationOpen && <NotificationDropdown />}
             </div>
 
             <button
@@ -283,10 +274,11 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
-                    ? 'bg-orange-50 text-orange-600'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
-                    }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
+                    isActive(link.path)
+                      ? 'bg-orange-50 text-orange-600'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+                  }`}
                 >
                   <Icon className="w-5 h-5" />
                   {link.name}
@@ -305,10 +297,11 @@ const MechanicNavbar = () => {
                   <button
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
-                      ? 'text-red-600 hover:bg-red-50'
-                      : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
+                      item.action === 'logout'
+                        ? 'text-red-600 hover:bg-red-50'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name}
