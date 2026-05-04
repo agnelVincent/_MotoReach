@@ -4,6 +4,10 @@ from django.db import models
 
 class ChatMessage(models.Model):
 
+    MESSAGE_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('image', 'Image'),
+    ]
     service_request = models.ForeignKey(
         "service_request.ServiceRequest",
         on_delete=models.CASCADE,
@@ -14,7 +18,13 @@ class ChatMessage(models.Model):
         on_delete=models.CASCADE,
         related_name="sent_chat_messages",
     )
-    content = models.TextField()
+    content = models.TextField(blank=True, default='')
+    image_url = models.URLField(blank=True, default='')
+    message_type = models.CharField(
+        max_length=10,
+        choices=MESSAGE_TYPE_CHOICES,
+        default='text'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
