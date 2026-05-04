@@ -45,13 +45,18 @@ export const useNotifications = (currentServiceRequestId) => {
         if (data.type === 'notifications.initial') {
           const serverItems = data.items || [];
           setItems(serverItems);
-          setAssignedTaskCount(data.assigned_task_count || 0);
+          const dismissed = localStorage.getItem('assignedTaskDismissed') === 'true';
+          setAssignedTaskCount(dismissed ? 0 : (data.assigned_task_count || 0));
           setConnectionRequestCount(data.connection_request_count || 0);
         } 
-        else if (data.type === 'notifications.assigned_task_count') {  // ← NEW
+        else if (data.type === 'notifications.assigned_task_count') {  
+          const newCount = data.count || 0;
+          if (newCount > 0) {
+          localStorage.removeItem('assignedTaskDismissed');
           setAssignedTaskCount(data.count || 0);
+          }
         } 
-        else if (data.type === 'notifications.connection_count') {          // ← NEW
+        else if (data.type === 'notifications.connection_count') {          
           setConnectionRequestCount(data.count || 0);
         }
         else if (data.type === 'notifications.update') {
@@ -108,12 +113,18 @@ export const useNotifications = (currentServiceRequestId) => {
     setItems(prev => prev.filter(n => n.service_request_id !== serviceRequestId));
   };
 
+  const dismissAssignedTaskCount = () => {
+  localStorage.setItem('assignedTaskDismissed', 'true');
+  setAssignedTaskCount(0);
+  };
+
   return {
     notifications: visibleNotifications,
     hasUnread: visibleNotifications.length > 0 || connectionRequestCount > 0 || assignedTaskCount > 0,
     connectionRequestCount,
     assignedTaskCount,
-    dismissNotification
+    dismissNotification,
+    dismissAssignedTaskCount,
   };
 };
 

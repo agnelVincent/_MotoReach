@@ -30,7 +30,13 @@ const MechanicNavbar = () => {
   const serviceFlowMatch = location.pathname.match(/^\/mechanic\/service-flow\/(\d+)/);
   const currentServiceRequestId = serviceFlowMatch ? serviceFlowMatch[1] : null;
 
-  const { notifications, hasUnread, assignedTaskCount, dismissNotification } = useNotifications(currentServiceRequestId);
+  const { notifications, hasUnread, assignedTaskCount, dismissNotification, dismissAssignedTaskCount } = useNotifications(currentServiceRequestId);
+
+  // Suppress task badge while on the requests page (route-based)
+  // dismissAssignedTaskCount() zeroes it in memory for all other pages after click
+  const isOnRequestsPage = location.pathname === '/mechanic/requests';
+  const effectiveAssignedCount = isOnRequestsPage ? 0 : assignedTaskCount;
+  const effectiveHasUnread = notifications.length > 0 || effectiveAssignedCount > 0;
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
@@ -81,21 +87,22 @@ const MechanicNavbar = () => {
   const NotificationDropdown = () => (
     <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
 
-      {/* Section 1 — Assigned Tasks (only when count > 0) */}
-      {assignedTaskCount > 0 && (
+      {/* Section 1 — Assigned Tasks (suppressed while on the requests page) */}
+      {effectiveAssignedCount > 0 && (
         <>
           <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Assigned Tasks
           </p>
           <button
             onClick={() => {
+              dismissAssignedTaskCount();
               navigate('/mechanic/requests');
               setIsNotificationOpen(false);
             }}
             className="w-full text-left px-4 py-3 hover:bg-orange-50 flex items-center gap-2"
           >
             <span className="text-sm font-medium text-orange-700">
-              {assignedTaskCount} active assigned task{assignedTaskCount > 1 ? 's' : ''}
+              {effectiveAssignedCount} active assigned task{effectiveAssignedCount > 1 ? 's' : ''}
             </span>
           </button>
           <div className="border-t border-gray-100 my-1" />
@@ -163,11 +170,10 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${
-                    isActive(link.path)
-                      ? 'text-orange-600 bg-orange-50'
-                      : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
+                    ? 'text-orange-600 bg-orange-50'
+                    : 'text-gray-700 hover:text-orange-600 hover:bg-gray-50'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {link.name}
@@ -186,7 +192,7 @@ const MechanicNavbar = () => {
                 className="relative p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300"
               >
                 <Bell className="w-5 h-5" />
-                {hasUnread && (
+                {effectiveHasUnread && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
@@ -217,11 +223,10 @@ const MechanicNavbar = () => {
                       <button
                         key={item.action}
                         onClick={() => handleProfileMenuClick(item.action)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${
-                          item.action === 'logout'
-                            ? 'text-red-600 hover:bg-red-50'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        }`}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors duration-200 ${item.action === 'logout'
+                          ? 'text-red-600 hover:bg-red-50'
+                          : 'text-gray-700 hover:bg-gray-50'
+                          }`}
                       >
                         <Icon className="w-4 h-4" />
                         {item.name}
@@ -243,7 +248,7 @@ const MechanicNavbar = () => {
                 className="relative p-2 text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-300"
               >
                 <Bell className="w-5 h-5" />
-                {hasUnread && (
+                {effectiveHasUnread && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 )}
               </button>
@@ -274,11 +279,10 @@ const MechanicNavbar = () => {
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                    isActive(link.path)
-                      ? 'bg-orange-50 text-orange-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${isActive(link.path)
+                    ? 'bg-orange-50 text-orange-600'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-orange-600'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   {link.name}
@@ -297,11 +301,10 @@ const MechanicNavbar = () => {
                   <button
                     key={item.action}
                     onClick={() => handleProfileMenuClick(item.action)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${
-                      item.action === 'logout'
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-all duration-300 ${item.action === 'logout'
+                      ? 'text-red-600 hover:bg-red-50'
+                      : 'text-gray-700 hover:bg-gray-50'
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.name}
