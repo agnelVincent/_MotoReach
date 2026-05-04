@@ -101,6 +101,8 @@ def _get_chat_history(
             "sender_name": m.sender.full_name,
             "content": m.content,
             "created_at": m.created_at.isoformat(),
+            "image_url": m.image_url,
+            "message_type": m.message_type,
         }
         for m in messages
     ]
@@ -166,6 +168,8 @@ def _create_message(
         "sender_name": msg.sender.full_name,
         "content": msg.content,
         "created_at": msg.created_at.isoformat(),
+        "image_url": msg.image_url,
+        "message_type": msg.message_type,
     }
     return data, receiver_ids
 
