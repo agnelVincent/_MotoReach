@@ -20,29 +20,51 @@ from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, push_connection_count_to_workshop, push_assigned_task_count_to_mechanic
 from django.db import DatabaseError
 from chat.models import ChatMessageRecipient
+import logging
 
+logger = logging.getLogger(__name__)
 
 def check_expired_connections(queryset):
-    expiration_threshold = timezone.now() - timedelta(minutes=30) 
-    
+    expiration_threshold = timezone.now() - timedelta(minutes=30)
+
     expired_requests = queryset.filter(
-        status='REQUESTED', 
+        status='REQUESTED',
         requested_at__lt=expiration_threshold
     )
-    
-    updated_count = 0
-    for conn in expired_requests:
-        conn.status = 'AUTO_REJECTED'
-        conn.responded_at = timezone.now()
-        conn.save()
 
-        if conn.service_request.status == 'CONNECTING':
-            conn.service_request.status = 'PLATFORM_FEE_PAID'
-            conn.service_request.save()
-            notify_service_flow_update(conn.service_request_id)
-        updated_count += 1
-        push_connection_count_to_workshop(conn.workshop.user.id)
-    
+    updated_count = 0
+
+    for conn in expired_requests:
+        try:
+            with transaction.atomic():
+                conn.status = 'AUTO_REJECTED'
+                conn.responded_at = timezone.now()
+                conn.save(update_fields=['status', 'responded_at'])
+
+                service_request = conn.service_request
+
+                if service_request.status == 'CONNECTING':
+                    service_request.status = 'PLATFORM_FEE_PAID'
+                    service_request.save(update_fields=['status'])
+
+                    notify_service_flow_update(service_request.id)
+
+            updated_count += 1
+
+        except Exception as e:
+            logger.exception(
+                "Failed to process expired connection. "
+                f"connection_id={conn.id}, error={str(e)}"
+            )
+            continue
+
+        try:
+            push_connection_count_to_workshop(conn.workshop.user.id)
+        except Exception:
+            logger.exception(
+                f"Failed to push workshop count for connection_id={conn.id}"
+            )
+
     return updated_count
 
 class CreateServiceRequestView(generics.CreateAPIView):
