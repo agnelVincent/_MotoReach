@@ -32,10 +32,16 @@ class AdminComplaintSerializer(serializers.ModelSerializer):
 
     def get_service_request_details(self, obj):
         sr = obj.service_request
-        return {
-            'vehicle': f"{sr.vehicle_type} - {sr.vehicle_model}",
-            'issue': sr.issue_category,
-            'status': sr.status,
-            'description': sr.description,
-            'estimate_amount': sr.execution.estimate_amount if hasattr(sr, 'execution') else 0
-        }
+        if not sr:
+            return None
+        try:
+            estimate_amount = sr.execution.estimate_amount if hasattr(sr, 'execution') and sr.execution else 0
+            return {
+                'vehicle': f"{sr.vehicle_type} - {sr.vehicle_model}",
+                'issue': sr.issue_category,
+                'status': sr.status,
+                'description': sr.description,
+                'estimate_amount': estimate_amount
+            }
+        except Exception:
+            return None
