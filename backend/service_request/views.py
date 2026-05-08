@@ -167,61 +167,114 @@ class UserServiceRequestListView(generics.ListAPIView):
 
             return qs
         except Exception as e:
-            print(f"List Fetch Error: {e}")
             return ServiceRequest.objects.none()
+
 
 class ConnectWorkshopView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
+        workshop_id = request.data.get('workshop_id')
+
         try:
-            try:
-                service_request = ServiceRequest.objects.get(pk=pk, user=request.user)
-            except ServiceRequest.DoesNotExist:
-                return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
-            
-            workshop_id = request.data.get('workshop_id')
-            try:
-                workshop = Workshop.objects.get(pk=workshop_id)
-            except Workshop.DoesNotExist:
-                return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            if not service_request.platform_fee_paid:
-                 return Response({"error": "Platform fee not paid"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            if service_request.status == 'EXPIRED':
-                 return Response({"error": "This service request has expired."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            existing_connection = WorkshopConnection.objects.filter(
-                service_request=service_request, 
-                status__in=['REQUESTED', 'ACCEPTED']
-            ).exists()
-
-            if existing_connection:
-                return Response({"error": "You already have an active connection request for this service."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            previous_attempts = WorkshopConnection.objects.filter(
-                service_request=service_request,
-                workshop=workshop
-            ).count()
-
-            if previous_attempts >= 3:
-                return Response({"error": "You have reached the maximum limit of 3 connection attempts for this workshop."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            WorkshopConnection.objects.create(
-                service_request=service_request,
-                workshop=workshop,
-                status='REQUESTED'
+            service_request = ServiceRequest.objects.get(
+                pk=pk,
+                user=request.user
             )
-            
-            service_request.status = 'CONNECTING'
-            service_request.save()
+        except ServiceRequest.DoesNotExist:
+            return Response(
+                {"error": "Service request not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-            push_connection_count_to_workshop(workshop.user.id)
+        try:
+            workshop = Workshop.objects.get(pk=workshop_id)
+        except Workshop.DoesNotExist:
+            return Response(
+                {"error": "Workshop not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-            return Response({"message": "Connection requested successfully"}, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if not service_request.platform_fee_paid:
+            return Response(
+                {"error": "Platform fee not paid"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if service_request.status == 'EXPIRED':
+            return Response(
+                {"error": "This service request has expired."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        existing_connection = WorkshopConnection.objects.filter(
+            service_request=service_request,
+            status__in=['REQUESTED', 'ACCEPTED']
+        ).exists()
+
+        if existing_connection:
+            return Response(
+                {"error": "You already have an active connection request for this service."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        previous_attempts = WorkshopConnection.objects.filter(
+            service_request=service_request,
+            workshop=workshop
+        ).count()
+
+        if previous_attempts >= 3:
+            return Response(
+                {
+                    "error": (
+                        "You have reached the maximum limit of "
+                        "3 connection attempts for this workshop."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                WorkshopConnection.objects.create(
+                    service_request=service_request,
+                    workshop=workshop,
+                    status='REQUESTED'
+                )
+
+                service_request.status = 'CONNECTING'
+                service_request.save(update_fields=['status'])
+
+            try:
+                push_connection_count_to_workshop(workshop.user.id)
+            except Exception:
+                logger.exception(
+                    "Failed to push connection count",
+                    extra={
+                        "workshop_id": workshop.id,
+                        "service_request_id": service_request.id,
+                    }
+                )
+
+            return Response(
+                {"message": "Connection requested successfully"},
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to create workshop connection",
+                extra={
+                    "user_id": request.user.id,
+                    "service_request_id": service_request.id,
+                    "workshop_id": workshop.id,
+                }
+            )
+
+            return Response(
+                {"error": "Something went wrong. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class WorkshopConnectionRequestsView(APIView):
