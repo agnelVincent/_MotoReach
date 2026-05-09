@@ -13,12 +13,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.http import HttpResponse
 from django.db.models import F, Sum
-from django.db import transaction
+from django.db import transaction, DatabaseError
 from accounts.models import Workshop, Mechanic
 from decimal import Decimal
 from django.utils import timezone
+import logging
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
+logger = logging.getLogger(__name__)
 
 class CreateCheckoutSessionView(APIView):
     permission_classes = [IsAuthenticated]
@@ -26,22 +28,67 @@ class CreateCheckoutSessionView(APIView):
     def post(self, request):
         service_request_id = request.data.get('service_request_id')
         workshop_id = request.data.get('workshop_id')
+
+        logger.info(
+            "Create checkout session request initiated by user_id=%s",
+            request.user.id
+        )
+
         if not service_request_id:
-            return Response({'error': 'service_request_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "Missing service_request_id from user_id=%s",
+                request.user.id
+            )
+            return Response(
+                {'error': 'service_request_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            service_request = ServiceRequest.objects.get(id=service_request_id, user=request.user)
+            service_request = ServiceRequest.objects.get(
+                id=service_request_id,
+                user=request.user
+            )
+
         except ServiceRequest.DoesNotExist:
-            return Response({'error': 'Service Request not found'}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(
+                "ServiceRequest not found. service_request_id=%s user_id=%s",
+                service_request_id,
+                request.user.id
+            )
+            return Response(
+                {'error': 'Service Request not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching ServiceRequest. "
+                "service_request_id=%s user_id=%s",
+                service_request_id,
+                request.user.id
+            )
+            return Response(
+                {'error': 'Something went wrong while fetching service request'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         if service_request.platform_fee_paid:
-             return Response({'message': 'Platform fee already paid'}, status=status.HTTP_200_OK)
+            logger.info(
+                "Platform fee already paid for service_request_id=%s",
+                service_request.id
+            )
+            return Response(
+                {'message': 'Platform fee already paid'},
+                status=status.HTTP_200_OK
+            )
 
         metadata = {
-            'service_request_id': service_request.id,
-            'user_id': request.user.id,
+            'service_request_id': str(service_request.id),
+            'user_id': str(request.user.id),
             'payment_type': 'PLATFORM_FEE'
         }
+
         if workshop_id:
             metadata['workshop_id'] = str(workshop_id)
 
@@ -52,21 +99,100 @@ class CreateCheckoutSessionView(APIView):
                     {
                         'price_data': {
                             'currency': settings.STRIPE_CURRENCY,
-                            'unit_amount': int(settings.STRIPE_PLATFORM_FEE_AMOUNT * 100),
+                            'unit_amount': int(
+                                settings.STRIPE_PLATFORM_FEE_AMOUNT * 100
+                            ),
                             'product_data': {
-                                'name': 'Platform Fee', 
-                                'description': f'Platform fee for service request #{service_request.id}',
+                                'name': 'Platform Fee',
+                                'description': (
+                                    f'Platform fee for service request '
+                                    f'#{service_request.id}'
+                                ),
                             },
                         },
                         'quantity': 1,
                     },
                 ],
                 mode='payment',
-                success_url=f'http://localhost:5173/user/workshops-nearby/{service_request.id}?payment_success=true',
-                cancel_url=f'http://localhost:5173/user/workshops-nearby/{service_request.id}?payment_canceled=true',
+                success_url=(
+                    f'http://localhost:5173/user/workshops-nearby/'
+                    f'{service_request.id}?payment_success=true'
+                ),
+                cancel_url=(
+                    f'http://localhost:5173/user/workshops-nearby/'
+                    f'{service_request.id}?payment_canceled=true'
+                ),
                 metadata=metadata,
             )
-            
+
+            logger.info(
+                "Stripe checkout session created successfully. "
+                "checkout_session_id=%s service_request_id=%s",
+                checkout_session.id,
+                service_request.id
+            )
+
+        except stripe.error.CardError as e:
+            logger.exception(
+                "Stripe CardError for service_request_id=%s",
+                service_request.id
+            )
+            return Response(
+                {'error': e.user_message or 'Card error occurred'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.RateLimitError:
+            logger.exception("Stripe rate limit exceeded")
+            return Response(
+                {'error': 'Too many requests to payment gateway'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        except stripe.error.InvalidRequestError as e:
+            logger.exception(
+                "Invalid Stripe request for service_request_id=%s",
+                service_request.id
+            )
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.AuthenticationError:
+            logger.exception("Stripe authentication failed")
+            return Response(
+                {'error': 'Payment gateway authentication failed'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except stripe.error.APIConnectionError:
+            logger.exception("Stripe network communication failed")
+            return Response(
+                {'error': 'Network error while contacting payment gateway'},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        except stripe.error.StripeError:
+            logger.exception(
+                "Generic Stripe error for service_request_id=%s",
+                service_request.id
+            )
+            return Response(
+                {'error': 'Payment gateway error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while creating Stripe checkout session"
+            )
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
             Payment.objects.create(
                 user=request.user,
                 service_request=service_request,
@@ -77,9 +203,36 @@ class CreateCheckoutSessionView(APIView):
                 status='PENDING'
             )
 
-            return Response({'url': checkout_session.url})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.info(
+                "Payment record created successfully. "
+                "checkout_session_id=%s",
+                checkout_session.id
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "Database error while creating Payment record. "
+                "checkout_session_id=%s",
+                checkout_session.id
+            )
+            return Response(
+                {'error': 'Failed to save payment record'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while saving Payment record"
+            )
+            return Response(
+                {'error': 'Unexpected database error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {'url': checkout_session.url},
+            status=status.HTTP_200_OK
+        )
 
 
 class CreateServiceEscrowCheckoutView(APIView):
@@ -181,7 +334,6 @@ class StripeWebhookView(APIView):
 
         if event['type'] == 'checkout.session.completed':
             session = event['data']['object']
-            print(f"Processing checkout.session.completed for session: {session['id']}")
             self.handle_checkout_session_completed(session)
         else:
             print(f"Webhook event type '{event['type']}' not handled")
@@ -189,7 +341,6 @@ class StripeWebhookView(APIView):
         return HttpResponse(status=200)
 
     def handle_checkout_session_completed(self, session):
-        print(f"handle_checkout_session_completed called with session ID: {session['id']}")
         
         try:
             payment = Payment.objects.get(stripe_checkout_id=session['id'])
