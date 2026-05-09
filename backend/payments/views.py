@@ -877,6 +877,38 @@ class StripeWebhookView(APIView):
                 "checkout session"
             )
 
+    def _handle_service_escrow_completed(self, payment):
+        try:
+            with transaction.atomic():
+                service_request = payment.service_request
+                execution = service_request.execution
+
+                # Update Execution
+                execution.escrow_paid = True
+                execution.escrow_txn_id = payment.stripe_checkout_id
+                execution.save()
+
+                # Update ServiceRequest status
+                service_request.status = 'SERVICE_AMOUNT_PAID'
+                service_request.save()
+
+                # Notify users
+                notify_service_flow_update(service_request.id)
+
+                logger.info(
+                    "Successfully processed SERVICE_ESCROW for payment_id=%s "
+                    "service_request_id=%s",
+                    payment.id,
+                    service_request.id
+                )
+
+        except Exception:
+            logger.exception(
+                "Error processing SERVICE_ESCROW for payment_id=%s",
+                payment.id
+            )
+            raise
+
 
 class WalletView(APIView):
     permission_classes = [IsAuthenticated]

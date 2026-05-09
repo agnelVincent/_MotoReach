@@ -5,7 +5,8 @@ import {
     TrendingUp, Award, Star
 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchMechanicDetails, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice'
+import { fetchMechanicDetails, payMechanicBonus } from '../../redux/slices/workshopMechanicSlice';
+import toast from 'react-hot-toast';
 
 
 const WorkshopMechanicDetail = () => {
