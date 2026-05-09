@@ -184,17 +184,35 @@ def _user_has_active_connection(user: User, service_request: ServiceRequest) -> 
 
 @database_sync_to_async
 def _get_chat_history(
-    service_request: ServiceRequest, limit: int = 50, before_id: int | None = None
+    service_request: ServiceRequest,
+    limit: int = 50,
+    before_id: int | None = None
 ) -> List[Dict[str, Any]]:
-    
+
     try:
-        qs = ChatMessage.objects.filter(service_request=service_request).select_related("sender")
+        qs = ChatMessage.objects.filter(
+            service_request=service_request
+        ).select_related("sender")
+
         if before_id is not None:
             qs = qs.filter(id__lt=before_id)
-        messages = list(reversed(list(qs.order_by("-id")[:limit])))
-    
-    except DatabaseError as e:
-        print(e)
+
+        messages = list(
+            reversed(list(qs.order_by("-id")[:limit]))
+        )
+
+    except DatabaseError:
+        logger.exception(
+            "DB error while fetching chat history service_request_id=%s",
+            service_request.id
+        )
+        return []
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while fetching chat history service_request_id=%s",
+            service_request.id
+        )
         return []
 
     return [
@@ -212,27 +230,28 @@ def _get_chat_history(
     ]
 
 
+
 @database_sync_to_async
 def _create_message(
-    user: User, service_request: ServiceRequest, content: str
-) -> Tuple[Dict[str, Any], int]:
-    
+    user: User,
+    service_request: ServiceRequest,
+    content: str
+) -> Tuple[Dict[str, Any], list[int]]:
+
     try:
         connection = WorkshopConnection.objects.filter(
             service_request=service_request,
             status="ACCEPTED",
         ).first()
-
-    except DatabaseError as e:
-        print(e)
+    except DatabaseError:
+        logger.exception("DB error while verifying connection sr_id=%s", service_request.id)
         raise PermissionError("Cannot verify connection at this moment")
-    
-    if not connection:
-        raise PermissionError('No active connection for this service')
 
+    if not connection:
+        raise PermissionError("No active connection for this service")
 
     if service_request.status in ["EXPIRED", "CANCELLED"]:
-        raise PermissionError("Service request is no longer active.")
+        raise PermissionError("Service request is no longer active")
 
     try:
         msg = ChatMessage.objects.create(
@@ -246,26 +265,29 @@ def _create_message(
         if service_request.user:
             participants.append(service_request.user)
 
-        if hasattr(connection.workshop, 'user'):
+        if hasattr(connection.workshop, "user"):
             participants.append(connection.workshop.user)
 
         if hasattr(service_request, "execution") and service_request.execution:
             for mechanic in service_request.execution.mechanics.all():
-                if hasattr(mechanic, 'user'):
+                if hasattr(mechanic, "user"):
                     participants.append(mechanic.user)
 
         receiver_ids = []
-
         for p in set(participants):
             if p.id != user.id:
-                ChatMessageRecipient.objects.create(message=msg, user=p, is_read=False)
+                ChatMessageRecipient.objects.create(
+                    message=msg,
+                    user=p,
+                    is_read=False
+                )
                 receiver_ids.append(p.id)
 
-    except DatabaseError as e:
-        print(e)
-        raise PermissionError('Failed to create message at this time')
+    except DatabaseError:
+        logger.exception("DB error while creating chat message sr_id=%s", service_request.id)
+        raise PermissionError("Failed to create message at this time")
 
-    data = {
+    return {
         "id": msg.id,
         "service_request_id": msg.service_request_id,
         "sender_id": msg.sender_id,
@@ -274,49 +296,94 @@ def _create_message(
         "created_at": msg.created_at.isoformat(),
         "image_url": msg.image_url,
         "message_type": msg.message_type,
-    }
-    return data, receiver_ids
+    }, receiver_ids
+
 
 
 @database_sync_to_async
 def _mark_messages_as_read(user: User, service_request: ServiceRequest) -> None:
     try:
         ChatMessageRecipient.objects.filter(
-            message__service_request = service_request,
-            user = user,
-            is_read = False,
-        ).update(is_read = True)
-    except DatabaseError as e:
-        print('happened while marking as read',e)
+            message__service_request=service_request,
+            user=user,
+            is_read=False,
+        ).update(is_read=True)
+
+    except DatabaseError:
+        logger.exception(
+            "DB error while marking messages as read user_id=%s sr_id=%s",
+            user.id,
+            service_request.id
+        )
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while marking messages as read user_id=%s sr_id=%s",
+            user.id,
+            service_request.id
+        )
 
 
 def _build_unread_summary_item_sync(
-    receiver: User, service_request: ServiceRequest
+    receiver: User,
+    service_request: ServiceRequest
 ) -> Dict[str, Any]:
-    
-    unread_qs = ChatMessageRecipient.objects.filter(
-        message__service_request=service_request,
-        user=receiver,
-        is_read=False,
-    ).select_related("message__sender")
 
-    count = unread_qs.count()
-    if count == 0:
+    try:
+        unread_qs = ChatMessageRecipient.objects.filter(
+            message__service_request=service_request,
+            user=receiver,
+            is_read=False,
+        ).select_related("message__sender")
+
+        count = unread_qs.count()
+
+        if count == 0:
+            return {
+                "service_request_id": service_request.id,
+                "unread_count": 0,
+                "counterpart_name": "",
+            }
+
+        last_receipt = unread_qs.order_by(
+            "-message__created_at"
+        ).first()
+
+        counterpart_name = (
+            last_receipt.message.sender.full_name
+            if last_receipt and last_receipt.message and last_receipt.message.sender
+            else ""
+        )
+
+        return {
+            "service_request_id": service_request.id,
+            "unread_count": count,
+            "counterpart_name": counterpart_name,
+        }
+
+    except DatabaseError:
+        logger.exception(
+            "DB error while building unread summary user_id=%s sr_id=%s",
+            receiver.id,
+            service_request.id
+        )
         return {
             "service_request_id": service_request.id,
             "unread_count": 0,
             "counterpart_name": "",
         }
 
-
-    last_receipt = unread_qs.order_by("-message__created_at").first()
-    counterpart_name = last_receipt.message.sender.full_name
-
-    return {
-        "service_request_id": service_request.id,
-        "unread_count": count,
-        "counterpart_name": counterpart_name,
-    }
+    except Exception:
+        logger.exception(
+            "Unexpected error while building unread summary user_id=%s sr_id=%s",
+            receiver.id,
+            service_request.id
+        )
+        return {
+            "service_request_id": service_request.id,
+            "unread_count": 0,
+            "counterpart_name": "",
+        }
 
 
 @database_sync_to_async
@@ -330,24 +397,50 @@ def _build_unread_summary_item(
 def _get_unread_summaries_for_user(user: User) -> List[Dict[str, Any]]:
 
     ACTIVE_SR_STATUSES = [
-    'CONNECTED', 'ESTIMATE_SHARED',
-    'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
+        "CONNECTED",
+        "ESTIMATE_SHARED",
+        "SERVICE_AMOUNT_PAID",
+        "IN_PROGRESS",
     ]
+
+    try:
+        service_request_ids = (
+            ChatMessageRecipient.objects.filter(
+                user=user,
+                is_read=False,
+                message__service_request__status__in=ACTIVE_SR_STATUSES,
+            )
+            .values_list("message__service_request_id", flat=True)
+            .distinct()
+        )
+
+        summaries: List[Dict[str, Any]] = []
+
+        for sr_id in service_request_ids:
+            try:
+                sr = ServiceRequest.objects.get(pk=sr_id)
+            except ServiceRequest.DoesNotExist:
+                continue
+
+            item = _build_unread_summary_item_sync(user, sr)
+            summaries.append(item)
+
+        return summaries
+
+    except DatabaseError:
+        logger.exception(
+            "DB error while fetching unread summaries user_id=%s",
+            user.id,
+        )
+        return []
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while fetching unread summaries user_id=%s",
+            user.id,
+        )
+        return []
     
-    service_request_ids = (
-        ChatMessageRecipient.objects.filter(user=user, is_read=False, message__service_request__status__in=ACTIVE_SR_STATUSES)
-        .values_list("message__service_request_id", flat=True)
-        .distinct()
-    )
-    summaries: List[Dict[str, Any]] = []
-    for sr_id in service_request_ids:
-        try:
-            sr = ServiceRequest.objects.get(pk=sr_id)
-        except ServiceRequest.DoesNotExist:
-            continue
-        item = _build_unread_summary_item_sync(user, sr)
-        summaries.append(item)
-    return summaries
 
 @database_sync_to_async
 def _get_pending_connection_count_for_workshop(user : User) -> int:
@@ -360,23 +453,40 @@ def _get_pending_connection_count_for_workshop(user : User) -> int:
         ).count()
     except Exception:
         return 0
-    
-@database_sync_to_async
-def _get_assigned_task_count_for_mechanic(user : User) -> int:
-    try:
 
-        if user.role != 'mechanic' or not hasattr(user, 'mechanic'):
+
+@database_sync_to_async
+def _get_assigned_task_count_for_mechanic(user: User) -> int:
+    try:
+        if user.role != "mechanic" or not hasattr(user, "mechanic"):
             return 0
- 
+
         service_status = [
-                'CONNECTED', 'ESTIMATE_SHARED',
-                'SERVICE_AMOUNT_PAID', 'IN_PROGRESS'
+            "CONNECTED",
+            "ESTIMATE_SHARED",
+            "SERVICE_AMOUNT_PAID",
+            "IN_PROGRESS",
         ]
-        count = ServiceExecution.objects.filter(mechanics = user.mechanic, service_request__status__in = service_status).count()
+
+        count = ServiceExecution.objects.filter(
+            mechanics=user.mechanic,
+            service_request__status__in=service_status,
+        ).count()
+
         return count
-    
-    except Exception as e:
-        print(e)
+
+    except DatabaseError:
+        logger.exception(
+            "DB error while fetching mechanic task count user_id=%s",
+            user.id,
+        )
+        return 0
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while fetching mechanic task count user_id=%s",
+            user.id,
+        )
         return 0
 
 
@@ -389,7 +499,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             )
             self.room_group_name = f"chat_{self.service_request_id}"
 
-            user: User = self.scope.get("user")  
+            user: User = self.scope.get("user")
             if not user or not user.is_authenticated:
                 await self.close()
                 return
@@ -406,26 +516,36 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
             self.service_request = service_request
 
-            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
             await self.accept()
 
             history = await _get_chat_history(service_request)
-            await self.send_json({"type": "chat.history", "messages": history})
+            await self.send_json({
+                "type": "chat.history",
+                "messages": history
+            })
 
             await _mark_messages_as_read(user, service_request)
             await self._notify_unread_update(user)
-        except Exception as e:
-            print(f"Error in ChatConsumer connect: {e}")
+
+        except Exception:
+            logger.exception("Error in ChatConsumer connect")
             await self.close()
 
     async def disconnect(self, code):
-        if hasattr(self, 'room_group_name'):
-            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name
+            )
 
     async def receive_json(self, content: Dict[str, Any], **kwargs):
         try:
             msg_type = content.get("type")
-            user: User = self.scope.get("user") 
+            user: User = self.scope.get("user")
 
             if msg_type == "message":
                 raw_message = (content.get("message") or "").strip()
@@ -437,9 +557,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                         user, self.service_request, raw_message
                     )
                 except PermissionError:
-                    await self.send_json(
-                        {"type": "chat.error", "message": "Chat not available."}
-                    )
+                    await self.send_json({
+                        "type": "chat.error",
+                        "message": "Chat not available."
+                    })
                     return
 
                 await self.channel_layer.group_send(
@@ -454,12 +575,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                     await self._send_notification_to_user(rid)
 
             elif msg_type == "fetch_history":
-
                 before_id = content.get("before_id")
                 if before_id is None:
                     return
+
                 older_messages = await _get_chat_history(
-                    self.service_request, limit=50, before_id=int(before_id)
+                    self.service_request,
+                    limit=50,
+                    before_id=int(before_id)
                 )
 
                 await self.send_json({
@@ -471,29 +594,37 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             elif msg_type == "mark_read":
                 await _mark_messages_as_read(user, self.service_request)
                 await self._notify_unread_update(user)
-        except Exception as e:
-            print(f"Error in ChatConsumer receive_json: {e}")
+
+        except Exception:
+            logger.exception("Error in ChatConsumer receive_json")
             try:
-                await self.send_json({"type": "chat.error", "message": "An unexpected error occurred."})
+                await self.send_json({
+                    "type": "chat.error",
+                    "message": "An unexpected error occurred."
+                })
             except Exception:
                 pass
 
     async def chat_message(self, event: Dict[str, Any]):
-        await self.send_json({"type": "chat.message", "message": event["message"]})
+        await self.send_json({
+            "type": "chat.message",
+            "message": event["message"]
+        })
 
     async def _send_notification_to_user(self, user_id: int):
-
         sr = self.service_request
+
         try:
-            receiver = await database_sync_to_async(User.objects.get)(pk=user_id)
+            receiver = await database_sync_to_async(
+                User.objects.get
+            )(pk=user_id)
         except User.DoesNotExist:
             return
 
         summary = await _build_unread_summary_item(receiver, sr)
-        group_name = f"notifications_user_{user_id}"
 
         await self.channel_layer.group_send(
-            group_name,
+            f"notifications_user_{user_id}",
             {
                 "type": "notification.update",
                 "item": summary,
@@ -501,24 +632,24 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def _notify_unread_update(self, user: User):
+        summary = await _build_unread_summary_item(
+            user,
+            self.service_request
+        )
 
-        summary = await _build_unread_summary_item(user, self.service_request)
-        group_name = f"notifications_user_{user.id}"
         await self.channel_layer.group_send(
-            group_name,
+            f"notifications_user_{user.id}",
             {
                 "type": "notification.update",
                 "item": summary,
             },
         )
 
-
 class NotificationConsumer(AsyncJsonWebsocketConsumer):
-
 
     async def connect(self):
         try:
-            user: User = self.scope.get("user")  # type: ignore[assignment]
+            user: User = self.scope.get("user")
             if not user or not user.is_authenticated:
                 await self.close()
                 return
@@ -526,64 +657,63 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             self.user = user
             self.user_group_name = f"notifications_user_{user.id}"
 
-            await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+            await self.channel_layer.group_add(
+                self.user_group_name,
+                self.channel_name
+            )
             await self.accept()
 
             summaries = await _get_unread_summaries_for_user(user)
             pending_count = await _get_pending_connection_count_for_workshop(user)
             task_count = await _get_assigned_task_count_for_mechanic(user)
-            await self.send_json(
-                {
-                    "type": "notifications.initial",
-                    "items": summaries,
-                    'connection_request_count' : pending_count,
-                    'assigned_task_count': task_count
-                }
-            )
-        except Exception as e:
-            print(f"Error in NotificationConsumer connect: {e}")
+
+            await self.send_json({
+                "type": "notifications.initial",
+                "items": summaries,
+                "connection_request_count": pending_count,
+                "assigned_task_count": task_count,
+            })
+
+        except Exception:
+            logger.exception("Error in NotificationConsumer connect")
             await self.close()
 
     async def disconnect(self, code):
-        if hasattr(self, 'user_group_name'):
-            await self.channel_layer.group_discard(self.user_group_name, self.channel_name)
+        if hasattr(self, "user_group_name"):
+            await self.channel_layer.group_discard(
+                self.user_group_name,
+                self.channel_name
+            )
 
     async def notification_update(self, event: Dict[str, Any]):
-        """
-        Receive updates from chat consumers and forward to the connected client.
-        """
-        try:
-            await self.send_json(
-                {
-                    "type": "notifications.update",
-                    "item": event["item"],
-                }
-            )
-        except Exception as e:
-            print(f"Error in NotificationConsumer notification_update: {e}")
-
-    async def connection_count_update(self, event : Dict[str, any]):
         try:
             await self.send_json({
-                'type' : 'notifications.connection_count',
-                'count' : event['count']
+                "type": "notifications.update",
+                "item": event["item"],
             })
-        except Exception as e:
-            print(e)
+        except Exception:
+            logger.exception("Error in notification_update")
+
+    async def connection_count_update(self, event: Dict[str, Any]):
+        try:
+            await self.send_json({
+                "type": "notifications.connection_count",
+                "count": event["count"],
+            })
+        except Exception:
+            logger.exception("Error in connection_count_update")
 
     async def assigned_task_count_update(self, event: Dict[str, Any]):
         try:
             await self.send_json({
-                'type': 'notifications.assigned_task_count',
-                'count': event['count'],
+                "type": "notifications.assigned_task_count",
+                "count": event["count"],
             })
-        except Exception as e:
-            print(e)
-
+        except Exception:
+            logger.exception("Error in assigned_task_count_update")
 
 
 class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
-
 
     async def connect(self):
         try:
@@ -600,28 +730,39 @@ class ServiceFlowConsumer(AsyncJsonWebsocketConsumer):
                 await self.close()
                 return
 
-            allowed = await _user_can_subscribe_service_flow(user, self.service_request_id)
+            allowed = await _user_can_subscribe_service_flow(
+                user,
+                self.service_request_id
+            )
+
             if not allowed:
                 await self.close()
                 return
 
             self.room_group_name = f"service_flow_{self.service_request_id}"
-            await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+            await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
             await self.accept()
-        except Exception as e:
-            print(f"Error in ServiceFlowConsumer connect: {e}")
+
+        except Exception:
+            logger.exception("Error in ServiceFlowConsumer connect")
             await self.close()
 
     async def disconnect(self, code):
         if hasattr(self, "room_group_name"):
             await self.channel_layer.group_discard(
-                self.room_group_name, self.channel_name
+                self.room_group_name,
+                self.channel_name
             )
 
     async def service_flow_update(self, event: Dict[str, Any]):
-
-        await self.send_json({
-            "type": "service_flow.update",
-            "event": event.get("event", "update"),
-        })
-
+        try:
+            await self.send_json({
+                "type": "service_flow.update",
+                "event": event.get("event", "update"),
+            })
+        except Exception:
+            logger.exception("Error in service_flow_update")
