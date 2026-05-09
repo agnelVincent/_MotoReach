@@ -35,6 +35,9 @@ from rest_framework import serializers
 from django.db import transaction
 from service_request.models import MechanicEarning, ServiceExecution
 from payments.models import Wallet,WalletTransaction
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BaseRegisterView(APIView):
@@ -44,60 +47,63 @@ class BaseRegisterView(APIView):
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
         
-        if serializer.is_valid():
-            try:
-                pending_user = serializer.save()
+        try:
+            if serializer.is_valid():
+                try:
+                    pending_user = serializer.save()
+                    logger.info(f"User registration successful: {pending_user.email}")
 
-                return Response(
-                    {
-                        'message': 'Registration successful. Please check your email for the OTP verification.',
-                        'email': pending_user.email,
-                        'role': pending_user.role
-                    },
-                    status=status.HTTP_201_CREATED
-                )
+                    return Response(
+                        {
+                            'message': 'Registration successful. Please check your email for the OTP verification.',
+                            'email': pending_user.email,
+                            'role': pending_user.role
+                        },
+                        status=status.HTTP_201_CREATED
+                    )
+                
+                except Exception as e:
+                    logger.exception("Exception occurred during user registration")
+                    error_message = str(e) if str(e) else "An unexpected error occurred during registration. Please try again."
+                    return Response(
+                        {'error': error_message},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
             
-            except Exception as e:
-                print(f'Registration exception: {e}')
-                # Provide more specific error if possible
-                error_message = str(e) if str(e) else "An unexpected error occurred during registration. Please try again."
-                return Response(
-                    {'error': error_message},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-        
-        # Format validation errors for better readability
-        print(f"Validation errors: {serializer.errors}")
-        
-        # Extract the first error message for user-friendly display
-        errors = serializer.errors
-        if isinstance(errors, dict):
-            # Get first field error
-            first_field = next(iter(errors.keys()))
-            first_error = errors[first_field]
-            
-            error_message = ""
-            if isinstance(first_error, list) and len(first_error) > 0:
-                raw_msg = first_error[0]
-            else:
-                raw_msg = str(first_error)
+            logger.warning(f"Registration validation errors: {serializer.errors}")
+            errors = serializer.errors
+            if isinstance(errors, dict):
+                first_field = next(iter(errors.keys()))
+                first_error = errors[first_field]
+                
+                if isinstance(first_error, list) and len(first_error) > 0:
+                    raw_msg = first_error[0]
+                else:
+                    raw_msg = str(first_error)
 
-            if first_field == 'non_field_errors':
-                error_message = raw_msg
-            else:
-                # Make field name readable
-                readable_field = first_field.replace('_', ' ').title()
-                error_message = f"{readable_field}: {raw_msg}"
+                if first_field == 'non_field_errors':
+                    error_message = raw_msg
+                else:
+                    readable_field = first_field.replace('_', ' ').title()
+                    error_message = f"{readable_field}: {raw_msg}"
+                
+                return Response(
+                    {'error': error_message, 'details': errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             
             return Response(
-                {'error': error_message, 'details': errors},
+                {'error': 'Invalid registration data. Please check your inputs.', 'details': errors},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        except Exception as e:
+            logger.exception("Unexpected error in BaseRegisterView POST method")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
-        return Response(
-            {'error': 'Invalid registration data. Please check your inputs.', 'details': errors},
-            status=status.HTTP_400_BAD_REQUEST
-        )
 
 class UserRegisterView(BaseRegisterView):
     serializer_class = UserRegistrationSerializer
@@ -117,7 +123,6 @@ class VerifyOTPView(APIView):
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            # Return validation errors from serializer
             error_detail = e.detail
             if isinstance(error_detail, dict):
                 first_error = next(iter(error_detail.values()))
@@ -127,6 +132,7 @@ class VerifyOTPView(APIView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
+            logger.warning(f"OTP verification validation error: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email']
@@ -135,7 +141,6 @@ class VerifyOTPView(APIView):
 
         try:
             with transaction.atomic():
-                # Check if OTP record exists
                 try:
                     otp_record = EmailOTP.objects.get(
                         email=email,
@@ -143,36 +148,37 @@ class VerifyOTPView(APIView):
                         purpose='registration'
                     )
                 except EmailOTP.DoesNotExist:
+                    logger.warning(f"No OTP found for email: {email}")
                     return Response(
                         {'error': 'No OTP found for this email. Please request a new OTP or register again.'},
                         status=status.HTTP_404_NOT_FOUND
                     )
 
-                # Check if pending user exists
                 try:
                     pending_user = PendingUser.objects.get(email=email)
                 except PendingUser.DoesNotExist:
+                    logger.warning(f"Pending user not found for email: {email}")
                     return Response(
                         {'error': 'Registration session expired. Please register again.'},
                         status=status.HTTP_404_NOT_FOUND
                     )
 
-                # Verify role matches
                 if pending_user.role != role:
+                    logger.warning(f"Role mismatch for email {email}: expected {pending_user.role}, got {role}")
                     return Response(
                         {'error': f'Role mismatch. Please verify you selected the correct role: {pending_user.role}.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-                # Check if OTP is expired
                 if otp_record.is_expired():
+                    logger.info(f"OTP expired for email: {email}")
                     return Response(
                         {'error': 'OTP has expired. Please request a new OTP.'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-                # Verify OTP
                 if otp_record.otp != otp:
+                    logger.info(f"Invalid OTP attempt for email: {email}")
                     return Response(
                         {'error': 'Invalid OTP. Please check the code and try again.'},
                         status=status.HTTP_400_BAD_REQUEST
@@ -181,8 +187,9 @@ class VerifyOTPView(APIView):
                 # Mark OTP as verified
                 otp_record.is_verified = True
                 otp_record.save()
+                logger.info(f"OTP verified for email: {email}")
 
-                # Create user account
+                # Create user
                 user = User.objects.create_user(
                     email=pending_user.email,
                     full_name=pending_user.full_name,
@@ -190,8 +197,9 @@ class VerifyOTPView(APIView):
                     password=pending_user.password,
                     is_active=True
                 )
+                logger.info(f"User account created for email: {email}")
 
-                # Create role-specific profile
+                # Role-specific profile creation
                 if user.role == 'workshop_admin':
                     Workshop.objects.create(
                         user=user,
@@ -207,16 +215,19 @@ class VerifyOTPView(APIView):
                         latitude=pending_user.latitude,
                         longitude=pending_user.longitude
                     )
+                    logger.info(f"Workshop profile created for user: {email}")
 
                 elif user.role == 'mechanic':
                     Mechanic.objects.create(
                         user=user,
                         contact_number=pending_user.contact_number
                     )
+                    logger.info(f"Mechanic profile created for user: {email}")
 
                 # Clean up
                 pending_user.delete()
                 otp_record.delete()
+                logger.info(f"Pending user and OTP record deleted for email: {email}")
 
                 return Response(
                     {'message': 'Account created successfully. Please login to continue.'},
@@ -224,7 +235,7 @@ class VerifyOTPView(APIView):
                 )
 
         except Exception as e:
-            print(f"OTP Verification Error: {e}")
+            logger.exception(f"OTP verification failed for email: {email}")
             return Response(
                 {'error': f'Account creation failed: {str(e)}. Please try again or contact support.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -249,14 +260,16 @@ class ResendOTPView(APIView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
+            logger.warning(f"Resend OTP validation error: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email']
         role = serializer.validated_data['role']
-    
+
         try:
             pending_user = PendingUser.objects.get(email=email, role=role)
-            
+            logger.info(f"Found pending user for Resend OTP: {email}, role: {role}")
+
             otp_record, status_ok, message = send_otp_mail(
                 email=pending_user.email,
                 full_name=pending_user.full_name,
@@ -264,49 +277,57 @@ class ResendOTPView(APIView):
             )
 
             if status_ok:
+                logger.info(f"OTP resent successfully to {email}")
                 return Response({"message": message}, status=status.HTTP_200_OK)
             else:
+                logger.warning(f"Failed to resend OTP to {email}: {message}")
                 return Response({'error': message}, status=status.HTTP_400_BAD_REQUEST)
-                
+
         except PendingUser.DoesNotExist:
+            logger.warning(f"No pending user found for email: {email}, role: {role}")
             return Response(
                 {'error': 'No pending registration found for this email and role. Please register first.'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            logger.exception(f"Unexpected error while resending OTP for email: {email}")
+            return Response({'error': 'Failed to resend OTP. Please try again later.'}, 
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class LoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = CustomTokenObtainPairSerializer
-    
+
     def post(self, request, *args, **kwargs):
         email = request.data.get('email', '')
         password = request.data.get('password', '')
-        
+
         try:
             user = User.objects.get(email=email)
-            
             if not user.is_active:
+                logger.warning(f"Blocked login attempt for email: {email}")
                 return Response(
-                    {'error': 'Your account has been blocked. Please contact support for assistance.'},
+                    {'error': 'Your account has been blocked. Please contact support.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         except User.DoesNotExist:
+            logger.info(f"Login attempt with non-existent email: {email}")
             return Response(
-                {'error': 'No account found with this email address. Please check your email or register.'},
+                {'error': 'No account found with this email address. Please register.'},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
         if not user.check_password(password):
-             return Response(
-                {'error': 'Incorrect password. Please try again or use "Forgot Password" to reset.'},
+            logger.info(f"Incorrect password attempt for email: {email}")
+            return Response(
+                {'error': 'Incorrect password. Please try again or reset your password.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
         serializer = self.serializer_class(data=request.data)
-        
+
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
@@ -319,15 +340,15 @@ class LoginView(TokenObtainPairView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
-            
+            logger.warning(f"Login validation error for email {email}: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            print(f"Login error: {e}")
+            logger.exception(f"Unexpected login error for email: {email}")
             return Response(
                 {'error': 'An unexpected error occurred. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+
         data = serializer.validated_data
 
         response_data = {
@@ -337,7 +358,7 @@ class LoginView(TokenObtainPairView):
             'role': data['role'],
             'email': data['email']
         }
-        
+
         if 'workshop_status' in data:
             response_data['workshop_status'] = data['workshop_status']
 
@@ -353,47 +374,50 @@ class LoginView(TokenObtainPairView):
             path='/'
         )
 
-        print(response_data)
-        print('----------')
-        print(response.cookies)
+        logger.info(f"User logged in successfully: {email}")
 
         return response
     
+    
 class LogoutView(APIView):
-
     permission_classes = [AllowAny]
 
     def post(self, request):
-
-        response = Response({'detail' : 'successfully logged out'}, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Successfully logged out'}, status=status.HTTP_200_OK)
 
         response.delete_cookie('refreshtoken')
 
         refresh_token = request.COOKIES.get('refreshtoken')
-
         if not refresh_token:
-            return Response({'detail': 'No refresh token cookie was present. Logged out locally.'},status=status.HTTP_200_OK)
-        
+            logger.info("Logout attempted but no refresh token cookie was present.")
+            return Response(
+                {'detail': 'No refresh token cookie was present. Logged out locally.'},
+                status=status.HTTP_200_OK
+            )
+
         try:
             token = RefreshToken(refresh_token)
             token.blacklist()
+            logger.info("Refresh token blacklisted successfully during logout.")
             return response
-        
+
         except TokenError:
-            response = Response({'Invalid token or token expired'},status=status.HTTP_400_BAD_REQUEST)
-            return response
-        
+            logger.warning("Invalid or expired refresh token during logout.")
+            return Response({'error': 'Invalid token or token expired'}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
-            print(e)
+            logger.exception("Unexpected error during logout.")
             response.data = {'error': 'An unexpected server error occurred during logout.'}
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return response
-        
+
+
 class CookieTokenRefeshView(TokenRefreshView):
     permission_classes = [AllowAny]
     authentication_classes = []
     serializer_class = CookieTokenRefreshSerializer
-            
+
+
 class GoogleAuthView(APIView):
     permission_classes = [AllowAny]
 
@@ -441,15 +465,6 @@ class GoogleAuthView(APIView):
                 path='/'
             )
 
-            print("🧠 SETTING REFRESH COOKIE")
-            print("REFRESH VALUE:", str(refresh))
-            print("COOKIE SETTINGS:", {
-                "key": settings.SIMPLE_JWT['AUTH_COOKIE'],
-                "samesite": settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE'],
-                "secure": settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-            })
-
-
             return response
 
         except Exception as e:
@@ -466,16 +481,24 @@ class ForgotPasswordSendOtpView(APIView):
             serializer = self.serializer_class(data=request.data)
             serializer.is_valid(raise_exception=True)
             email = serializer.validated_data['email']
+            logger.info(f"Password reset OTP request for email: {email}")
 
             otp_record, success, message = send_password_reset_otp(email)
 
             if success:
+                logger.info(f"Password reset OTP sent successfully to: {email}")
                 return Response({"detail": message}, status=status.HTTP_200_OK)
             else:
                 if message.startswith("User with this email"):
-                     return Response({"detail": "If the email is registered, an OTP has been sent."}, status=status.HTTP_200_OK)
-                print(message)
+                    # Avoid leaking user existence information
+                    logger.info(f"Password reset OTP requested for unregistered email: {email}")
+                    return Response(
+                        {"detail": "If the email is registered, an OTP has been sent."}, 
+                        status=status.HTTP_200_OK
+                    )
+                logger.warning(f"Failed to send password reset OTP for {email}: {message}")
                 return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
         except serializers.ValidationError as e:
             error_detail = e.detail
             if isinstance(error_detail, dict):
@@ -486,10 +509,16 @@ class ForgotPasswordSendOtpView(APIView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
+            logger.warning(f"Password reset OTP validation error: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        except Exception as e:
+            logger.exception("Unexpected error during password reset OTP request.")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class ForgotPasswordVerifyOtpView(APIView):
     permission_classes = [AllowAny]
@@ -501,22 +530,40 @@ class ForgotPasswordVerifyOtpView(APIView):
             serializer.is_valid(raise_exception=True)
             email = serializer.validated_data['email']
             otp = serializer.validated_data['otp']
+            logger.info(f"Password reset OTP verification attempt for email: {email}")
 
             try:
-                otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+                otp_record = EmailOTP.objects.get(email=email, purpose='forgot_password')
             except EmailOTP.DoesNotExist:
-                return Response({"detail": "Invalid email or OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                logger.warning(f"OTP verification failed: no record for email {email}")
+                return Response(
+                    {"detail": "Invalid email or OTP."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             if otp_record.is_expired():
-                return Response({"detail": "OTP has expired. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-            
+                logger.info(f"OTP expired for email: {email}")
+                return Response(
+                    {"detail": "OTP has expired. Please request a new one."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             if otp_record.otp != otp:
-                return Response({"detail": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                logger.info(f"Incorrect OTP attempt for email: {email}")
+                return Response(
+                    {"detail": "Invalid OTP."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             otp_record.is_verified = True
             otp_record.save()
+            logger.info(f"OTP verified successfully for email: {email}")
 
-            return Response({"detail": "OTP verified successfully. You can now reset your password."}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "OTP verified successfully. You can now reset your password."},
+                status=status.HTTP_200_OK
+            )
+
         except serializers.ValidationError as e:
             error_detail = e.detail
             if isinstance(error_detail, dict):
@@ -527,10 +574,16 @@ class ForgotPasswordVerifyOtpView(APIView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
+            logger.warning(f"Password reset OTP validation error: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        except Exception as e:
+            logger.exception(f"Unexpected error during OTP verification for email: {email}")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class ForgotPasswordResetView(APIView):
     permission_classes = [AllowAny]
@@ -542,31 +595,53 @@ class ForgotPasswordResetView(APIView):
             serializer.is_valid(raise_exception=True)
             email = serializer.validated_data['email']
             new_password = serializer.validated_data['new_password']
+            logger.info(f"Password reset attempt for email: {email}")
 
+            # Verify OTP record exists
             try:
-                otp_record = EmailOTP.objects.get(email=email, purpose = 'forgot_password')
+                otp_record = EmailOTP.objects.get(email=email, purpose='forgot_password')
             except EmailOTP.DoesNotExist:
-                return Response({"detail": "Password reset flow not initiated or token expired."}, status=status.HTTP_400_BAD_REQUEST)
+                logger.warning(f"Password reset failed: no OTP record for email {email}")
+                return Response(
+                    {"detail": "Password reset flow not initiated or token expired."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            # Ensure OTP was verified
             if not otp_record.is_verified:
-                return Response({"detail": "OTP must be verified before resetting the password."}, status=status.HTTP_400_BAD_REQUEST)
+                logger.warning(f"Password reset failed: OTP not verified for email {email}")
+                return Response(
+                    {"detail": "OTP must be verified before resetting the password."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            # Ensure user exists
             try:
                 user = User.objects.get(email=email)
             except User.DoesNotExist:
+                logger.warning(f"Password reset failed: user not found for email {email}")
                 return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
+            # Validate new password
             try:
                 validate_password(new_password, user=user)
             except DjangoValidationError as e:
+                logger.info(f"Password validation failed for email {email}: {e.messages}")
                 return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Reset password
             user.set_password(new_password)
             user.save()
+            logger.info(f"Password reset successfully for email: {email}")
 
-            otp_record.delete() 
+            # Clean up OTP
+            otp_record.delete()
 
-            return Response({"detail": "Password reset successfully. Please log in with your new password."}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": "Password reset successfully. Please log in with your new password."},
+                status=status.HTTP_200_OK
+            )
+
         except serializers.ValidationError as e:
             error_detail = e.detail
             if isinstance(error_detail, dict):
@@ -577,9 +652,15 @@ class ForgotPasswordResetView(APIView):
                     error_message = str(first_error)
             else:
                 error_message = str(error_detail)
+            logger.warning(f"Password reset validation error: {error_message}")
             return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error during password reset for email: {email}")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
 
 class ProfileView(APIView):
@@ -588,8 +669,8 @@ class ProfileView(APIView):
     def get(self, request):
         try:
             user = request.user
-
             role_data = None
+
             try:
                 if user.role == "mechanic":
                     role_data = {
@@ -600,19 +681,19 @@ class ProfileView(APIView):
                     workshop = user.workshop
                     role_data = {
                         "contact_number": workshop.contact_number,
-                        "workshop_name" : workshop.workshop_name,
-                        "city" : workshop.city,
-                        "locality" : workshop.locality,
-                        "pincode" : workshop.pincode,
-                        "address_line" : workshop.address_line,
-                        "state" : workshop.state,
-                        "type" : workshop.type,
-                        "verification_status" : workshop.verification_status,
-                        "license_number" : workshop.license_number
+                        "workshop_name": workshop.workshop_name,
+                        "city": workshop.city,
+                        "locality": workshop.locality,
+                        "pincode": workshop.pincode,
+                        "address_line": workshop.address_line,
+                        "state": workshop.state,
+                        "type": workshop.type,
+                        "verification_status": workshop.verification_status,
+                        "license_number": workshop.license_number
                     }
             except Exception as e:
-                print(f"Role data fetch error: {e}")
-                pass
+                logger.warning(f"Failed to fetch role-specific data for user {user.id}: {e}")
+                role_data = None
 
             data = {
                 "id": user.id,
@@ -621,26 +702,38 @@ class ProfileView(APIView):
                 "role": user.role,
                 "profile_picture": user.profile_picture.url if user.profile_picture else None,
                 "role_details": role_data,
-                'memberSince': user.date_joined
+                "memberSince": user.date_joined
             }
 
             return Response(data)
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error fetching profile for user {request.user.id}")
+            return Response(
+                {'error': 'An unexpected error occurred while fetching profile.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def put(self, request):
         try:
             user = request.user
             serializer = ProfileUpdateSerializer(data=request.data)
-            
+
             if serializer.is_valid():
                 serializer.update(user, serializer.validated_data)
+                logger.info(f"Profile updated successfully for user {user.id}")
                 return Response({"detail": "Profile updated successfully."})
 
-            print(serializer.errors)
+            logger.warning(f"Profile update validation errors for user {user.id}: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error updating profile for user {request.user.id}")
+            return Response(
+                {'error': 'An unexpected error occurred while updating profile.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
     
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
@@ -650,41 +743,73 @@ class ChangePasswordView(APIView):
             serializer = ChangePasswordSerializer(data=request.data)
 
             if not serializer.is_valid():
-                print(serializer.errors)
-                return Response(serializer.errors, status=400)
+                logger.warning(f"Change password validation errors for user {request.user.id}: {serializer.errors}")
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             user = request.user
 
             if not user.check_password(serializer.validated_data["old_password"]):
-                return Response({"detail": "Old password is incorrect."}, status=400)
+                logger.info(f"Incorrect old password attempt for user {user.id}")
+                return Response(
+                    {"detail": "Old password is incorrect."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             user.set_password(serializer.validated_data["new_password"])
             user.save()
+            logger.info(f"Password updated successfully for user {user.id}")
 
-            return Response({"detail": "Password updated successfully."}, status=200)
+            return Response(
+                {"detail": "Password updated successfully."},
+                status=status.HTTP_200_OK
+            )
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error during password change for user {request.user.id}")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class WorkshopReApplyView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         user = request.user
+
         if user.role != 'workshop_admin':
+            logger.warning(f"Unauthorized re-application attempt by user {user.id} with role {user.role}")
             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             workshop = user.workshop
             if workshop.verification_status == 'REJECTED':
                 workshop.verification_status = 'REQUESTED_AGAIN'
                 workshop.save()
-                return Response({'message': 'Re-application submitted successfully'}, status=status.HTTP_200_OK)
+                logger.info(f"Workshop re-application submitted for user {user.id}")
+                return Response(
+                    {'message': 'Re-application submitted successfully'},
+                    status=status.HTTP_200_OK
+                )
             else:
-                 return Response({'error': 'Cannot re-apply. Status is not rejected.'}, status=status.HTTP_400_BAD_REQUEST)
+                logger.info(f"Workshop re-application denied for user {user.id}: status is {workshop.verification_status}")
+                return Response(
+                    {'error': 'Cannot re-apply. Status is not rejected.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         except Workshop.DoesNotExist:
+            logger.warning(f"Workshop profile not found for user {user.id}")
             return Response({'error': 'Workshop profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
         except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error during workshop re-application for user {user.id}")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class WorkshopSearchView(APIView):
     permission_classes = [IsAuthenticated]
@@ -753,35 +878,52 @@ class WorkshopMechanicRequestsView(APIView):
         except Exception as e:
              return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class WorkshopMechanicActionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        if request.user.role != 'workshop_admin':
-             return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
+        user = request.user
+
+        if user.role != 'workshop_admin':
+            logger.warning(f"Unauthorized mechanic action attempt by user {user.id} with role {user.role}")
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+
         mechanic_id = request.data.get('mechanic_id')
-        action = request.data.get('action') 
+        action = request.data.get('action')
 
         if not mechanic_id or action not in ['APPROVE', 'REJECT']:
-             return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(f"Invalid mechanic action data from user {user.id}: {request.data}")
+            return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            workshop = request.user.workshop
+            workshop = user.workshop
             mechanic = Mechanic.objects.get(id=mechanic_id, workshop=workshop)
-            
+
             if action == 'APPROVE':
                 mechanic.joining_status = 'ACCEPTED'
                 mechanic.save()
+                logger.info(f"Mechanic {mechanic_id} approved by workshop {workshop.id}")
                 return Response({'message': 'Mechanic approved successfully'}, status=status.HTTP_200_OK)
+
             elif action == 'REJECT':
                 mechanic.joining_status = 'REJECTED'
-                mechanic.workshop = None 
+                mechanic.workshop = None
                 mechanic.save()
+                logger.info(f"Mechanic {mechanic_id} rejected by workshop {workshop.id}")
                 return Response({'message': 'Mechanic rejected'}, status=status.HTTP_200_OK)
-        
+
         except Mechanic.DoesNotExist:
-             return Response({'error': 'Mechanic request not found'}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(f"Mechanic request not found: {mechanic_id} for workshop {user.workshop.id}")
+            return Response({'error': 'Mechanic request not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            logger.exception(f"Unexpected error during mechanic action by user {user.id}")
+            return Response(
+                {'error': 'An unexpected server error occurred. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class WorkshopMyMechanicsView(APIView):
     permission_classes = [IsAuthenticated]
