@@ -19,8 +19,11 @@ from .utils import check_request_expiration, get_nearby_workshops, notify_servic
 from django.db import DatabaseError, transaction
 from chat.models import ChatMessageRecipient
 import logging
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Count, Q
 from accounts.utils import generate_otp_code
+from payments.models import Payment, Wallet, WalletTransaction
+from decimal import Decimal
+from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 
@@ -1716,8 +1719,6 @@ class VerifyServiceOTPView(APIView):
         if execution.otp_code != otp:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-        from payments.models import Payment, Wallet, WalletTransaction
-        from .models import MechanicEarning
 
         try:
             with transaction.atomic():
@@ -1807,8 +1808,6 @@ class WorkshopDashboardStatsView(APIView):
         workshop = request.user.workshop
 
         try:
-            from payments.models import Wallet, WalletTransaction
-            from workshop.models import WorkshopConnection, ServiceRequest, Mechanic
 
             # 1. Total Revenue
             wallet = Wallet.objects.filter(user=request.user).first()
@@ -1980,7 +1979,7 @@ class SubmitRatingView(APIView):
             )
         
 
- MechanicDashboardStatsView(APIView):
+class MechanicDashboardStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
