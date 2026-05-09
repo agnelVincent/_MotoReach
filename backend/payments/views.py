@@ -236,60 +236,258 @@ class CreateCheckoutSessionView(APIView):
 
 
 class CreateServiceEscrowCheckoutView(APIView):
-    """Create Stripe Checkout for approved estimate (escrow). Money held until OTP verification."""
+
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         estimate_id = request.data.get('estimate_id')
+
+        logger.info(
+            "Escrow checkout session request initiated by user_id=%s",
+            request.user.id
+        )
+
         if not estimate_id:
-            return Response({'error': 'estimate_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "Missing estimate_id from user_id=%s",
+                request.user.id
+            )
+            return Response(
+                {'error': 'estimate_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Fetch estimate
         try:
-            estimate = Estimate.objects.get(pk=estimate_id)
+            estimate = Estimate.objects.select_related(
+                'service_request',
+                'service_request__user'
+            ).get(pk=estimate_id)
+
         except Estimate.DoesNotExist:
-            return Response({'error': 'Estimate not found'}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(
+                "Estimate not found. estimate_id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {'error': 'Estimate not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching estimate. "
+                "estimate_id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {'error': 'Something went wrong while fetching estimate'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Authorization check
         if estimate.service_request.user != request.user:
-            return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+            logger.warning(
+                "Unauthorized escrow payment attempt. "
+                "estimate_id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {'error': 'Unauthorized'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Estimate status validation
         if estimate.status != 'APPROVED':
-            return Response({'error': 'Only approved estimates can be paid'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "Attempt to pay non-approved estimate. "
+                "estimate_id=%s status=%s",
+                estimate_id,
+                estimate.status
+            )
+            return Response(
+                {'error': 'Only approved estimates can be paid'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Fetch execution
         try:
             execution = estimate.service_request.execution
+
         except ServiceExecution.DoesNotExist:
-            return Response({'error': 'Service execution not found'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "ServiceExecution not found for estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': 'Service execution not found'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching ServiceExecution. "
+                "estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': 'Error while fetching service execution'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Already paid check
         if execution.escrow_paid:
-            return Response({'error': 'Service amount already paid'}, status=status.HTTP_400_BAD_REQUEST)
-        amount = float(estimate.total_amount)
+            logger.info(
+                "Escrow already paid for estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': 'Service amount already paid'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Amount validation
+        try:
+            amount = float(estimate.total_amount)
+
+        except (TypeError, ValueError):
+            logger.exception(
+                "Invalid estimate amount. estimate_id=%s amount=%s",
+                estimate_id,
+                estimate.total_amount
+            )
+            return Response(
+                {'error': 'Invalid amount format'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if amount <= 0:
-            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "Non-positive escrow amount. estimate_id=%s amount=%s",
+                estimate_id,
+                amount
+            )
+            return Response(
+                {'error': 'Invalid amount'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         sr_id = estimate.service_request.id
         base_url = 'http://localhost:5173'
-        success_url = f'{base_url}/user/service-flow/{sr_id}?escrow_success=true'
-        cancel_url = f'{base_url}/user/service-flow/{sr_id}?escrow_canceled=true'
+
+        success_url = (
+            f'{base_url}/user/service-flow/'
+            f'{sr_id}?escrow_success=true'
+        )
+
+        cancel_url = (
+            f'{base_url}/user/service-flow/'
+            f'{sr_id}?escrow_canceled=true'
+        )
+
+        # Create Stripe checkout session
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
-                line_items=[{
-                    'price_data': {
-                        'currency': settings.STRIPE_CURRENCY,
-                        'unit_amount': int(round(amount * 100)),
-                        'product_data': {
-                            'name': 'Service Amount (Escrow)',
-                            'description': f'Service request #{sr_id} – amount held until completion',
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': settings.STRIPE_CURRENCY,
+                            'unit_amount': int(round(amount * 100)),
+                            'product_data': {
+                                'name': 'Service Amount (Escrow)',
+                                'description': (
+                                    f'Service request #{sr_id} '
+                                    f'– amount held until completion'
+                                ),
+                            },
                         },
-                    },
-                    'quantity': 1,
-                }],
+                        'quantity': 1,
+                    }
+                ],
                 mode='payment',
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata={
                     'payment_type': 'SERVICE_ESCROW',
-                    'service_request_id': sr_id,
+                    'service_request_id': str(sr_id),
                     'estimate_id': str(estimate_id),
                     'user_id': str(request.user.id),
                 },
             )
+
+            logger.info(
+                "Stripe escrow checkout session created successfully. "
+                "checkout_session_id=%s estimate_id=%s",
+                checkout_session.id,
+                estimate_id
+            )
+
+        except stripe.error.CardError as e:
+            logger.exception(
+                "Stripe CardError for estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': e.user_message or 'Card error occurred'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.RateLimitError:
+            logger.exception("Stripe rate limit exceeded")
+            return Response(
+                {'error': 'Too many requests to payment gateway'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        except stripe.error.InvalidRequestError as e:
+            logger.exception(
+                "Invalid Stripe request for estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.AuthenticationError:
+            logger.exception("Stripe authentication failed")
+            return Response(
+                {'error': 'Payment gateway authentication failed'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except stripe.error.APIConnectionError:
+            logger.exception("Stripe network communication failed")
+            return Response(
+                {'error': 'Network error while contacting payment gateway'},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        except stripe.error.StripeError:
+            logger.exception(
+                "Generic Stripe error for estimate_id=%s",
+                estimate_id
+            )
+            return Response(
+                {'error': 'Payment gateway error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while creating Stripe escrow session"
+            )
+            return Response(
+                {'error': 'Unexpected payment error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Create payment record
+        try:
             Payment.objects.create(
                 user=request.user,
                 service_request=estimate.service_request,
@@ -299,10 +497,38 @@ class CreateServiceEscrowCheckoutView(APIView):
                 payment_type='SERVICE_ESCROW',
                 status='PENDING',
             )
-            return Response({'url': checkout_session.url})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+            logger.info(
+                "Escrow payment record created successfully. "
+                "checkout_session_id=%s estimate_id=%s",
+                checkout_session.id,
+                estimate_id
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "Database error while creating escrow Payment record. "
+                "checkout_session_id=%s",
+                checkout_session.id
+            )
+            return Response(
+                {'error': 'Failed to save payment record'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while saving escrow Payment record"
+            )
+            return Response(
+                {'error': 'Unexpected database error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {'url': checkout_session.url},
+            status=status.HTTP_200_OK
+        )
 
 @method_decorator(csrf_exempt, name='dispatch')
 class StripeWebhookView(APIView):
