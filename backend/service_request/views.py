@@ -566,68 +566,174 @@ class MechanicAssignedServicesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'mechanic':
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        if request.user.role != "mechanic":
+            return Response(
+                {"error": "Unauthorized"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         try:
             mechanic = request.user.mechanic
+
         except Mechanic.DoesNotExist:
-            return Response({"error": "Mechanic profile not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(
+                "Mechanic profile missing user_id=%s",
+                request.user.id
+            )
+            return Response(
+                {"error": "Mechanic profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # All ServiceRequests where this mechanic is part of the execution.mechanics
-        qs = ServiceRequest.objects.filter(
-            execution__mechanics=mechanic
-        ).select_related('user').order_by('-created_at')
+        except Exception:
+            logger.exception(
+                "Error fetching mechanic profile user_id=%s",
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to fetch mechanic profile"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        serializer = ServiceRequestSerializer(qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            qs = ServiceRequest.objects.filter(
+                execution__mechanics=mechanic
+            ).select_related("user").order_by("-created_at")
+
+            serializer = ServiceRequestSerializer(qs, many=True)
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "DB error while fetching assigned services mechanic_id=%s",
+                mechanic.id
+            )
+            return Response(
+                {"error": "Database error while fetching services"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching assigned services mechanic_id=%s",
+                mechanic.id
+            )
+            return Response(
+                {"error": "Failed to fetch assigned services"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class AssignMechanicView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        
-        mechanic_id = request.data.get('mechanic_id')
+        if request.user.role != "workshop_admin":
+            return Response(
+                {"error": "Unauthorized"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        mechanic_id = request.data.get("mechanic_id")
         if not mechanic_id:
-             return Response({"error": "Mechanic ID required"}, status=status.HTTP_400_BAD_REQUEST)
-             
+            return Response(
+                {"error": "Mechanic ID required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
             service_request = ServiceRequest.objects.get(pk=pk)
-            
+
+        except ServiceRequest.DoesNotExist:
+            logger.warning("ServiceRequest not found id=%s", pk)
+            return Response(
+                {"error": "Service Request not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError:
+            logger.exception("DB error fetching ServiceRequest id=%s", pk)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
             try:
                 execution = service_request.execution
             except ServiceExecution.DoesNotExist:
-                 execution = ServiceExecution.objects.create(
+                execution = ServiceExecution.objects.create(
                     service_request=service_request,
                     workshop=request.user.workshop,
                     assigned_to=request.user,
                     estimate_amount=0
-                 )
+                )
 
             if execution.workshop != request.user.workshop:
-                 return Response({"error": "Unauthorized for this service"}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {"error": "Unauthorized for this service"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
 
-            mechanic = Mechanic.objects.get(pk=mechanic_id, workshop=request.user.workshop)
-            
+            mechanic = Mechanic.objects.get(
+                pk=mechanic_id,
+                workshop=request.user.workshop
+            )
+
             if mechanic in execution.mechanics.all():
-                 return Response({"message": "Mechanic already assigned"}, status=status.HTTP_200_OK)
-            
+                return Response(
+                    {"message": "Mechanic already assigned"},
+                    status=status.HTTP_200_OK
+                )
+
             execution.mechanics.add(mechanic)
-            mechanic.availability = 'BUSY'
+            mechanic.availability = "BUSY"
             mechanic.save()
+
             push_assigned_task_count_to_mechanic(mechanic.user.id)
-            notify_service_flow_update(pk, event='mechanic_assigned')
-            return Response({"message": "Mechanic assigned successfully"})
-            
-        except ServiceRequest.DoesNotExist:
-             return Response({"error": "Service Request not found"}, status=status.HTTP_404_NOT_FOUND)
+            notify_service_flow_update(pk, event="mechanic_assigned")
+
+            return Response(
+                {"message": "Mechanic assigned successfully"},
+                status=status.HTTP_200_OK
+            )
+
         except Mechanic.DoesNotExist:
-             return Response({"error": "Mechanic not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-             print(e)
-             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            logger.warning(
+                "Mechanic not found id=%s workshop_id=%s",
+                mechanic_id,
+                request.user.workshop.id
+            )
+            return Response(
+                {"error": "Mechanic not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "DB error assigning mechanic mechanic_id=%s service_request_id=%s",
+                mechanic_id,
+                pk
+            )
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error assigning mechanic mechanic_id=%s service_request_id=%s",
+                mechanic_id,
+                pk
+            )
+            return Response(
+                {"error": "Failed to assign mechanic"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class RemoveMechanicView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -923,41 +1029,110 @@ class ReportComplaintView(APIView):
     def post(self, request, pk):
         try:
             service_request = ServiceRequest.objects.get(pk=pk)
+
         except ServiceRequest.DoesNotExist:
-            return Response({"error": "Service request not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        # Determine reporter and reported_user
-        if request.user == service_request.user:
-            # User is reporting the workshop
-            active_connection = WorkshopConnection.objects.filter(
-                service_request=service_request,
-                status='ACCEPTED'
-            ).first()
-            if not active_connection:
-                return Response({"error": "No active workshop connection found to report"}, status=status.HTTP_400_BAD_REQUEST)
-            reported_user = active_connection.workshop.user
-        elif hasattr(request.user, 'workshop') and request.user.role == 'workshop_admin':
-            # Workshop is reporting the user
-            active_connection = WorkshopConnection.objects.filter(
-                service_request=service_request,
-                workshop=request.user.workshop,
-                status='ACCEPTED'
-            ).first()
-            if not active_connection:
-                return Response({"error": "You are not connected to this service request"}, status=status.HTTP_400_BAD_REQUEST)
-            reported_user = service_request.user
-        else:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-            
-        serializer = ComplaintCreateSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(
-                reporter=request.user,
-                reported_user=reported_user,
-                service_request=service_request
+            logger.warning("ServiceRequest not found id=%s", pk)
+            return Response(
+                {"error": "Service request not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
-            return Response({"message": "Complaint submitted successfully"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except DatabaseError:
+            logger.exception("DB error fetching ServiceRequest id=%s", pk)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
+            # =====================================================
+            # Determine reported user
+            # =====================================================
+
+            if request.user == service_request.user:
+
+                active_connection = WorkshopConnection.objects.filter(
+                    service_request=service_request,
+                    status="ACCEPTED"
+                ).first()
+
+                if not active_connection:
+                    return Response(
+                        {"error": "No active workshop connection found to report"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                reported_user = active_connection.workshop.user
+
+            elif (
+                request.user.role == "workshop_admin"
+                and hasattr(request.user, "workshop")
+            ):
+
+                active_connection = WorkshopConnection.objects.filter(
+                    service_request=service_request,
+                    workshop=request.user.workshop,
+                    status="ACCEPTED"
+                ).first()
+
+                if not active_connection:
+                    return Response(
+                        {"error": "You are not connected to this service request"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                reported_user = service_request.user
+
+            else:
+                return Response(
+                    {"error": "Unauthorized"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # =====================================================
+            # Validate and save complaint
+            # =====================================================
+
+            serializer = ComplaintCreateSerializer(data=request.data)
+
+            if serializer.is_valid():
+                serializer.save(
+                    reporter=request.user,
+                    reported_user=reported_user,
+                    service_request=service_request
+                )
+
+                return Response(
+                    {"message": "Complaint submitted successfully"},
+                    status=status.HTTP_201_CREATED
+                )
+
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "DB error while reporting complaint user_id=%s service_request_id=%s",
+                request.user.id,
+                pk
+            )
+            return Response(
+                {"error": "Database error while submitting complaint"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error in ReportComplaintView user_id=%s service_request_id=%s",
+                request.user.id,
+                pk
+            )
+            return Response(
+                {"error": "Failed to submit complaint"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 
@@ -965,71 +1140,178 @@ class GetEstimateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, estimate_id):
-        """Get estimate details"""
         try:
             estimate = Estimate.objects.get(pk=estimate_id)
+
         except Estimate.DoesNotExist:
-            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning("Estimate not found id=%s", estimate_id)
+            return Response(
+                {"error": "Estimate not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Verify user has access (either workshop admin or service request owner)
-        is_workshop_admin = (
-            request.user.role == 'workshop_admin' and
-            estimate.workshop_connection.workshop == request.user.workshop
-        )
-        is_service_owner = estimate.service_request.user == request.user
+        except DatabaseError:
+            logger.exception("DB error fetching estimate id=%s", estimate_id)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        is_mechanic = False
-        if request.user.role == 'mechanic':
-            try:
-                execution = estimate.service_request.execution
-                is_mechanic = execution.mechanics.filter(user=request.user).exists()
-            except Exception:
-                pass
+        except Exception:
+            logger.exception(
+                "Unexpected error fetching estimate id=%s",
+                estimate_id
+            )
+            return Response(
+                {"error": "Failed to fetch estimate"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        if not (is_workshop_admin or is_service_owner or is_mechanic):
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            is_workshop_admin = (
+                request.user.role == "workshop_admin"
+                and hasattr(request.user, "workshop")
+                and estimate.workshop_connection.workshop == request.user.workshop
+            )
 
-        return Response(EstimateSerializer(estimate).data, status=status.HTTP_200_OK)
+            is_service_owner = estimate.service_request.user == request.user
+
+            is_mechanic = False
+            if request.user.role == "mechanic":
+                try:
+                    execution = estimate.service_request.execution
+                    is_mechanic = execution.mechanics.filter(
+                        user=request.user
+                    ).exists()
+                except Exception:
+                    logger.exception(
+                        "Error checking mechanic access user_id=%s estimate_id=%s",
+                        request.user.id,
+                        estimate_id
+                    )
+
+            if not (is_workshop_admin or is_service_owner or is_mechanic):
+                return Response(
+                    {"error": "Unauthorized"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            return Response(
+                EstimateSerializer(estimate).data,
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "DB error while validating access estimate_id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error in GetEstimateView estimate_id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to process request"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class ListEstimatesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, connection_id):
-        """List all estimates for a connection"""
         try:
             connection = WorkshopConnection.objects.get(pk=connection_id)
+
         except WorkshopConnection.DoesNotExist:
-            return Response({"error": "Connection not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning("WorkshopConnection not found id=%s", connection_id)
+            return Response(
+                {"error": "Connection not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Verify user has access
-        is_workshop_admin = (
-            request.user.role == 'workshop_admin' and
-            connection.workshop == request.user.workshop
-        )
-        is_service_owner = connection.service_request.user == request.user
+        except DatabaseError:
+            logger.exception("DB error fetching connection id=%s", connection_id)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        is_mechanic = False
-        if request.user.role == 'mechanic':
+        try:
+            is_workshop_admin = (
+                request.user.role == "workshop_admin"
+                and hasattr(request.user, "workshop")
+                and connection.workshop == request.user.workshop
+            )
+
+            is_service_owner = connection.service_request.user == request.user
+
+            is_mechanic = False
+            if request.user.role == "mechanic":
+                try:
+                    execution = connection.service_request.execution
+                    is_mechanic = execution.mechanics.filter(
+                        user=request.user
+                    ).exists()
+                except Exception:
+                    logger.exception(
+                        "Error checking mechanic access user_id=%s connection_id=%s",
+                        request.user.id,
+                        connection_id
+                    )
+
+            if not (is_workshop_admin or is_service_owner or is_mechanic):
+                return Response(
+                    {"error": "Unauthorized"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
             try:
-                execution = connection.service_request.execution
-                is_mechanic = execution.mechanics.filter(user=request.user).exists()
-            except Exception:
-                pass
+                estimates = Estimate.objects.filter(
+                    workshop_connection=connection
+                ).order_by("-created_at")
 
-        if not (is_workshop_admin or is_service_owner or is_mechanic):
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+                serializer = EstimateSerializer(estimates, many=True)
 
-        estimates = Estimate.objects.filter(workshop_connection=connection).order_by('-created_at')
-        serializer = EstimateSerializer(estimates, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+                return Response(
+                    serializer.data,
+                    status=status.HTTP_200_OK
+                )
+
+            except DatabaseError:
+                logger.exception(
+                    "DB error fetching estimates connection_id=%s",
+                    connection_id
+                )
+                return Response(
+                    {"error": "Database error while fetching estimates"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error in ListEstimatesView connection_id=%s user_id=%s",
+                connection_id,
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to fetch estimates"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class DeleteEstimateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, estimate_id):
-        """Delete an estimate (only DRAFT status)"""
         if request.user.role != 'workshop_admin':
             return Response({"error": "Only workshop admins can delete estimates"}, status=status.HTTP_403_FORBIDDEN)
         
