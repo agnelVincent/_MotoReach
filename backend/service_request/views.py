@@ -1,12 +1,11 @@
 from rest_framework import status, generics, permissions, parsers
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import (
     ServiceRequest, WorkshopConnection, ServiceExecution, 
-    Estimate, WorkshopReview, MechanicReview
+    Estimate, WorkshopReview, MechanicReview, MechanicEarning
 )
 from accounts.models import Workshop, Mechanic
 from .serializers import (
@@ -14,13 +13,14 @@ from .serializers import (
     ServiceExecutionMechanicSerializer, EstimateSerializer, EstimateCreateSerializer,
     EstimateUpdateSerializer, ComplaintCreateSerializer
 )
-from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from .utils import check_request_expiration, get_nearby_workshops, notify_service_flow_update, push_connection_count_to_workshop, push_assigned_task_count_to_mechanic
-from django.db import DatabaseError
+from django.db import DatabaseError, transaction
 from chat.models import ChatMessageRecipient
 import logging
+from django.db.models import Sum, F
+from accounts.utils import generate_otp_code
 
 logger = logging.getLogger(__name__)
 
@@ -1312,64 +1312,91 @@ class DeleteEstimateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def delete(self, request, estimate_id):
-        if request.user.role != 'workshop_admin':
-            return Response({"error": "Only workshop admins can delete estimates"}, status=status.HTTP_403_FORBIDDEN)
-        
+        if request.user.role != "workshop_admin":
+            return Response(
+                {"error": "Only workshop admins can delete estimates"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         try:
             workshop = request.user.workshop
         except AttributeError:
-            return Response({"error": "Workshop not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning("Workshop missing for user_id=%s", request.user.id)
+            return Response(
+                {"error": "Workshop not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             estimate = Estimate.objects.get(
                 pk=estimate_id,
                 workshop_connection__workshop=workshop
             )
-        except Estimate.DoesNotExist:
-            return Response({"error": "Estimate not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        if estimate.status != 'DRAFT':
+        except Estimate.DoesNotExist:
+            logger.warning(
+                "Estimate not found id=%s workshop_id=%s",
+                estimate_id,
+                workshop.id
+            )
             return Response(
-                {"error": f"Cannot delete estimate with status: {estimate.status}. Only DRAFT estimates can be deleted."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Estimate not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        estimate.delete()
-        return Response({"message": "Estimate deleted successfully"}, status=status.HTTP_200_OK)
+        except DatabaseError:
+            logger.exception(
+                "DB error fetching estimate id=%s",
+                estimate_id
+            )
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
+            if estimate.status != "DRAFT":
+                return Response(
+                    {
+                        "error": (
+                            f"Cannot delete estimate with status: "
+                            f"{estimate.status}. Only DRAFT estimates can be deleted."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            estimate.delete()
+
+            return Response(
+                {"message": "Estimate deleted successfully"},
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "DB error deleting estimate id=%s",
+                estimate_id
+            )
+            return Response(
+                {"error": "Database error while deleting estimate"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error deleting estimate id=%s user_id=%s",
+                estimate_id,
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to delete estimate"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
 
 class StartServiceView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, pk):
-        try:
-            service_request = ServiceRequest.objects.get(pk = pk)
-            execution = service_request.execution
-        except DatabaseError:
-            return Response({'error' : 'Service execution not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        is_workshop_admin = getattr(request.user, 'role' , '') == 'workshop_admin' and execution.workshop == getattr(request.user, 'workshop', None)
-        is_mechanic = execution.mechanics.filter(user=request.user).exists()
-
-
-        if not (is_workshop_admin or is_mechanic):
-            return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
-        
-        if service_request.status != 'SERVICE_AMOUNT_PAID':
-            return Response({'error': 'Cannot start the service. Service amount not paid yet'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        with transaction.atomic():
-            service_request.status = 'IN_PROGRESS'
-            service_request.save()
-            execution.started_at = timezone.now()
-
-            execution.save()
-            notify_service_flow_update(service_request.id, event='service_started')
-        
-        return Response({'message' : 'Service started successfully'}, status=status.HTTP_200_OK)
-
-
-class EndServiceView(APIView):
-
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
@@ -1377,42 +1404,194 @@ class EndServiceView(APIView):
             service_request = ServiceRequest.objects.get(pk=pk)
             execution = service_request.execution
 
-        except (ServiceRequest.DoesNotExist, ServiceExecution.DoesNotExist):
-            return Response({"error": "Service execution not found"}, status=status.HTTP_404_NOT_FOUND)
-        
-        is_workshop_admin = getattr(request.user, 'role', '') == 'workshop_admin' and execution.workshop == getattr(request.user, 'workshop', None)
-        is_mechanic = execution.mechanics.filter(user=request.user).exists()
+        except ServiceRequest.DoesNotExist:
+            logger.warning("ServiceRequest not found id=%s", pk)
+            return Response(
+                {"error": "Service request not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        
-        if not (is_workshop_admin or is_mechanic):
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        
-        if service_request.status != 'IN_PROGRESS':
-            return Response({"error": f"Cannot complete. Current status: {service_request.status}"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        with transaction.atomic():
-            service_request.status = 'COMPLETED'
-            service_request.save()
-            execution.completed_at = timezone.now()
-            execution.save()
+        except DatabaseError:
+            logger.exception("DB error fetching service request id=%s", pk)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-            notify_service_flow_update(service_request.id, event='service_completed')
+        except Exception:
+            logger.exception("Unexpected error fetching service request id=%s", pk)
+            return Response(
+                {"error": "Failed to fetch service request"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
-        return Response({"message": "Service completed successfully"}, status=status.HTTP_200_OK)
+        try:
+            is_workshop_admin = (
+                getattr(request.user, "role", "") == "workshop_admin"
+                and execution.workshop == getattr(request.user, "workshop", None)
+            )
+
+            is_mechanic = execution.mechanics.filter(
+                user=request.user
+            ).exists()
+
+            if not (is_workshop_admin or is_mechanic):
+                return Response(
+                    {"error": "Unauthorized"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if service_request.status != "SERVICE_AMOUNT_PAID":
+                return Response(
+                    {"error": "Cannot start the service. Service amount not paid yet"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            with transaction.atomic():
+                service_request.status = "IN_PROGRESS"
+                service_request.save()
+
+                execution.started_at = timezone.now()
+                execution.save()
+
+            notify_service_flow_update(pk, event="service_started")
+
+            return Response(
+                {"message": "Service started successfully"},
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception("DB error starting service id=%s", pk)
+            return Response(
+                {"error": "Database error while starting service"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error starting service id=%s user_id=%s",
+                pk,
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to start service"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
+class EndServiceView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            service_request = ServiceRequest.objects.get(pk=pk)
+            execution = service_request.execution
+
+        except ServiceRequest.DoesNotExist:
+            logger.warning("ServiceRequest not found id=%s", pk)
+            return Response(
+                {"error": "Service request not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except AttributeError:
+            logger.warning("ServiceExecution missing for service_request_id=%s", pk)
+            return Response(
+                {"error": "Service execution not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError:
+            logger.exception("DB error fetching service id=%s", pk)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception("Unexpected error fetching service id=%s", pk)
+            return Response(
+                {"error": "Failed to fetch service"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        try:
+            is_workshop_admin = (
+                getattr(request.user, "role", "") == "workshop_admin"
+                and execution.workshop == getattr(request.user, "workshop", None)
+            )
+
+            is_mechanic = execution.mechanics.filter(
+                user=request.user
+            ).exists()
+
+            if not (is_workshop_admin or is_mechanic):
+                return Response(
+                    {"error": "Unauthorized"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            if service_request.status != "IN_PROGRESS":
+                return Response(
+                    {"error": f"Cannot complete. Current status: {service_request.status}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            with transaction.atomic():
+                service_request.status = "COMPLETED"
+                service_request.save()
+
+                execution.completed_at = timezone.now()
+                execution.save()
+
+            notify_service_flow_update(pk, event="service_completed")
+
+            return Response(
+                {"message": "Service completed successfully"},
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception("DB error completing service id=%s", pk)
+            return Response(
+                {"error": "Database error while completing service"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error completing service id=%s user_id=%s",
+                pk,
+                request.user.id
+            )
+            return Response(
+                {"error": "Failed to complete service"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 def _can_generate_service_otp(user, execution):
-    """True if user is workshop admin or an assigned mechanic for this execution."""
-    if user.role == 'workshop_admin':
-        try:
-            return execution.workshop == user.workshop
-        except AttributeError:
-            return False
-    if user.role == 'mechanic':
-        try:
+    """True if user is workshop admin or assigned mechanic."""
+
+    if not user or not execution:
+        return False
+
+    try:
+        if user.role == "workshop_admin":
+            return execution.workshop == getattr(user, "workshop", None)
+
+        if user.role == "mechanic":
             return execution.mechanics.filter(user=user).exists()
-        except Exception:
-            return False
+
+    except Exception:
+        logger.exception(
+            "Error checking OTP permission user_id=%s execution_id=%s",
+            getattr(user, "id", None),
+            getattr(execution, "id", None),
+        )
+        return False
+
     return False
 
 
@@ -1420,11 +1599,29 @@ class GenerateServiceOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-
         try:
             execution = ServiceExecution.objects.get(pk=pk)
+
         except ServiceExecution.DoesNotExist:
-            return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning("ServiceExecution not found id=%s", pk)
+            return Response(
+                {"error": "Execution not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except DatabaseError:
+            logger.exception("DB error fetching ServiceExecution id=%s", pk)
+            return Response(
+                {"error": "Database error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception("Unexpected error fetching ServiceExecution id=%s", pk)
+            return Response(
+                {"error": "Failed to fetch execution"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         if not _can_generate_service_otp(request.user, execution):
             return Response(
@@ -1438,34 +1635,37 @@ class GenerateServiceOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        from accounts.utils import generate_otp_code
-
-        otp = generate_otp_code(length=6)
-        execution.otp_code = otp
-        execution.save()
-        notify_service_flow_update(execution.service_request_id, event='otp_generated')
-
-        # Email OTP to the service request owner
-        user = execution.service_request.user
-        subject = f"Service completion OTP for request #{execution.service_request.id}"
-        message_lines = [
-            f"Hello {getattr(user, 'full_name', user.email)},",
-            "",
-            "Your service provider has marked the service as ready for completion.",
-            "Please use the following One-Time Password (OTP) in the app to verify",
-            "that the service has been completed. Once verified, the payment held",
-            "in escrow will be released to the workshop.",
-            "",
-            f"OTP: {otp}",
-            "",
-            "If you did not request this or believe this is a mistake, please contact support.",
-            "",
-            f"Thanks,",
-            f"{settings.DEFAULT_FROM_EMAIL} Team",
-        ]
-        message = "\n".join(message_lines)
-
         try:
+
+            otp = generate_otp_code(length=6)
+            execution.otp_code = otp
+            execution.save()
+
+            notify_service_flow_update(
+                execution.service_request_id,
+                event="otp_generated"
+            )
+
+            user = execution.service_request.user
+
+            subject = f"Service completion OTP for request #{execution.service_request.id}"
+
+            message = "\n".join([
+                f"Hello {getattr(user, 'full_name', user.email)},",
+                "",
+                "Your service provider has marked the service as ready for completion.",
+                "Please use the following One-Time Password (OTP) in the app to verify",
+                "that the service has been completed. Once verified, the payment held",
+                "in escrow will be released to the workshop.",
+                "",
+                f"OTP: {otp}",
+                "",
+                "If you did not request this or believe this is a mistake, please contact support.",
+                "",
+                "Thanks,",
+                f"{settings.DEFAULT_FROM_EMAIL} Team",
+            ])
+
             send_mail(
                 subject,
                 message,
@@ -1473,228 +1673,233 @@ class GenerateServiceOTPView(APIView):
                 [user.email],
                 fail_silently=False,
             )
-            print(otp)
-        except Exception as e:
+
+            return Response(
+                {"message": "OTP generated and sent to the customer's email."},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed generating/sending OTP execution_id=%s user_id=%s",
+                pk,
+                request.user.id
+            )
+
             execution.otp_code = None
             execution.save(update_fields=["otp_code"])
+
             return Response(
                 {"error": "Failed to send OTP email. Please try again later."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-        return Response(
-            {"message": "OTP generated and sent to the customer's email."},
-            status=status.HTTP_200_OK,
-        )
 
 
 class VerifyServiceOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        """User (service request owner) verifies OTP. On success: mark completed and release escrow to workshop."""
-        otp = (request.data.get('otp') or '').strip()
+        """User (service request owner) verifies OTP. Marks service completed and releases escrow to workshop."""
+        otp = (request.data.get("otp") or "").strip()
         if not otp or len(otp) != 6:
             return Response({"error": "Valid 6-digit OTP required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             execution = ServiceExecution.objects.get(pk=pk)
         except ServiceExecution.DoesNotExist:
+            logger.warning("Execution not found pk=%s", pk)
             return Response({"error": "Execution not found"}, status=status.HTTP_404_NOT_FOUND)
+
         if execution.service_request.user != request.user:
             return Response({"error": "Only the service request owner can verify OTP"}, status=status.HTTP_403_FORBIDDEN)
+
         if execution.otp_code != otp:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         from payments.models import Payment, Wallet, WalletTransaction
-        from django.db.models import F
+        from .models import MechanicEarning
 
+        try:
+            with transaction.atomic():
+                # Mark execution complete
+                execution.completed_at = timezone.now()
+                execution.otp_code = None
+                execution.save(update_fields=["completed_at", "otp_code"])
 
-        with transaction.atomic():
+                service_request = execution.service_request
+                service_request.status = "COMPLETED"
+                service_request.save(update_fields=["status"])
 
-            execution.completed_at = timezone.now()
-            execution.otp_code = None 
-            execution.save()
-            execution.service_request.status = 'COMPLETED'
-            execution.service_request.save()
-            escrow_payment = Payment.objects.filter(
-                service_request=execution.service_request,
-                payment_type='SERVICE_ESCROW',
-                status='COMPLETED',
-                escrow_released=False
-            ).first()
+                # Process escrow payment
+                escrow_payment = Payment.objects.filter(
+                    service_request=service_request,
+                    payment_type="SERVICE_ESCROW",
+                    status="COMPLETED",
+                    escrow_released=False
+                ).first()
 
-            if escrow_payment:
-                workshop_user = execution.workshop.user
+                if escrow_payment:
+                    workshop_user = execution.workshop.user
+                    MECHANIC_SHARE_PERCENTAGE = Decimal("0.20")
+                    mechanics = list(execution.mechanics.all())
 
-                from decimal import Decimal
+                    if mechanics:
+                        mechanic_pool = (escrow_payment.amount * MECHANIC_SHARE_PERCENTAGE).quantize(Decimal("0.01"))
+                        workshop_share = escrow_payment.amount - mechanic_pool
+                        per_mechanic_amount = (mechanic_pool / len(mechanics)).quantize(Decimal("0.01"))
+                    else:
+                        workshop_share = escrow_payment.amount
+                        mechanic_pool = Decimal("0.00")
+                        per_mechanic_amount = Decimal("0.00")
 
-                MECHANIC_SHARE_PERCENTAGE = Decimal('0.20')
-
-                mechanics = list(execution.mechanics.all())
-
-                if mechanics:
-                    mechanic_pool = (escrow_payment.amount * MECHANIC_SHARE_PERCENTAGE).quantize(Decimal('0.01'))
-                    workshop_share = escrow_payment.amount - mechanic_pool
-                    per_mechanic_amount = (mechanic_pool / len(mechanics)).quantize(Decimal('0.01'))
-
-                else:
-                    workshop_share = escrow_payment.amount
-                    mechanic_pool = Decimal('0.00')
-                    per_mechanic_amount = Decimal('0.00')
-
-                wallet, _ = Wallet.objects.get_or_create(user=workshop_user)
-                wallet.balance = F('balance') + workshop_share
-                wallet.save()
-
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    amount=workshop_share,
-                    transaction_type='CREDIT',
-                    description=f"Service completion payout for request #{execution.service_request.id}"
-                )
-                
-                from .models import MechanicEarning
-                for mechanic in mechanics:
-                    m_wallet, _ = Wallet.objects.get_or_create(user = mechanic.user)
-                    m_wallet.balance = F('balance') + per_mechanic_amount
-                    m_wallet.save()
-
+                    # Credit workshop
+                    wallet, _ = Wallet.objects.get_or_create(user=workshop_user)
+                    wallet.balance = F("balance") + workshop_share
+                    wallet.save(update_fields=["balance"])
                     WalletTransaction.objects.create(
-                        wallet = m_wallet,
-                        amount = per_mechanic_amount,
-                        transaction_type = 'CREDIT',
-                        description = f"Service share (20% / {len(mechanics)} mechanic(s)) for request #{execution.service_request.id}"
+                        wallet=wallet,
+                        amount=workshop_share,
+                        transaction_type="CREDIT",
+                        description=f"Service completion payout for request #{service_request.id}"
                     )
 
-                    MechanicEarning.objects.create(
-                        mechanic = mechanic,
-                        service_execution = execution,
-                        amount = per_mechanic_amount,
-                        earning_type = 'SERVICE_SHARE',
-                        description = f"Auto share from service #{execution.service_request.id}"
-                    )
+                    # Credit mechanics
+                    for mechanic in mechanics:
+                        m_wallet, _ = Wallet.objects.get_or_create(user=mechanic.user)
+                        m_wallet.balance = F("balance") + per_mechanic_amount
+                        m_wallet.save(update_fields=["balance"])
+                        WalletTransaction.objects.create(
+                            wallet=m_wallet,
+                            amount=per_mechanic_amount,
+                            transaction_type="CREDIT",
+                            description=f"Service share (20% / {len(mechanics)} mechanic(s)) for request #{service_request.id}"
+                        )
+                        MechanicEarning.objects.create(
+                            mechanic=mechanic,
+                            service_execution=execution,
+                            amount=per_mechanic_amount,
+                            earning_type="SERVICE_SHARE",
+                            description=f"Auto share from service #{service_request.id}"
+                        )
 
+                    escrow_payment.escrow_released = True
+                    escrow_payment.save(update_fields=["escrow_released"])
 
-                escrow_payment.escrow_released = True
-                escrow_payment.save()
+                service_request.status = "VERIFIED"
+                service_request.save(update_fields=["status"])
+                notify_service_flow_update(service_request.id)
 
-            execution.service_request.status = 'VERIFIED'
-            execution.service_request.save()
-            notify_service_flow_update(execution.service_request_id)
+        except Exception as e:
+            logger.exception("Failed verifying service OTP execution_id=%s user_id=%s", pk, request.user.id)
+            return Response({"error": "Failed to verify service. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"message": "Service verified. Payment released to workshop."}, status=status.HTTP_200_OK)
+    
+
 
 class WorkshopDashboardStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if request.user.role != 'workshop_admin' or not hasattr(request.user, 'workshop'):
+        if getattr(request.user, "role", "") != "workshop_admin" or not hasattr(request.user, "workshop"):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-            
+
         workshop = request.user.workshop
-        
-        # 1. Total Revenue from Wallet balance
-        from payments.models import Wallet
-        wallet = Wallet.objects.filter(user=request.user).first()
-        total_revenue = wallet.balance if wallet else 0.00
-        
-        # 2. Active Requests
-        active_requests = WorkshopConnection.objects.filter(
-            workshop=workshop,
-            status='ACCEPTED'
-        ).exclude(
-            service_request__status__in=['COMPLETED', 'VERIFIED', 'CANCELLED', 'EXPIRED']
-        ).count()
-        
-        # 3. Completed Services
-        completed_services = ServiceRequest.objects.filter(
-            execution__workshop=workshop,
-            status__in=['COMPLETED', 'VERIFIED']
-        ).count()
-        
-        # 4. Active (or total) Mechanics
-        active_mechanics = Mechanic.objects.filter(
-            workshop=workshop,
-        ).count()
-        
-        # 5. Recent Requests (Connections)
-        recent_connections = WorkshopConnection.objects.filter(
-            workshop=workshop,
-            status='ACCEPTED'
-        ).order_by('-requested_at')[:5]
-        
-        recent_requests_data = []
-        for conn in recent_connections:
-            recent_requests_data.append({
-                "id": f"#REQ-{conn.service_request.id}",
-                "customer": conn.service_request.user.full_name or conn.service_request.user.username,
-                "service": conn.service_request.issue_category,
-                "status": conn.service_request.get_status_display(),
-                "time": conn.requested_at.strftime("%I:%M %p, %b %d"),
-                "priority": "high" if "Emergency" in conn.service_request.issue_category else "medium"
-            })
-            
-        # 6. Top Mechanics (Mock or exact)
-        from django.db.models import Count
-        top_mechanics = Mechanic.objects.filter(
-            workshop=workshop
-        ).annotate(
-            completed_count=Count(
-                'assigned_executions',
-                filter=models.Q(assigned_executions__service_request__status__in=['COMPLETED', 'VERIFIED'])
-            )
-        ).order_by('-completed_count')[:3]
-        
-        top_mechanics_data = []
-        for index, mechanic in enumerate(top_mechanics):
-            top_mechanics_data.append({
-                "name": mechanic.user.full_name,
-                "completed": mechanic.completed_count,
-                "rating": 4.5,
-                "earnings": "N/A"
-            })
-            
-        # 7. Monthly Revenue (Actual over last 6 months)
-        from payments.models import WalletTransaction
-        from django.utils import timezone
-        from dateutil.relativedelta import relativedelta
-        from django.db.models import Sum
-        
-        now = timezone.now()
-        monthly_data = []
-        
-        if wallet:
-            for i in range(5, -1, -1):
-                target_date = now - relativedelta(months=i)
-                revenue = WalletTransaction.objects.filter(
-                    wallet=wallet,
-                    transaction_type='CREDIT',
-                    created_at__year=target_date.year,
-                    created_at__month=target_date.month
-                ).aggregate(total=Sum('amount'))['total']
-                
-                monthly_data.append({
-                    "month": target_date.strftime("%b"),
-                    "revenue": float(revenue) if revenue else 0
-                })
-        else:
-            for i in range(5, -1, -1):
-                target_date = now - relativedelta(months=i)
-                monthly_data.append({
-                    "month": target_date.strftime("%b"),
-                    "revenue": 0
+
+        try:
+            from payments.models import Wallet, WalletTransaction
+            from workshop.models import WorkshopConnection, ServiceRequest, Mechanic
+
+            # 1. Total Revenue
+            wallet = Wallet.objects.filter(user=request.user).first()
+            total_revenue = float(wallet.balance) if wallet else 0.0
+
+            # 2. Active Requests
+            active_requests = WorkshopConnection.objects.filter(
+                workshop=workshop,
+                status="ACCEPTED"
+            ).exclude(
+                service_request__status__in=["COMPLETED", "VERIFIED", "CANCELLED", "EXPIRED"]
+            ).count()
+
+            # 3. Completed Services
+            completed_services = ServiceRequest.objects.filter(
+                execution__workshop=workshop,
+                status__in=["COMPLETED", "VERIFIED"]
+            ).count()
+
+            # 4. Active Mechanics
+            active_mechanics = Mechanic.objects.filter(workshop=workshop).count()
+
+            # 5. Recent Requests
+            recent_connections = WorkshopConnection.objects.filter(
+                workshop=workshop,
+                status="ACCEPTED"
+            ).select_related("service_request__user").order_by("-requested_at")[:5]
+
+            recent_requests_data = []
+            for conn in recent_connections:
+                sr = conn.service_request
+                recent_requests_data.append({
+                    "id": f"#REQ-{sr.id}",
+                    "customer": getattr(sr.user, "full_name", sr.user.username),
+                    "service": sr.issue_category,
+                    "status": sr.get_status_display(),
+                    "time": conn.requested_at.strftime("%I:%M %p, %b %d"),
+                    "priority": "high" if "Emergency" in sr.issue_category else "medium"
                 })
 
-        return Response({
-            "total_revenue": total_revenue,
-            "active_requests": active_requests,
-            "completed_services": completed_services,
-            "active_mechanics": active_mechanics,
-            "recent_requests": recent_requests_data,
-            "top_mechanics": top_mechanics_data,
-            "monthly_data": monthly_data,
-        }, status=status.HTTP_200_OK)
+            # 6. Top Mechanics
+            top_mechanics = Mechanic.objects.filter(workshop=workshop).annotate(
+                completed_count=Count(
+                    "assigned_executions",
+                    filter=Q(assigned_executions__service_request__status__in=["COMPLETED", "VERIFIED"])
+                )
+            ).order_by("-completed_count")[:3]
 
+            top_mechanics_data = []
+            for mech in top_mechanics:
+                top_mechanics_data.append({
+                    "name": mech.user.full_name,
+                    "completed": mech.completed_count,
+                    "rating": 4.5,  # Placeholder; can be replaced with actual ratings
+                    "earnings": "N/A"  # Placeholder
+                })
+
+            # 7. Monthly Revenue for last 6 months
+            now = timezone.now()
+            monthly_data = []
+            for i in range(5, -1, -1):
+                target_date = now - relativedelta(months=i)
+                revenue = 0
+                if wallet:
+                    revenue = WalletTransaction.objects.filter(
+                        wallet=wallet,
+                        transaction_type="CREDIT",
+                        created_at__year=target_date.year,
+                        created_at__month=target_date.month
+                    ).aggregate(total=Sum("amount"))["total"] or 0
+                monthly_data.append({
+                    "month": target_date.strftime("%b"),
+                    "revenue": float(revenue)
+                })
+
+            return Response({
+                "total_revenue": total_revenue,
+                "active_requests": active_requests,
+                "completed_services": completed_services,
+                "active_mechanics": active_mechanics,
+                "recent_requests": recent_requests_data,
+                "top_mechanics": top_mechanics_data,
+                "monthly_data": monthly_data,
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Failed to fetch workshop dashboard stats for user_id=%s", request.user.id)
+            return Response({"error": "Failed to fetch dashboard stats"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+        
 class SubmitRatingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1702,120 +1907,150 @@ class SubmitRatingView(APIView):
         try:
             execution = ServiceExecution.objects.get(pk=pk)
         except ServiceExecution.DoesNotExist:
-            return Response({"error": "Service Execution not found"}, status=status.HTTP_404_NOT_FOUND)
-            
+            return Response(
+                {"error": "Service Execution not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
         if execution.service_request.user != request.user:
-            return Response({"error": "Unauthorized to review this service"}, status=status.HTTP_403_FORBIDDEN)
-            
+            return Response(
+                {"error": "Unauthorized to review this service"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         if execution.service_request.status not in ['COMPLETED', 'VERIFIED']:
-            return Response({"error": "You can only rate completed services"}, status=status.HTTP_400_BAD_REQUEST)
-            
+            return Response(
+                {"error": "You can only rate completed services"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         workshop_rating_data = request.data.get('workshop_rating')
         mechanic_ratings_data = request.data.get('mechanic_ratings', [])
-        
-        with transaction.atomic():
-            if workshop_rating_data:
-                rating = workshop_rating_data.get('rating')
-                comment = workshop_rating_data.get('comment')
-                if rating:
-                    WorkshopReview.objects.update_or_create(
-                        service_execution=execution,
-                        workshop=execution.workshop,
-                        reviewer=request.user,
-                        defaults={
-                            'rating': rating,
-                            'comment': comment
-                        }
-                    )
-            
-            for mech_data in mechanic_ratings_data:
-                mech_id = mech_data.get('mechanic_id')
-                rating = mech_data.get('rating')
-                comment = mech_data.get('comment')
-                if mech_id and rating:
-                    # Verify mechanic was actually assigned
-                    if execution.mechanics.filter(id=mech_id).exists():
-                        mechanic = Mechanic.objects.get(id=mech_id)
-                        MechanicReview.objects.update_or_create(
+
+        try:
+            with transaction.atomic():
+                # Workshop rating
+                if workshop_rating_data:
+                    rating = workshop_rating_data.get('rating')
+                    comment = workshop_rating_data.get('comment', '')
+                    if rating is not None:
+                        WorkshopReview.objects.update_or_create(
                             service_execution=execution,
-                            mechanic=mechanic,
+                            workshop=execution.workshop,
                             reviewer=request.user,
                             defaults={
                                 'rating': rating,
                                 'comment': comment
                             }
                         )
-                        
-        return Response({"message": "Ratings submitted successfully!"}, status=status.HTTP_200_OK)
 
-class MechanicDashboardStatsView(APIView):
+                # Mechanic ratings
+                for mech_data in mechanic_ratings_data:
+                    mech_id = mech_data.get('mechanic_id')
+                    rating = mech_data.get('rating')
+                    comment = mech_data.get('comment', '')
+                    if mech_id and rating is not None:
+                        if execution.mechanics.filter(id=mech_id).exists():
+                            mechanic = execution.mechanics.get(id=mech_id)
+                            MechanicReview.objects.update_or_create(
+                                service_execution=execution,
+                                mechanic=mechanic,
+                                reviewer=request.user,
+                                defaults={
+                                    'rating': rating,
+                                    'comment': comment
+                                }
+                            )
+                        else:
+                            logger.warning(
+                                "User %s tried to rate mechanic %s not assigned to execution %s",
+                                request.user.id, mech_id, execution.id
+                            )
+
+            return Response({"message": "Ratings submitted successfully!"}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception(
+                "Failed to submit ratings for execution %s by user %s",
+                execution.id, request.user.id
+            )
+            return Response(
+                {"error": "Failed to submit ratings. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+
+ MechanicDashboardStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         if request.user.role != 'mechanic' or not hasattr(request.user, 'mechanic'):
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-            
-        mechanic = request.user.mechanic
-        
-        from django.db.models import Sum
-        from .models import MechanicEarning, ServiceExecution
-        from django.utils import timezone
-        
-        today = timezone.now().date()
-        
-        # 1. Today's Earnings
-        todays_earnings = MechanicEarning.objects.filter(
-            mechanic=mechanic,
-            created_at__date=today
-        ).aggregate(total=Sum('amount'))['total'] or 0.00
-        
-        # 2. Completed Today
-        completed_today = ServiceExecution.objects.filter(
-            mechanics=mechanic,
-            completed_at__date=today,
-            service_request__status__in=['COMPLETED', 'VERIFIED']
-        ).count()
-        
-        # 3. Active Jobs
-        active_jobs = ServiceExecution.objects.filter(
-            mechanics=mechanic
-        ).exclude(
-            service_request__status__in=['COMPLETED', 'VERIFIED', 'CANCELLED', 'EXPIRED']
-        ).count()
-        
-        # 4. Rating
-        rating = mechanic.rating_avg
-        
-        # 5. Workshop State
-        workshop_join_state = mechanic.joining_status
-        workshop_name = mechanic.workshop.workshop_name if mechanic.workshop else None
-        
-        # 6. Recent Requests
-        recent_executions = ServiceExecution.objects.filter(
-            mechanics=mechanic
-        ).order_by('-started_at', '-service_request__created_at')[:5]
-        
-        recent_requests_data = []
-        for execution in recent_executions:
-            sr = execution.service_request
-            recent_requests_data.append({
-                "userId": f"USR-{sr.user.id}",
-                "requestId": f"REQ-{sr.id}",
-                "problem": sr.issue_category,
-                "status": sr.get_status_display(),
-                "priority": "high" if "Emergency" in sr.issue_category else "medium",
-                "location": "Client Location",
-                "scheduledTime": sr.created_at.strftime("%I:%M %p, %b %d"),
-                "customerName": sr.user.full_name or sr.user.email
-            })
-            
-        return Response({
-            "todays_earnings": todays_earnings,
-            "completed_today": completed_today,
-            "active_jobs": active_jobs,
-            "rating": rating,
-            "workshop_join_state": workshop_join_state,
-            "workshop_name": workshop_name,
-            "recent_requests": recent_requests_data
-        }, status=status.HTTP_200_OK)
 
+        mechanic = request.user.mechanic
+
+        try:
+            today = timezone.now().date()
+
+            # 1. Today's Earnings
+            todays_earnings = MechanicEarning.objects.filter(
+                mechanic=mechanic,
+                created_at__date=today
+            ).aggregate(total=Sum('amount'))['total'] or 0.00
+
+            # 2. Completed Today
+            completed_today = ServiceExecution.objects.filter(
+                mechanics=mechanic,
+                completed_at__date=today,
+                service_request__status__in=['COMPLETED', 'VERIFIED']
+            ).count()
+
+            # 3. Active Jobs
+            active_jobs = ServiceExecution.objects.filter(
+                mechanics=mechanic
+            ).exclude(
+                service_request__status__in=['COMPLETED', 'VERIFIED', 'CANCELLED', 'EXPIRED']
+            ).count()
+
+            # 4. Rating
+            rating = getattr(mechanic, 'rating_avg', 0)
+
+            # 5. Workshop State
+            workshop_join_state = getattr(mechanic, 'joining_status', None)
+            workshop_name = getattr(mechanic.workshop, 'workshop_name', None)
+
+            # 6. Recent Requests
+            recent_executions = ServiceExecution.objects.filter(
+                mechanics=mechanic
+            ).order_by('-started_at', '-service_request__created_at')[:5]
+
+            recent_requests_data = []
+            for execution in recent_executions:
+                sr = execution.service_request
+                recent_requests_data.append({
+                    "userId": f"USR-{sr.user.id}",
+                    "requestId": f"REQ-{sr.id}",
+                    "problem": sr.issue_category,
+                    "status": sr.get_status_display(),
+                    "priority": "high" if "Emergency" in sr.issue_category else "medium",
+                    "location": getattr(sr, 'location', 'Client Location'),
+                    "scheduledTime": sr.created_at.strftime("%I:%M %p, %b %d"),
+                    "customerName": getattr(sr.user, 'full_name', sr.user.email)
+                })
+
+            return Response({
+                "todays_earnings": float(todays_earnings),
+                "completed_today": completed_today,
+                "active_jobs": active_jobs,
+                "rating": rating,
+                "workshop_join_state": workshop_join_state,
+                "workshop_name": workshop_name,
+                "recent_requests": recent_requests_data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.exception("Failed to fetch mechanic dashboard stats for user %s", request.user.id)
+            return Response(
+                {"error": "Failed to fetch dashboard stats. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
