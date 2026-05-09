@@ -538,213 +538,586 @@ class StripeWebhookView(APIView):
     def post(self, request, *args, **kwargs):
         payload = request.body
         sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-        event = None
 
-        print("=" * 50)
-        print("WEBHOOK RECEIVED!")
-        print(f"Method: {request.method}")
-        print(f"Headers: {dict(request.META)}")
-        print("=" * 50)
+        logger.info("Stripe webhook received")
 
         try:
             event = stripe.Webhook.construct_event(
-                payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+                payload,
+                sig_header,
+                settings.STRIPE_WEBHOOK_SECRET
             )
-            print(f"Webhook event type: {event['type']}")
-        except ValueError as e:
-            print(f"Webhook ValueError: {e}")
-            return HttpResponse(status=400)
-        except stripe.error.SignatureVerificationError as e:
-            print(f"Webhook SignatureVerificationError: {e}")
+
+            logger.info(
+                "Stripe webhook verified successfully. event_type=%s",
+                event.get('type')
+            )
+
+        except ValueError:
+            logger.exception("Invalid Stripe webhook payload")
             return HttpResponse(status=400)
 
-        if event['type'] == 'checkout.session.completed':
-            session = event['data']['object']
-            self.handle_checkout_session_completed(session)
-        else:
-            print(f"Webhook event type '{event['type']}' not handled")
+        except stripe.error.SignatureVerificationError:
+            logger.exception("Invalid Stripe webhook signature")
+            return HttpResponse(status=400)
+
+        except Exception:
+            logger.exception("Unexpected webhook verification error")
+            return HttpResponse(status=500)
+
+        try:
+            if event['type'] == 'checkout.session.completed':
+                session = event['data']['object']
+
+                logger.info(
+                    "Processing checkout.session.completed webhook"
+                )
+
+                self.handle_checkout_session_completed(session)
+
+            else:
+                logger.info(
+                    "Unhandled Stripe webhook event type=%s",
+                    event['type']
+                )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while processing webhook event"
+            )
+            return HttpResponse(status=500)
 
         return HttpResponse(status=200)
 
     def handle_checkout_session_completed(self, session):
-        
+
+        checkout_session_id = session.get('id')
+
         try:
-            payment = Payment.objects.get(stripe_checkout_id=session['id'])
-            print(f"Payment found: {payment.id}, Status: {payment.status}, Service Request: {payment.service_request_id}")
+            payment = Payment.objects.select_related(
+                'service_request',
+                'user'
+            ).get(
+                stripe_checkout_id=checkout_session_id
+            )
+
+            logger.info(
+                "Payment found for webhook. payment_id=%s",
+                payment.id
+            )
+
         except Payment.DoesNotExist:
-            print(f"ERROR: Payment not found for checkout session ID: {session['id']}")
+            logger.warning(
+                "Payment not found for Stripe checkout session"
+            )
             return
 
-        payment.status = 'COMPLETED'
-        payment.stripe_payment_intent_id = session.get('payment_intent')
-        payment.save()
-        print(f"Payment updated to COMPLETED")
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching payment"
+            )
+            return
+
+        # Prevent duplicate processing
+        if payment.status == 'COMPLETED':
+            logger.info(
+                "Webhook already processed for payment_id=%s",
+                payment.id
+            )
+            return
+
+        try:
+            payment.status = 'COMPLETED'
+            payment.stripe_payment_intent_id = session.get(
+                'payment_intent'
+            )
+            payment.save()
+
+            logger.info(
+                "Payment marked as COMPLETED. payment_id=%s",
+                payment.id
+            )
+
+        except Exception:
+            logger.exception(
+                "Failed to update payment status. payment_id=%s",
+                payment.id
+            )
+            return
 
         metadata = session.get('metadata', {}) or {}
         payment_type = metadata.get('payment_type')
 
-        if payment_type == 'SERVICE_ESCROW':
-            self._handle_service_escrow_completed(payment)
-            return
-        if payment_type == 'WALLET_TOPUP':
-            print(f"Processing wallet topup for user {payment.user.id}")
-            
+        try:
+            # =========================================================
+            # SERVICE ESCROW
+            # =========================================================
+            if payment_type == 'SERVICE_ESCROW':
 
-            with transaction.atomic():
-                wallet, created = Wallet.objects.get_or_create(user=payment.user)
-                wallet.balance = F('balance') + payment.amount
-                wallet.save()
-                
-                wallet.refresh_from_db() 
-
-                WalletTransaction.objects.create(
-                    wallet=wallet,
-                    amount=payment.amount,
-                    transaction_type='CREDIT',
-                    description=f"Added ₹{payment.amount:.2f} to wallet"
+                logger.info(
+                    "Processing SERVICE_ESCROW payment. payment_id=%s",
+                    payment.id
                 )
-                
-            print(f"Wallet balance updated (Atomic)")
-            return
 
-        if payment_type == 'PLATFORM_FEE' and payment.service_request:
-            print(f"Updating ServiceRequest {payment.service_request.id}")
-            print(f"Before - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
-            payment.service_request.platform_fee_paid = True
-            payment.service_request.platform_fee_txn_id = payment.stripe_checkout_id
+                self._handle_service_escrow_completed(payment)
 
-            admin_user = get_platform_admin()
-            if admin_user:
+                logger.info(
+                    "SERVICE_ESCROW processing completed. payment_id=%s",
+                    payment.id
+                )
+
+                return
+
+            # =========================================================
+            # WALLET TOPUP
+            # =========================================================
+            if payment_type == 'WALLET_TOPUP':
+
+                logger.info(
+                    "Processing WALLET_TOPUP. payment_id=%s",
+                    payment.id
+                )
+
                 with transaction.atomic():
-                    admin_wallet, _ = Wallet.objects.get_or_create(user=admin_user)
-                    admin_wallet.balance = F('balance') + payment.amount
-                    admin_wallet.save()
-                    admin_wallet.refresh_from_db()
-                    WalletTransaction.objects.create(
-                        wallet=admin_wallet,
-                        amount=payment.amount,
-                        transaction_type='CREDIT',
-                        description=f"Platform Fee Collected for Service Request #{payment.service_request.id}"
+
+                    wallet, _ = Wallet.objects.get_or_create(
+                        user=payment.user
                     )
 
-            workshop_id = metadata.get('workshop_id')
-            if workshop_id:
-                try:
-                    workshop = Workshop.objects.get(pk=workshop_id)
-                    existing_connection = WorkshopConnection.objects.filter(
-                        service_request=payment.service_request, 
-                        status__in=['REQUESTED', 'ACCEPTED']
-                    ).exists()
-                    
-                    previous_attempts = WorkshopConnection.objects.filter(
-                        service_request=payment.service_request,
-                        workshop=workshop
-                    ).count()
-            
-                    if not existing_connection and previous_attempts < 3:
-                        WorkshopConnection.objects.create(
-                            service_request=payment.service_request,
-                            workshop=workshop,
-                            status='REQUESTED'
+                    wallet.balance = F('balance') + payment.amount
+                    wallet.save()
+
+                    wallet.refresh_from_db()
+
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        amount=payment.amount,
+                        transaction_type='CREDIT',
+                        description=(
+                            f"Added ₹{payment.amount:.2f} to wallet"
+                        )
+                    )
+
+                logger.info(
+                    "Wallet topup completed successfully. payment_id=%s",
+                    payment.id
+                )
+
+                return
+
+            # =========================================================
+            # PLATFORM FEE
+            # =========================================================
+            if (
+                payment_type == 'PLATFORM_FEE'
+                and payment.service_request
+            ):
+
+                service_request = payment.service_request
+
+                logger.info(
+                    "Processing PLATFORM_FEE payment. "
+                    "payment_id=%s service_request_id=%s",
+                    payment.id,
+                    service_request.id
+                )
+
+                service_request.platform_fee_paid = True
+                service_request.platform_fee_txn_id = (
+                    payment.stripe_checkout_id
+                )
+
+                # Credit admin wallet
+                admin_user = get_platform_admin()
+
+                if admin_user:
+                    try:
+                        with transaction.atomic():
+
+                            admin_wallet, _ = (
+                                Wallet.objects.get_or_create(
+                                    user=admin_user
+                                )
+                            )
+
+                            admin_wallet.balance = (
+                                F('balance') + payment.amount
+                            )
+
+                            admin_wallet.save()
+
+                            admin_wallet.refresh_from_db()
+
+                            WalletTransaction.objects.create(
+                                wallet=admin_wallet,
+                                amount=payment.amount,
+                                transaction_type='CREDIT',
+                                description=(
+                                    "Platform Fee Collected "
+                                    f"for Service Request "
+                                    f"#{service_request.id}"
+                                )
+                            )
+
+                        logger.info(
+                            "Admin wallet credited successfully"
                         )
 
-                        push_connection_count_to_workshop(workshop.user.id)
-                        
-                        payment.service_request.status = 'CONNECTING'
-                    else:
-                        payment.service_request.status = 'PLATFORM_FEE_PAID'
+                    except Exception:
+                        logger.exception(
+                            "Failed to credit admin wallet"
+                        )
 
-                except Workshop.DoesNotExist:
-                    payment.service_request.status = 'PLATFORM_FEE_PAID'
+                # Workshop connection handling
+                workshop_id = metadata.get('workshop_id')
+
+                if workshop_id:
+
+                    try:
+                        workshop = Workshop.objects.get(
+                            pk=workshop_id
+                        )
+
+                        existing_connection = (
+                            WorkshopConnection.objects.filter(
+                                service_request=service_request,
+                                status__in=[
+                                    'REQUESTED',
+                                    'ACCEPTED'
+                                ]
+                            ).exists()
+                        )
+
+                        previous_attempts = (
+                            WorkshopConnection.objects.filter(
+                                service_request=service_request,
+                                workshop=workshop
+                            ).count()
+                        )
+
+                        if (
+                            not existing_connection
+                            and previous_attempts < 3
+                        ):
+
+                            WorkshopConnection.objects.create(
+                                service_request=service_request,
+                                workshop=workshop,
+                                status='REQUESTED'
+                            )
+
+                            push_connection_count_to_workshop(
+                                workshop.user.id
+                            )
+
+                            service_request.status = 'CONNECTING'
+
+                            logger.info(
+                                "Workshop connection created. "
+                                "service_request_id=%s",
+                                service_request.id
+                            )
+
+                        else:
+                            service_request.status = (
+                                'PLATFORM_FEE_PAID'
+                            )
+
+                            logger.info(
+                                "Workshop connection skipped. "
+                                "service_request_id=%s",
+                                service_request.id
+                            )
+
+                    except Workshop.DoesNotExist:
+
+                        logger.warning(
+                            "Workshop not found during webhook "
+                            "processing"
+                        )
+
+                        service_request.status = (
+                            'PLATFORM_FEE_PAID'
+                        )
+
+                    except Exception:
+                        logger.exception(
+                            "Error while processing workshop "
+                            "connection"
+                        )
+
+                        service_request.status = (
+                            'PLATFORM_FEE_PAID'
+                        )
+
+                else:
+                    service_request.status = (
+                        'PLATFORM_FEE_PAID'
+                    )
+
+                service_request.save()
+
+                notify_service_flow_update(service_request.id)
+
+                logger.info(
+                    "PLATFORM_FEE processing completed. "
+                    "service_request_id=%s",
+                    service_request.id
+                )
+
             else:
-                payment.service_request.status = 'PLATFORM_FEE_PAID'
 
-            payment.service_request.save()
-            notify_service_flow_update(payment.service_request.id)
-            print(f"After - platform_fee_paid: {payment.service_request.platform_fee_paid}, status: {payment.service_request.status}")
-            print("ServiceRequest updated successfully!")
-        else:
-            print("WARNING: Payment has no associated service_request or not PLATFORM_FEE")
-        
-        print("=" * 50)
+                logger.warning(
+                    "Unhandled payment type or missing service request"
+                )
 
-    def _handle_service_escrow_completed(self, payment):
-        """Mark execution as escrow paid and set service request status to SERVICE_AMOUNT_PAID."""
-        if not payment.service_request_id:
-            print("WARNING: SERVICE_ESCROW payment has no service_request")
-            return
-        try:
-            execution = ServiceExecution.objects.get(service_request_id=payment.service_request_id)
-        except ServiceExecution.DoesNotExist:
-            print("WARNING: No ServiceExecution for escrow payment")
-            return
-        with transaction.atomic():
-            execution.escrow_paid = True
-            execution.escrow_txn_id = payment.stripe_checkout_id
-            execution.save()
-            payment.service_request.status = 'SERVICE_AMOUNT_PAID'
-            payment.service_request.save()
-            notify_service_flow_update(payment.service_request.id)
-        print("SERVICE_ESCROW: execution updated, service request status = SERVICE_AMOUNT_PAID")
+        except Exception:
+            logger.exception(
+                "Unexpected error while handling completed "
+                "checkout session"
+            )
 
 
 class WalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+
+        logger.info(
+            "Wallet fetch request initiated. user_id=%s",
+            request.user.id
+        )
+
         try:
-            wallet, created = Wallet.objects.get_or_create(user=request.user)
+            wallet, created = Wallet.objects.get_or_create(
+                user=request.user
+            )
+
+            if created:
+                logger.info(
+                    "New wallet created. user_id=%s",
+                    request.user.id
+                )
+
             serializer = WalletSerializer(wallet)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to fetch wallet details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            logger.info(
+                "Wallet fetched successfully. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "Database error while fetching wallet. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Failed to fetch wallet details'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching wallet. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class WalletTransactionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+
+        logger.info(
+            "Wallet transaction list requested. user_id=%s",
+            request.user.id
+        )
+
         try:
-            wallet, created = Wallet.objects.get_or_create(user=request.user)
-            transactions = wallet.transactions.all().order_by('-created_at')
-            
-            page = int(request.GET.get('page', 1))
-            page_size = int(request.GET.get('page_size', 20))
+            wallet, created = Wallet.objects.get_or_create(
+                user=request.user
+            )
+
+            if created:
+                logger.info(
+                    "New wallet created while fetching transactions. "
+                    "user_id=%s",
+                    request.user.id
+                )
+
+            transactions = wallet.transactions.all().order_by(
+                '-created_at'
+            )
+
+            try:
+                page = int(request.GET.get('page', 1))
+                page_size = int(
+                    request.GET.get('page_size', 20)
+                )
+
+                if page <= 0 or page_size <= 0:
+                    raise ValueError
+
+            except ValueError:
+                logger.warning(
+                    "Invalid pagination parameters. user_id=%s",
+                    request.user.id
+                )
+
+                return Response(
+                    {'error': 'Invalid pagination parameters'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             start = (page - 1) * page_size
             end = start + page_size
-            
+
             paginated_transactions = transactions[start:end]
-            serializer = WalletTransactionSerializer(paginated_transactions, many=True)
-            
-            return Response({
-                'transactions': serializer.data,
-                'total': transactions.count(),
-                'page': page,
-                'page_size': page_size,
-                'has_more': end < transactions.count()
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to fetch transactions'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            serializer = WalletTransactionSerializer(
+                paginated_transactions,
+                many=True
+            )
+
+            total_transactions = transactions.count()
+
+            logger.info(
+                "Wallet transactions fetched successfully. "
+                "user_id=%s page=%s",
+                request.user.id,
+                page
+            )
+
+            return Response(
+                {
+                    'transactions': serializer.data,
+                    'total': total_transactions,
+                    'page': page,
+                    'page_size': page_size,
+                    'has_more': end < total_transactions
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+            logger.exception(
+                "Database error while fetching transactions. "
+                "user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Failed to fetch transactions'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+            logger.exception(
+                "Unexpected error while fetching wallet "
+                "transactions. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class AddMoneyCheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+
+        logger.info(
+            "Wallet topup checkout initiated. user_id=%s",
+            request.user.id
+        )
+
         amount = request.data.get('amount')
-        
+
         if not amount:
-            return Response({'error': 'Amount is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+            logger.warning(
+                "Missing amount in wallet topup request. "
+                "user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Amount is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # =========================================================
+        # Validate amount
+        # =========================================================
         try:
             amount = float(amount)
+
             if amount <= 0:
-                return Response({'error': 'Amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
-            if amount > 100000:  
-                return Response({'error': 'Amount cannot exceed ₹1,00,000'}, status=status.HTTP_400_BAD_REQUEST)
+
+                logger.warning(
+                    "Non-positive wallet topup amount. "
+                    "user_id=%s amount=%s",
+                    request.user.id,
+                    amount
+                )
+
+                return Response(
+                    {
+                        'error': (
+                            'Amount must be greater than 0'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if amount > 100000:
+
+                logger.warning(
+                    "Wallet topup exceeds maximum limit. "
+                    "user_id=%s amount=%s",
+                    request.user.id,
+                    amount
+                )
+
+                return Response(
+                    {
+                        'error': (
+                            'Amount cannot exceed ₹1,00,000'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         except (ValueError, TypeError):
-            return Response({'error': 'Invalid amount'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+            logger.warning(
+                "Invalid wallet topup amount format. "
+                "user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Invalid amount'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # =========================================================
+        # Create Stripe Checkout Session
+        # =========================================================
         try:
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
@@ -755,239 +1128,918 @@ class AddMoneyCheckoutView(APIView):
                             'unit_amount': int(amount * 100),
                             'product_data': {
                                 'name': 'Add Money to Wallet',
-                                'description': f'Add ₹{amount:.2f} to your wallet balance',
+                                'description': (
+                                    f'Add ₹{amount:.2f} '
+                                    f'to your wallet balance'
+                                ),
                             },
                         },
                         'quantity': 1,
                     },
                 ],
                 mode='payment',
-                success_url='http://localhost:5173/user/wallet?add_money_success=true',
-                cancel_url='http://localhost:5173/user/wallet?add_money_canceled=true',
+                success_url=(
+                    'http://localhost:5173/user/wallet'
+                    '?add_money_success=true'
+                ),
+                cancel_url=(
+                    'http://localhost:5173/user/wallet'
+                    '?add_money_canceled=true'
+                ),
                 metadata={
-                    'user_id': request.user.id,
+                    'user_id': str(request.user.id),
                     'payment_type': 'WALLET_TOPUP',
                     'amount': str(amount)
                 },
             )
-            
+
+            logger.info(
+                "Stripe checkout session created for wallet topup. "
+                "checkout_session_id=%s",
+                checkout_session.id
+            )
+
+        except stripe.error.CardError as e:
+
+            logger.exception(
+                "Stripe CardError during wallet topup. "
+                "user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        e.user_message
+                        or 'Card error occurred'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.RateLimitError:
+
+            logger.exception(
+                "Stripe rate limit exceeded during wallet topup"
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Too many requests to payment gateway'
+                    )
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
+        except stripe.error.InvalidRequestError as e:
+
+            logger.exception(
+                "Invalid Stripe request during wallet topup"
+            )
+
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        except stripe.error.AuthenticationError:
+
+            logger.exception(
+                "Stripe authentication failed during "
+                "wallet topup"
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Payment gateway authentication failed'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except stripe.error.APIConnectionError:
+
+            logger.exception(
+                "Stripe network communication failed during "
+                "wallet topup"
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Network error while contacting '
+                        'payment gateway'
+                    )
+                },
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+
+        except stripe.error.StripeError:
+
+            logger.exception(
+                "Generic Stripe error during wallet topup"
+            )
+
+            return Response(
+                {'error': 'Payment gateway error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while creating wallet "
+                "checkout session"
+            )
+
+            return Response(
+                {'error': 'Unexpected payment error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # =========================================================
+        # Save Payment Record
+        # =========================================================
+        try:
             Payment.objects.create(
                 user=request.user,
                 amount=amount,
                 currency=settings.STRIPE_CURRENCY,
                 stripe_checkout_id=checkout_session.id,
-                payment_type='SUBSCRIPTION',  
+                payment_type='WALLET_TOPUP',
                 status='PENDING'
             )
 
-            return Response({'url': checkout_session.url})
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.info(
+                "Wallet topup payment record created successfully. "
+                "checkout_session_id=%s",
+                checkout_session.id
+            )
 
+        except DatabaseError:
+
+            logger.exception(
+                "Database error while saving wallet topup "
+                "payment record"
+            )
+
+            return Response(
+                {'error': 'Failed to save payment record'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while saving wallet "
+                "payment record"
+            )
+
+            return Response(
+                {'error': 'Unexpected database error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {'url': checkout_session.url},
+            status=status.HTTP_200_OK
+        )
 
 class PayPlatformFeeWithWalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        service_request_id = request.data.get('service_request_id')
+
+        logger.info(
+            "Wallet platform fee payment initiated. user_id=%s",
+            request.user.id
+        )
+
+        service_request_id = request.data.get(
+            'service_request_id'
+        )
+
         workshop_id = request.data.get('workshop_id')
+
+        # =========================================================
+        # Validate input
+        # =========================================================
         if not service_request_id:
-            return Response({'error': 'service_request_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+            logger.warning(
+                "Missing service_request_id in wallet payment "
+                "request. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'service_request_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # =========================================================
+        # Fetch Service Request
+        # =========================================================
         try:
-            service_request = ServiceRequest.objects.get(id=service_request_id, user=request.user)
+            service_request = ServiceRequest.objects.get(
+                id=service_request_id,
+                user=request.user
+            )
+
+            logger.info(
+                "ServiceRequest fetched successfully. "
+                "service_request_id=%s",
+                service_request.id
+            )
+
         except ServiceRequest.DoesNotExist:
-            return Response({'error': 'Service Request not found'}, status=status.HTTP_404_NOT_FOUND)
 
+            logger.warning(
+                "ServiceRequest not found. "
+                "service_request_id=%s user_id=%s",
+                service_request_id,
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Service Request not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while fetching "
+                "ServiceRequest. service_request_id=%s",
+                service_request_id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Something went wrong while fetching '
+                        'service request'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # =========================================================
+        # Already paid check
+        # =========================================================
         if service_request.platform_fee_paid:
-             return Response({'message': 'Platform fee already paid'}, status=status.HTTP_200_OK)
 
-        fee_amount = settings.STRIPE_PLATFORM_FEE_AMOUNT # Float
+            logger.info(
+                "Platform fee already paid. "
+                "service_request_id=%s",
+                service_request.id
+            )
 
+            return Response(
+                {'message': 'Platform fee already paid'},
+                status=status.HTTP_200_OK
+            )
+
+        fee_amount = settings.STRIPE_PLATFORM_FEE_AMOUNT
+
+        # =========================================================
+        # Wallet Payment Processing
+        # =========================================================
         try:
             with transaction.atomic():
-                wallet, created = Wallet.objects.get_or_create(user=request.user)
-                
-                if wallet.balance < fee_amount:
-                     return Response({'error': 'Insufficient wallet balance'}, status=status.HTTP_400_BAD_REQUEST)
 
-                wallet.balance = F('balance') - fee_amount
+                wallet, created = Wallet.objects.get_or_create(
+                    user=request.user
+                )
+
+                if created:
+                    logger.info(
+                        "New wallet created for user_id=%s",
+                        request.user.id
+                    )
+
+                # Balance check
+                if wallet.balance < fee_amount:
+
+                    logger.warning(
+                        "Insufficient wallet balance. "
+                        "user_id=%s",
+                        request.user.id
+                    )
+
+                    return Response(
+                        {
+                            'error': (
+                                'Insufficient wallet balance'
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Deduct amount from wallet
+                wallet.balance = (
+                    F('balance') - fee_amount
+                )
+
                 wallet.save()
-                
+
                 wallet.refresh_from_db()
 
+                logger.info(
+                    "Wallet debited successfully. user_id=%s",
+                    request.user.id
+                )
+
+                # Wallet transaction
                 txn = WalletTransaction.objects.create(
                     wallet=wallet,
                     amount=fee_amount,
                     transaction_type='DEBIT',
-                    description=f"Platform Fee for Service Request #{service_request.id}"
+                    description=(
+                        "Platform Fee for "
+                        f"Service Request "
+                        f"#{service_request.id}"
+                    )
                 )
 
+                logger.info(
+                    "Wallet transaction created. txn_id=%s",
+                    txn.id
+                )
+
+                # Payment record
                 Payment.objects.create(
                     user=request.user,
                     service_request=service_request,
                     amount=fee_amount,
                     currency=settings.STRIPE_CURRENCY,
-                    stripe_checkout_id=f"WALLET-PAY-{txn.id}", 
+                    stripe_checkout_id=(
+                        f"WALLET-PAY-{txn.id}"
+                    ),
                     payment_type='PLATFORM_FEE',
                     status='COMPLETED'
                 )
 
-                admin_user = get_platform_admin()
-                if admin_user:
-                    admin_wallet, _ = Wallet.objects.get_or_create(user=admin_user)
-                    admin_wallet.balance = F('balance') + fee_amount
-                    admin_wallet.save()
-                    admin_wallet.refresh_from_db()
-                    WalletTransaction.objects.create(
-                        wallet=admin_wallet,
-                        amount=fee_amount,
-                        transaction_type='CREDIT',
-                        description=f"Platform Fee Collected for Service Request #{service_request.id}"
-                    )
+                logger.info(
+                    "Payment record created successfully. "
+                    "service_request_id=%s",
+                    service_request.id
+                )
 
-                # Update Service Request
-                service_request.platform_fee_paid = True
-                
-                if workshop_id:
+                # =================================================
+                # Credit admin wallet
+                # =================================================
+                admin_user = get_platform_admin()
+
+                if admin_user:
+
                     try:
-                        workshop = Workshop.objects.get(pk=workshop_id)
-                        existing_connection = WorkshopConnection.objects.filter(
-                            service_request=service_request, 
-                            status__in=['REQUESTED', 'ACCEPTED']
-                        ).exists()
-                        
-                        previous_attempts = WorkshopConnection.objects.filter(
-                            service_request=service_request,
-                            workshop=workshop
-                        ).count()
-                
-                        if not existing_connection and previous_attempts < 3:
+                        admin_wallet, _ = (
+                            Wallet.objects.get_or_create(
+                                user=admin_user
+                            )
+                        )
+
+                        admin_wallet.balance = (
+                            F('balance') + fee_amount
+                        )
+
+                        admin_wallet.save()
+
+                        admin_wallet.refresh_from_db()
+
+                        WalletTransaction.objects.create(
+                            wallet=admin_wallet,
+                            amount=fee_amount,
+                            transaction_type='CREDIT',
+                            description=(
+                                "Platform Fee Collected "
+                                f"for Service Request "
+                                f"#{service_request.id}"
+                            )
+                        )
+
+                        logger.info(
+                            "Admin wallet credited successfully"
+                        )
+
+                    except Exception:
+
+                        logger.exception(
+                            "Failed to credit admin wallet"
+                        )
+
+                # =================================================
+                # Update Service Request
+                # =================================================
+                service_request.platform_fee_paid = True
+
+                if workshop_id:
+
+                    try:
+                        workshop = Workshop.objects.get(
+                            pk=workshop_id
+                        )
+
+                        existing_connection = (
+                            WorkshopConnection.objects.filter(
+                                service_request=service_request,
+                                status__in=[
+                                    'REQUESTED',
+                                    'ACCEPTED'
+                                ]
+                            ).exists()
+                        )
+
+                        previous_attempts = (
+                            WorkshopConnection.objects.filter(
+                                service_request=service_request,
+                                workshop=workshop
+                            ).count()
+                        )
+
+                        if (
+                            not existing_connection
+                            and previous_attempts < 3
+                        ):
+
                             WorkshopConnection.objects.create(
                                 service_request=service_request,
                                 workshop=workshop,
                                 status='REQUESTED'
                             )
 
-                            push_connection_count_to_workshop(workshop.user.id)
+                            push_connection_count_to_workshop(
+                                workshop.user.id
+                            )
 
-                            service_request.status = 'CONNECTING'
+                            service_request.status = (
+                                'CONNECTING'
+                            )
+
+                            logger.info(
+                                "Workshop connection created. "
+                                "service_request_id=%s",
+                                service_request.id
+                            )
+
                         else:
-                            service_request.status = 'PLATFORM_FEE_PAID'
+
+                            service_request.status = (
+                                'PLATFORM_FEE_PAID'
+                            )
+
+                            logger.info(
+                                "Workshop connection skipped. "
+                                "service_request_id=%s",
+                                service_request.id
+                            )
+
                     except Workshop.DoesNotExist:
-                        service_request.status = 'PLATFORM_FEE_PAID'
+
+                        logger.warning(
+                            "Workshop not found. "
+                            "workshop_id=%s",
+                            workshop_id
+                        )
+
+                        service_request.status = (
+                            'PLATFORM_FEE_PAID'
+                        )
+
+                    except Exception:
+
+                        logger.exception(
+                            "Unexpected error while creating "
+                            "workshop connection"
+                        )
+
+                        service_request.status = (
+                            'PLATFORM_FEE_PAID'
+                        )
+
                 else:
-                    service_request.status = 'PLATFORM_FEE_PAID'
+                    service_request.status = (
+                        'PLATFORM_FEE_PAID'
+                    )
 
                 service_request.save()
 
-            return Response({'message': 'Payment successful', 'wallet_balance': wallet.balance}, status=status.HTTP_200_OK)
+                logger.info(
+                    "ServiceRequest updated successfully. "
+                    "service_request_id=%s",
+                    service_request.id
+                )
 
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                notify_service_flow_update(
+                    service_request.id
+                )
+
+                logger.info(
+                    "Service flow update notification sent. "
+                    "service_request_id=%s",
+                    service_request.id
+                )
+
+            return Response(
+                {
+                    'message': 'Payment successful',
+                    'wallet_balance': wallet.balance
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+
+            logger.exception(
+                "Database error during wallet platform fee "
+                "payment. service_request_id=%s",
+                service_request_id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Database error occurred while '
+                        'processing payment'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error during wallet platform "
+                "fee payment. service_request_id=%s",
+                service_request_id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
 class UserPaymentHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+
+        logger.info(
+            "User payment history requested. user_id=%s",
+            request.user.id
+        )
+
         try:
-            payments = Payment.objects.filter(user=request.user).order_by('-created_at')
-            serializer = PaymentHistorySerializer(payments, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to fetch payment history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            payments = Payment.objects.filter(
+                user=request.user
+            ).order_by('-created_at')
+
+            serializer = PaymentHistorySerializer(
+                payments,
+                many=True
+            )
+
+            logger.info(
+                "User payment history fetched successfully. "
+                "user_id=%s payment_count=%s",
+                request.user.id,
+                payments.count()
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+
+            logger.exception(
+                "Database error while fetching user payment "
+                "history. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Failed to fetch payment history'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while fetching user "
+                "payment history. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class WorkshopPaymentHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+
+        logger.info(
+            "Workshop payment history requested. user_id=%s",
+            request.user.id
+        )
+
         try:
             escrow_payments = Payment.objects.filter(
                 payment_type='SERVICE_ESCROW',
-                service_request__execution__workshop__user=request.user
-            ).select_related('service_request').order_by('-created_at')
+                service_request__execution__workshop__user=(
+                    request.user
+                )
+            ).select_related(
+                'service_request'
+            ).order_by(
+                '-created_at'
+            )
 
-            serializer = PaymentHistorySerializer(escrow_payments, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to fetch workshop payment history'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+            serializer = PaymentHistorySerializer(
+                escrow_payments,
+                many=True
+            )
+
+            logger.info(
+                "Workshop payment history fetched "
+                "successfully. user_id=%s payment_count=%s",
+                request.user.id,
+                escrow_payments.count()
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+
+            logger.exception(
+                "Database error while fetching workshop "
+                "payment history. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Failed to fetch workshop payment '
+                        'history'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while fetching workshop "
+                "payment history. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class MechanicWalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+
+        logger.info(
+            "Mechanic wallet details requested. user_id=%s",
+            request.user.id
+        )
+
+        # Mechanic profile validation
+
         if not hasattr(request.user, 'mechanic'):
-            return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_403_FORBIDDEN)
+
+            logger.warning(
+                "Mechanic profile missing for user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Mechanic profile not found'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         try:
             try:
                 mechanic = request.user.mechanic
+
             except Mechanic.DoesNotExist:
-                return Response({'error' : 'Mechanic profile not found'}, status=status.HTTP_404_NOT_FOUND)
-            
-            wallet, _ = Wallet.objects.get_or_create(user = request.user)
 
-            earning_qs = MechanicEarning.objects.filter(mechanic=mechanic)
+                logger.warning(
+                    "Mechanic profile does not exist. "
+                    "user_id=%s",
+                    request.user.id
+                )
 
-            total_earned = earning_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            total_bonuses = earning_qs.filter(earning_type = 'BONUS').aggregate(total = Sum('amount'))['total'] or Decimal('0.00')
-            total_services = earning_qs.filter(earning_type = 'SERVICE_SHARE').values('service_execution').distinct().count()
+                return Response(
+                    {'error': 'Mechanic profile not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Wallet
+
+            wallet, created = Wallet.objects.get_or_create(
+                user=request.user
+            )
+
+            if created:
+                logger.info(
+                    "New mechanic wallet created. user_id=%s",
+                    request.user.id
+                )
+
+
+            # Earnings Queryset
+
+            earning_qs = MechanicEarning.objects.filter(
+                mechanic=mechanic
+            )
+
+            total_earned = (
+                earning_qs.aggregate(
+                    total=Sum('amount')
+                )['total']
+                or Decimal('0.00')
+            )
+
+            total_bonuses = (
+                earning_qs.filter(
+                    earning_type='BONUS'
+                ).aggregate(
+                    total=Sum('amount')
+                )['total']
+                or Decimal('0.00')
+            )
+
+            total_services = (
+                earning_qs.filter(
+                    earning_type='SERVICE_SHARE'
+                ).values(
+                    'service_execution'
+                ).distinct().count()
+            )
 
             now = timezone.now()
 
-            this_month = earning_qs.filter(
-                created_at__year = now.year,
-                created_at__month = now.month
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            this_month = (
+                earning_qs.filter(
+                    created_at__year=now.year,
+                    created_at__month=now.month
+                ).aggregate(
+                    total=Sum('amount')
+                )['total']
+                or Decimal('0.00')
+            )
 
-            page = int(request.GET.get('page',1))
-            page_size = int(request.GET.get('page_size',20))
+            try:
+                page = int(
+                    request.GET.get('page', 1)
+                )
+
+                page_size = int(
+                    request.GET.get('page_size', 20)
+                )
+
+                if page <= 0 or page_size <= 0:
+                    raise ValueError
+
+            except ValueError:
+
+                logger.warning(
+                    "Invalid pagination params in mechanic "
+                    "wallet request. user_id=%s",
+                    request.user.id
+                )
+
+                return Response(
+                    {
+                        'error': (
+                            'Invalid pagination parameters'
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             start = (page - 1) * page_size
             end = start + page_size
 
-
-            earning_list = earning_qs.select_related(
-                'service_execution__service_request'
-            ).order_by('-created_at')[start:end]
+            earning_list = (
+                earning_qs.select_related(
+                    'service_execution__service_request'
+                ).order_by(
+                    '-created_at'
+                )[start:end]
+            )
 
             earning_data = []
 
             for e in earning_list:
+
                 se = e.service_execution
                 sr = se.service_request if se else None
-                mechanic_count = se.mechanics.count() if se else 0
+
+                mechanic_count = (
+                    se.mechanics.count()
+                    if se else 0
+                )
 
                 earning_data.append({
-                    'id' : e.id,
-                    'earning_type' : e.earning_type,
-                    'amount' : str(e.amount),
-                    'description' : e.description,
-                    'created_at' : e.created_at,
-                    'service_execution' : {
-                        'id' : se.id,
-                        'mechanic_count' : mechanic_count,
-                        'service_request' : {
-                            'id' : sr.id,
-                            'issue_category' : sr.issue_category,
-                            'vehicle_model' : sr.vehicle_model
+                    'id': e.id,
+                    'earning_type': e.earning_type,
+                    'amount': str(e.amount),
+                    'description': e.description,
+                    'created_at': e.created_at,
+
+                    'service_execution': {
+                        'id': se.id,
+                        'mechanic_count': mechanic_count,
+
+                        'service_request': {
+                            'id': sr.id,
+                            'issue_category': (
+                                sr.issue_category
+                            ),
+                            'vehicle_model': (
+                                sr.vehicle_model
+                            )
                         } if sr else None
+
                     } if se else None
                 })
 
-            return Response({
-                'balance' : str(wallet.balance),
-                'total_earned' : str(total_earned),
-                'this_month' : str(this_month),
-                'total_bonuses' : str(total_bonuses),
-                'total_services' : total_services,
-                'earnings' : earning_data,
-                'total' : earning_qs.count(),
-                'page' : page,
-                'page_size' : page_size,
-                'has_more' : end < earning_qs.count()
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'error': 'Failed to load mechanic wallet details'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.info(
+                "Mechanic wallet details fetched "
+                "successfully. user_id=%s",
+                request.user.id
+            )
 
+            total_earnings = earning_qs.count()
 
+            return Response(
+                {
+                    'balance': str(wallet.balance),
+                    'total_earned': str(total_earned),
+                    'this_month': str(this_month),
+                    'total_bonuses': str(total_bonuses),
+                    'total_services': total_services,
+                    'earnings': earning_data,
+                    'total': total_earnings,
+                    'page': page,
+                    'page_size': page_size,
+                    'has_more': end < total_earnings
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except DatabaseError:
+
+            logger.exception(
+                "Database error while loading mechanic "
+                "wallet details. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {
+                    'error': (
+                        'Failed to load mechanic wallet '
+                        'details'
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception:
+
+            logger.exception(
+                "Unexpected error while loading mechanic "
+                "wallet details. user_id=%s",
+                request.user.id
+            )
+
+            return Response(
+                {'error': 'Unexpected error occurred'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
