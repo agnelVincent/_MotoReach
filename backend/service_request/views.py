@@ -1841,7 +1841,7 @@ class WorkshopDashboardStatsView(APIView):
                 sr = conn.service_request
                 recent_requests_data.append({
                     "id": f"#REQ-{sr.id}",
-                    "customer": getattr(sr.user, "full_name", sr.user.username),
+                    "customer": getattr(sr.user, "full_name", sr.user),
                     "service": sr.issue_category,
                     "status": sr.get_status_display(),
                     "time": conn.requested_at.strftime("%I:%M %p, %b %d"),
