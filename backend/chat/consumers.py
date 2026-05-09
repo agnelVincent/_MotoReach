@@ -5,45 +5,145 @@ from django.contrib.auth import get_user_model
 from django.db import DatabaseError
 from service_request.models import ServiceRequest, WorkshopConnection, ServiceExecution
 from .models import ChatMessage, ChatMessageRecipient
+import logging
 
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 @database_sync_to_async
-def _user_can_subscribe_service_flow(user: User, service_request_id: int) -> bool:
+def _user_can_subscribe_service_flow( user: User, service_request_id: int) -> bool:
+
     try:
-        sr = ServiceRequest.objects.get(pk=service_request_id)
+        sr = ServiceRequest.objects.get(
+            pk=service_request_id
+        )
+
     except ServiceRequest.DoesNotExist:
+        logger.warning(
+            "ServiceRequest not found during service flow "
+            "subscription check. service_request_id=%s",
+            service_request_id
+        )
         return False
+
     except DatabaseError:
+        logger.exception(
+            "Database error while fetching ServiceRequest "
+            "for subscription check. "
+            "service_request_id=%s",
+            service_request_id
+        )
+        return False
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while fetching "
+            "ServiceRequest for subscription check. "
+            "service_request_id=%s",
+            service_request_id
+        )
         return False
 
     try:
-        if sr.user_id == user.id:   
+        # Customer
+        if sr.user_id == user.id:
+            logger.info(
+                "Service flow subscription allowed for "
+                "customer user_id=%s service_request_id=%s",
+                user.id,
+                service_request_id
+            )
+
             return True
-        if user.role == "workshop_admin" and hasattr(user, "workshop"):
-            if WorkshopConnection.objects.filter(
-                service_request=sr, workshop=user.workshop, status="ACCEPTED"
-            ).exists():
+
+        # Workshop Admin
+        if (user.role == "workshop_admin" and hasattr(user, "workshop")):
+            is_connected = (
+                WorkshopConnection.objects.filter(
+                    service_request=sr,
+                    workshop=user.workshop,
+                    status="ACCEPTED"
+                ).exists()
+            )
+
+            if is_connected:
+                logger.info(
+                    "Service flow subscription allowed for "
+                    "workshop admin user_id=%s "
+                    "service_request_id=%s",
+                    user.id,
+                    service_request_id
+                )
                 return True
-        if user.role == "mechanic" and hasattr(user, "mechanic"):
+
+        # Mechanic
+        if (user.role == "mechanic" and hasattr(user, "mechanic")):
+
             if hasattr(sr, "execution") and sr.execution:
-                return sr.execution.mechanics.filter(user=user).exists()
-    except DatabaseError as e:
-        print('came from checking user subscribe service flow', e)
+                is_assigned = (
+                    sr.execution.mechanics.filter(
+                        user=user
+                    ).exists()
+                )
+
+                if is_assigned:
+                    logger.info(
+                        "Service flow subscription allowed "
+                        "for mechanic user_id=%s "
+                        "service_request_id=%s",
+                        user.id,
+                        service_request_id
+                    )
+                    return True
+
+    except DatabaseError:
+        logger.exception(
+            "Database error while checking service flow "
+            "subscription permission. user_id=%s "
+            "service_request_id=%s",
+            user.id,
+            service_request_id
+        )
         return False
+
+    except Exception:
+        logger.exception(
+            "Unexpected error while checking service "
+            "flow subscription permission. user_id=%s "
+            "service_request_id=%s",
+            user.id,
+            service_request_id
+        )
+        return False
+
+    logger.warning(
+        "Service flow subscription denied. "
+        "user_id=%s service_request_id=%s",
+        user.id,
+        service_request_id
+    )
     return False
 
 
 @database_sync_to_async
 def _get_service_request(service_request_id: int) -> ServiceRequest | None:
+
+    logger.info("Fetching ServiceRequest id=%s", service_request_id)
     try:
         return ServiceRequest.objects.get(pk=service_request_id)
+    
     except ServiceRequest.DoesNotExist:
+        logger.warning("ServiceRequest not found id=%s", service_request_id)
         return None
-    except DatabaseError as e:
-        print('came from getting service request', e)
+    
+    except DatabaseError:
+        logger.exception("DB error while fetching ServiceRequest id=%s", service_request_id)
+        return None
+    
+    except Exception:
+        logger.exception("Unexpected error while fetching ServiceRequest id=%s", service_request_id)
         return None
 
 
@@ -51,9 +151,8 @@ def _get_service_request(service_request_id: int) -> ServiceRequest | None:
 def _user_has_active_connection(user: User, service_request: ServiceRequest) -> bool:
     if service_request.status in ["EXPIRED", "CANCELLED"]:
         return False
-    
-    try:
 
+    try:
         if service_request.user_id == user.id:
             return WorkshopConnection.objects.filter(
                 service_request=service_request,
@@ -66,16 +165,21 @@ def _user_has_active_connection(user: User, service_request: ServiceRequest) -> 
                 workshop=user.workshop,
                 status="ACCEPTED",
             ).exists()
-        
+
         if user.role == "mechanic" and hasattr(user, "mechanic"):
             if hasattr(service_request, "execution") and service_request.execution:
                 return service_request.execution.mechanics.filter(user=user).exists()
-    
-    except DatabaseError as e:
-        print('came from user active connection', e)
+
         return False
 
-    return False
+    except DatabaseError:
+        logger.exception("DB error in active connection check user_id=%s sr_id=%s",
+                         user.id, service_request.id)
+        return False
+    except Exception:
+        logger.exception("Unexpected error in active connection check user_id=%s sr_id=%s",
+                         user.id, service_request.id)
+        return False
 
 
 @database_sync_to_async
