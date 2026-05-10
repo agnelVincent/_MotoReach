@@ -125,11 +125,14 @@ const WorkshopRegister = () => {
         dispatch(registerWorkshop(dataToSend));
     };
 
-    const allErrors = {
-        ...clientErrors,
-        ...(typeof error === 'object' && error && error.details ? error.details : {}),
-        ...(typeof error === 'object' && error && !error.details ? error : {})
-    };
+    // Only spread field-level validation errors (arrays), not top-level keys like code/message
+    const fieldErrors = typeof error === 'object' && error
+        ? Object.fromEntries(
+            Object.entries(error).filter(([, v]) => Array.isArray(v))
+          )
+        : {};
+
+    const allErrors = { ...clientErrors, ...(error?.details || {}), ...fieldErrors };
 
     const displayError = (() => {
         if (!error) return null;
