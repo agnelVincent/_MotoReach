@@ -84,7 +84,15 @@ const MechanicRegister = () => {
         ...(typeof error === 'object' && error && !error.details ? error : {})
     };
 
-    const displayError = typeof error === 'string' ? error : (error?.error || error?.detail);
+    const displayError = (() => {
+        if (!error) return null;
+        if (typeof error === 'string') return error;
+        if (error.detail) return typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+        if (error.message) return error.message;
+        if (error.error) return typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+        if (error.non_field_errors) return Array.isArray(error.non_field_errors) ? error.non_field_errors[0] : error.non_field_errors;
+        return 'Registration failed. Please try again.';
+    })();
 
     const getError = (camelCaseKey, snakeCaseKey) => {
         if (allErrors[camelCaseKey]) return allErrors[camelCaseKey];
