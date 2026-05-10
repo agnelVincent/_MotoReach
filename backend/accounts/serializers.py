@@ -10,6 +10,9 @@ from rest_framework_simplejwt.exceptions import InvalidToken
 from django.conf import settings
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth.hashers import make_password
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -214,7 +217,7 @@ class CookieTokenRefreshSerializer(TokenRefreshSerializer):
         except TokenError as e:
             raise InvalidToken(f'Token refresh failed: {str(e)}')
         except Exception as e:
-            print(f'Unexpected token refresh error: {str(e)}')
+            logger.exception('Unexpected token refresh error')
             raise
 
 class ForgotPasswordSendOtpSerializer(serializers.Serializer):

@@ -163,7 +163,6 @@ const Login = () => {
                     dispatch(googleLogin(credentialResponse.credential));
                 }}
                 onError={() => {
-                    console.log("Google Login Failed");
                 }}
             />
 

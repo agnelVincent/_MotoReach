@@ -23,7 +23,7 @@ load_dotenv(os.path.join(BASE_DIR, '..', '.env'))
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
 

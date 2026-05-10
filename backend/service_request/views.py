@@ -810,7 +810,7 @@ class CreateEstimateView(APIView):
                     service_request=connection.service_request,
                 )
                 return Response(EstimateSerializer(estimate).data, status=status.HTTP_201_CREATED)
-        print(serializer.errors)
+        logger.warning("CreateEstimate serializer errors: %s", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -157,14 +157,12 @@ class EmailOTP(models.Model):
     
     def can_resend(self):
         if (timezone.now() - self.last_sent) < self.RESEND_COOLDOWN:
-            print(f"Cooldown active: {self.RESEND_COOLDOWN.total_seconds() - (timezone.now() - self.last_sent).total_seconds():.0f}s left")
             return False
         
         if (timezone.now() - self.last_sent) >= self.RESEND_DECAY_PERIOD:
             return True
         
         if self.resend_count >= self.RESEND_LIMIT:
-            print(f"Resend limit reached: {self.resend_count} / {self.RESEND_LIMIT}")
             return False
         
         return True

@@ -76,7 +76,6 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log('🔄 Attempting to refresh access token...');
 
         const refreshResponse = await refreshClient.post("accounts/auth/token/refresh/");
 
@@ -89,8 +88,6 @@ axiosInstance.interceptors.response.use(
 
           originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;
 
-          console.log('✅ Token refreshed successfully');
-
           processQueue(null, newAccessToken);
 
           return axiosInstance(originalRequest);
@@ -98,14 +95,12 @@ axiosInstance.interceptors.response.use(
           throw new Error('No access token in refresh response');
         }
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
 
         processQueue(refreshError, null);
 
         localStorage.removeItem(ACCESS_TOKEN_KEY);
 
         if (window.location.pathname !== '/login') {
-          console.log('🔐 Redirecting to login...');
           window.location.href = '/login';
         }
 

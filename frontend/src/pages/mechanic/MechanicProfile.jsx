@@ -191,7 +191,6 @@ const handleAvailabilityToggle = () => {
     newStatus = 'AVAILABLE'; 
   }
 
-  console.log('Toggling to:', newStatus);
   dispatch(updateAvailability(newStatus))
     .unwrap()
     .then(() => {

@@ -1181,7 +1181,6 @@ class GetRejectedReason(APIView):
             return Response({'error' : 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
         try:
             rejection_reason  = request.user.workshop.rejection_reason
-            print(rejection_reason)
             return Response({'rejected_reason' : rejection_reason}, status= status.HTTP_200_OK)
         except Exception:
             return Response({'error' : 'Failed to fetch rejected reason'})

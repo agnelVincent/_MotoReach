@@ -16,7 +16,6 @@ export const loginUser = createAsyncThunk(
         }
         catch (error) {
             if (error.response && error.response.data) {
-                console.log(error.response, error.response.data)
                 return rejectWithValue(error.response.data)
             }
             return rejectWithValue({ 'error': error.message })
@@ -33,7 +32,6 @@ export const logoutUser = createAsyncThunk(
             return { success: true }
         }
         catch (error) {
-            console.log(error)
             dispatch(authSlice.actions.logout())
             if (error.message && error.response.data) {
                 return rejectWithValue(error.response.data)
@@ -68,7 +66,6 @@ export const registerUser = createAsyncThunk(
         }
         catch (error) {
             if (error.response && error.response.data) {
-                console.log(error.response, error.response.data)
                 return rejectWithValue(error.response.data)
             }
             return rejectWithValue({ error: error.message })
@@ -85,7 +82,6 @@ export const registerMechanic = createAsyncThunk(
         }
         catch (error) {
             if (error.response && error.response.data) {
-                console.log(error.response, error.response.data)
                 return rejectWithValue(error.response.data)
             }
             return rejectWithValue({ error: error.message })
@@ -102,7 +98,6 @@ export const registerWorkshop = createAsyncThunk(
         }
         catch (error) {
             if (error.response && error.response.data) {
-                console.log(error.response, error.response.data)
                 return rejectWithValue(error.response.data)
             }
             return rejectWithValue({ error: error.message })
@@ -202,7 +197,6 @@ const loadInitialState = () => {
         }
     }
     catch (error) {
-        console.log(error)
         localStorage.removeItem(ACCESS_TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
     }
