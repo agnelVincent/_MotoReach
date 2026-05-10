@@ -15,11 +15,13 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
   redis:
     image: redis:7-alpine              # Official Redis image
     restart: always
     ports:
       - "6379:6379"
+
   backend:
     build:
       context: ./backend               # Build from backend/Dockerfile
@@ -36,13 +38,10 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
-  frontend:
-    build:
-      context: ./frontend              # Build from frontend/Dockerfile
-    restart: always
-    depends_on:
-      - backend
-    ports:
-      - "3000:80"                      # Access frontend at http://localhost:3000
+
+  # Frontend is deployed on Vercel — not needed here.
+  # The frontend/Dockerfile and frontend/nginx.conf are kept for local testing only.
+  # To test frontend locally with Docker: docker compose -f docker-compose.dev.yml up
+
 volumes:
-  postgres_data:
+  postgres_data:
