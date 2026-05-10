@@ -115,11 +115,11 @@ class CreateCheckoutSessionView(APIView):
                 ],
                 mode='payment',
                 success_url=(
-                    f'http://localhost:5173/user/workshops-nearby/'
+                    f'{settings.FRONTEND_URL}/user/workshops-nearby/'
                     f'{service_request.id}?payment_success=true'
                 ),
                 cancel_url=(
-                    f'http://localhost:5173/user/workshops-nearby/'
+                    f'{settings.FRONTEND_URL}/user/workshops-nearby/'
                     f'{service_request.id}?payment_canceled=true'
                 ),
                 metadata=metadata,
@@ -376,7 +376,7 @@ class CreateServiceEscrowCheckoutView(APIView):
             )
 
         sr_id = estimate.service_request.id
-        base_url = 'http://localhost:5173'
+        base_url = settings.FRONTEND_URL
 
         success_url = (
             f'{base_url}/user/service-flow/'
@@ -1171,11 +1171,11 @@ class AddMoneyCheckoutView(APIView):
                 ],
                 mode='payment',
                 success_url=(
-                    'http://localhost:5173/user/wallet'
+                    f'{settings.FRONTEND_URL}/user/wallet'
                     '?add_money_success=true'
                 ),
                 cancel_url=(
-                    'http://localhost:5173/user/wallet'
+                    f'{settings.FRONTEND_URL}/user/wallet'
                     '?add_money_canceled=true'
                 ),
                 metadata={

@@ -25,7 +25,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
 
 # Django Channels / WebSocket configuration
 ASGI_APPLICATION = "backend.asgi.application"
@@ -34,7 +34,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         'CONFIG': {
-            'hosts' : [('127.0.0.1',6379)]
+            'hosts': [(os.environ.get('REDIS_HOST', '127.0.0.1'), 6379)]
         }
     },
 }
@@ -121,8 +121,10 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  
-    "http://127.0.0.1:5173",  
+    "http://localhost:5173",   # Vite dev server (local dev)
+    "http://127.0.0.1:5173",  # Vite dev server (local dev)
+    "http://localhost:3000",   # Docker / Nginx frontend
+    "http://127.0.0.1:3000",  # Docker / Nginx frontend
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -220,5 +222,11 @@ STRIPE_CURRENCY = 'inr'
 STRIPE_PLATFORM_FEE_AMOUNT = float(os.environ.get("STRIPE_PLATFORM_FEE_AMOUNT", "200.00")) 
 PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS = int(os.environ.get("PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS", "3")) 
 INR_TO_USD_RATE = float(os.environ.get("INR_TO_USD_RATE", "0.012"))
+
+# Frontend URL — change per environment via .env, never hardcode
+# Local dev  : http://localhost:5173
+# Docker     : http://localhost:3000
+# Production : https://your-vercel-app.vercel.app
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 stripe.api_key = STRIPE_SECRET_KEY
