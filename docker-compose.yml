@@ -1,0 +1,42 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine          # Official PostgreSQL image
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persist data between restarts
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:7-alpine              # Official Redis image
+    restart: always
+    ports:
+      - "6379:6379"
+  backend:
+    build:
+      context: ./backend               # Build from backend/Dockerfile
+    restart: always
+    env_file:
+      - .env                           # Load all your secrets from .env
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
+  frontend:
+    build:
+      context: ./frontend              # Build from frontend/Dockerfile
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"                      # Access frontend at http://localhost:3000
+volumes:
+  postgres_data:
