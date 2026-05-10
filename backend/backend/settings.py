@@ -25,7 +25,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'backend']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'backend',
+    '13.232.152.186',       # AWS EC2 public IP
+    'moto-reach.vercel.app', # Vercel frontend domain
+]
 
 # Django Channels / WebSocket configuration
 ASGI_APPLICATION = "backend.asgi.application"
@@ -110,9 +116,9 @@ SIMPLE_JWT = {
 
     'AUTH_COOKIE' : 'refreshtoken',
     'AUTH_COOKIE_DOMAIN' : None,
-    'AUTH_COOKIE_SECURE' : False,
+    'AUTH_COOKIE_SECURE' : os.environ.get('AUTH_COOKIE_SECURE', 'False') == 'True',  # True in prod (HTTPS)
     'AUTH_COOKIE_HTTP_ONLY' : True,
-    'AUTH_COOKIE_SAMESITE' : 'Lax',
+    'AUTH_COOKIE_SAMESITE' : os.environ.get('AUTH_COOKIE_SAMESITE', 'Lax'),  # 'None' in prod (cross-domain)
     
     # Additional security settings
     'ROTATE_REFRESH_TOKENS': False,
@@ -121,10 +127,11 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",   # Vite dev server (local dev)
-    "http://127.0.0.1:5173",  # Vite dev server (local dev)
-    "http://localhost:3000",   # Docker / Nginx frontend
-    "http://127.0.0.1:3000",  # Docker / Nginx frontend
+    "http://localhost:5173",        # Vite dev server (local dev)
+    "http://127.0.0.1:5173",       # Vite dev server (local dev)
+    "http://localhost:3000",        # Docker / Nginx frontend
+    "http://127.0.0.1:3000",       # Docker / Nginx frontend
+    "https://moto-reach.vercel.app", # Production Vercel frontend
 ]
 
 CORS_ALLOW_CREDENTIALS = True
