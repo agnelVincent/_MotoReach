@@ -3,11 +3,11 @@ import { useSelector } from 'react-redux';
 import { Send, ImageIcon, X, Loader2 } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import toast from 'react-hot-toast';
+import { getWebSocketBase } from '../config/ws';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const PAGE_SIZE = 50;
 
-const getWebSocketBase = () => import.meta.env.VITE_WS_BASE;
 
 const Chat = ({
   serviceRequestId,

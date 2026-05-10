@@ -1,13 +1,6 @@
 import { useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
-
-const getWebSocketBase = () => {
-  const envBase = import.meta.env.VITE_WS_BASE;
-  if (envBase) return envBase;
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://${window.location.host}`;
-};
-
+import { getWebSocketBase } from '../config/ws';
 /**
  * Subscribe to live service-flow updates via WebSocket.
  *

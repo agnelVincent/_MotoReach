@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { getWebSocketBase } from '../config/ws';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 
-const getWebSocketBase = () => {
-  const envBase = import.meta.env.VITE_WS_BASE
-  if(envBase){
-    return envBase;
-  }
-  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${protocol}://localhost:8000`;
-};
 
 export const useNotifications = (currentServiceRequestId) => {
 
