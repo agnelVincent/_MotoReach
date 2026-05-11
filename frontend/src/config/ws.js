@@ -5,6 +5,6 @@ export const getWebSocketBase = () => {
 
   // fallback (ONLY for local dev)
   return window.location.protocol === 'https:'
-    ? 'wss://api.moto-reach.vercel.app'   
+    ? 'wss://motoreach.duckdns.org'  
     : 'ws://localhost:8000';
 };
