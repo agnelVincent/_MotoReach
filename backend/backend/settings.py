@@ -29,8 +29,9 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     'backend',
-    '13.232.152.186',       # AWS EC2 public IP
-    'moto-reach.vercel.app', # Vercel frontend domain
+    '13.232.152.186',           # AWS EC2 public IP (direct access)
+    'motoreach.duckdns.org',    # EC2 via Nginx + SSL
+    'moto-reach.vercel.app',    # Vercel frontend
 ]
 
 # Django Channels / WebSocket configuration
@@ -132,6 +133,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",        # Docker / Nginx frontend
     "http://127.0.0.1:3000",       # Docker / Nginx frontend
     "https://moto-reach.vercel.app", # Production Vercel frontend
+    "https://motoreach.duckdns.org"
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://motoreach.duckdns.org",  
+    "https://moto-reach.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
