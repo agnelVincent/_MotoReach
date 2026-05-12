@@ -216,7 +216,7 @@ const MechanicDashboard = () => {
 
                     {/* Action Button */}
                     <button
-                      onClick={() => navigate(`/mechanic/service-flow/${request.requestId}`)}
+                      onClick={() => navigate(`/mechanic/service-flow/${request.id}`)}
                       className="w-full lg:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-semibold rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center justify-center gap-2 group-hover:scale-105"
                     >
                       View Details
