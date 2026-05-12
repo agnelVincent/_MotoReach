@@ -51,7 +51,7 @@ const WorkshopServiceFlow = () => {
         }, 300);      
       }
     } 
-  });
+  }, 'workshop');
 
   const currentStatus = currentRequest?.status || 'CREATED';
   const activeConnection = currentRequest?.active_connection;
