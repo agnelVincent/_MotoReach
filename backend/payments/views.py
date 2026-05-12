@@ -1795,7 +1795,8 @@ class WorkshopPaymentHistoryView(APIView):
                     request.user
                 )
             ).select_related(
-                'service_request'
+                'service_request',
+                'user'
             ).order_by(
                 '-created_at'
             )

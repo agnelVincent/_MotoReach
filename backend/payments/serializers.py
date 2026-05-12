@@ -21,12 +21,14 @@ class WalletSerializer(serializers.ModelSerializer):
 
 class PaymentHistorySerializer(serializers.ModelSerializer):
     service_request_details = serializers.SerializerMethodField()
+    payer_email = serializers.SerializerMethodField()
 
     class Meta:
         model = Payment
         fields = [
-            'id', 'amount', 'currency', 'payment_type', 
-            'status', 'created_at', 'service_request_details', 'is_refunded'
+            'id', 'amount', 'currency', 'payment_type',
+            'status', 'escrow_released', 'created_at',
+            'service_request_details', 'is_refunded', 'payer_email'
         ]
 
     def get_service_request_details(self, obj):
@@ -37,3 +39,9 @@ class PaymentHistorySerializer(serializers.ModelSerializer):
                 "issue": obj.service_request.issue_category
             }
         return None
+
+    def get_payer_email(self, obj):
+        try:
+            return obj.user.email
+        except Exception:
+            return None

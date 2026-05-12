@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
-import { CreditCard, Wallet, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ShieldCheck, Loader2, AlertCircle, Calendar } from 'lucide-react';
+import { CreditCard, Wallet, ArrowUpRight, ArrowDownRight, ArrowDownLeft, ShieldCheck, Loader2, AlertCircle, Calendar, Mail, Lock, Unlock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const WorkshopPayment = () => {
@@ -121,9 +121,11 @@ const WorkshopPayment = () => {
                       <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold text-sm">
                         <th className="p-4 whitespace-nowrap">ID</th>
                         <th className="p-4 whitespace-nowrap">Date</th>
+                        <th className="p-4 whitespace-nowrap">Paid By</th>
                         <th className="p-4 whitespace-nowrap">Amount</th>
                         <th className="p-4 whitespace-nowrap">Service Request</th>
-                        <th className="p-4 whitespace-nowrap">Status</th>
+                        <th className="p-4 whitespace-nowrap">Payment Status</th>
+                        <th className="p-4 whitespace-nowrap">Funds</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -134,18 +136,30 @@ const WorkshopPayment = () => {
                               #{payment.id.toString().padStart(6, '0')}
                             </span>
                           </td>
-                          <td className="p-4 text-gray-600 text-sm whitespace-nowrap flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            {new Date(payment.created_at).toLocaleDateString('en-US', {
-                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                            })}
+                          <td className="p-4 text-gray-600 text-sm whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-gray-400" />
+                              {new Date(payment.created_at).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                              })}
+                            </div>
                           </td>
                           <td className="p-4">
-                            <div className="font-bold text-gray-900">${parseFloat(payment.amount).toFixed(2)}</div>
+                            {payment.payer_email ? (
+                              <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                                <Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="font-medium">{payment.payer_email}</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm italic">—</span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold text-gray-900">₹{parseFloat(payment.amount).toFixed(2)}</div>
                           </td>
                           <td className="p-4">
                             {payment.service_request_details ? (
-                              <Link 
+                              <Link
                                 to={`/workshop/service-flow/${payment.service_request_details.id}`}
                                 className="text-indigo-600 hover:text-indigo-800 text-sm font-medium flex items-center gap-1 group"
                               >
@@ -160,6 +174,19 @@ const WorkshopPayment = () => {
                             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getEscrowColor(payment.status)}`}>
                               {payment.status}
                             </span>
+                          </td>
+                          <td className="p-4">
+                            {payment.escrow_released ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <Unlock className="w-3 h-3" />
+                                Released to Wallet
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                                <Lock className="w-3 h-3" />
+                                Held in Escrow
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
