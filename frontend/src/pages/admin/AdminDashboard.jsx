@@ -62,13 +62,6 @@ const AdminDashboard = () => {
       bgGradient: 'from-green-50 to-emerald-50'
     },
     {
-      title: 'Total Subscriptions',
-      value: '4,892',
-      icon: CreditCard,
-      gradient: 'from-cyan-500 to-blue-600',
-      bgGradient: 'from-cyan-50 to-blue-50'
-    },
-    {
       title: 'Total Revenue',
       value: stats.total_revenue,
       icon: IndianRupee,
