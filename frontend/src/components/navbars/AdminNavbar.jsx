@@ -24,10 +24,9 @@ const AdminNavbar = () => {
     { name: 'Reports / Complaints', path: '/admin/complaints', icon: AlertCircle }
   ];
 
-  const profileMenuItems = [
-    { name: 'Profile', icon: User, action: 'profile' },
-    { name: 'Logout', icon: LogOut, action: 'logout' },
-  ];
+const profileMenuItems = [
+  { name: 'Logout', icon: LogOut, action: 'logout' },
+];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -47,14 +46,13 @@ const AdminNavbar = () => {
 
   const { logout } = useLogout()
 
-  const handleProfileMenuClick = (action) => {
-    setIsProfileOpen(false);
-    if (action === 'logout') {
-      logout();
-    } else if (action === 'profile') {
-      navigate('/admin/profile');
-    }
-  };
+const handleProfileMenuClick = (action) => {
+  setIsProfileOpen(false);
+
+  if (action === 'logout') {
+    logout();
+  }
+};
 
   const isActive = (path) => location.pathname === path;
 
