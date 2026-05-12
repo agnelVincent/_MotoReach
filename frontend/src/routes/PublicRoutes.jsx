@@ -3,6 +3,7 @@ import Register from "../pages/auth/Register";
 import VerifyOTP from "../pages/auth/VerifyOTP";
 import Login from "../pages/auth/Login";
 import LandingPage from "../pages/landing_page/LandingPage";
+import ContactUs from "../pages/landing_page/ContactUs";
 import AuthRedirect from "./AuthRedirect";
 import PublicLayout from "../layouts/PublicLayout";
 import PasswordResetFlow from "../pages/auth/PasswordResetFlow";
@@ -20,6 +21,7 @@ function PublicRoutes() {
             </Route>
             <Route element={<PublicLayout />}>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/contact" element={<ContactUs />} />
             </Route>
         </>
     );
