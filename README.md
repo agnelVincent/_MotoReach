@@ -70,8 +70,44 @@ Follow these instructions to get the MotoReach ecosystem running locally on your
    pip install -r requirements.txt
    ```
 
-4. **Environment Variables:**
-   Create a `.env` file in the root backend directory to contain required configuration (e.g., Stripe keys, Database URLs, Debug booleans). 
+4. **Sample `.env` Configuration**
+
+Create a `.env` file inside the backend root directory and configure the following variables:
+
+```env
+# Django Configuration
+SECRET_KEY=your_django_secret_key
+DEBUG=True
+
+# Allowed Hosts
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Database Configuration
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Stripe Configuration
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_WEBHOOK_SECRET=your_webhook_secret
+
+# Frontend URL
+FRONTEND_URL=http://localhost:5173
+
+# Redis / Channels
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your_email@gmail.com
+EMAIL_HOST_PASSWORD=your_email_password
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL=your_email@gmail.com
 
 5. **Run Migrations and Server:**
    ```bash
