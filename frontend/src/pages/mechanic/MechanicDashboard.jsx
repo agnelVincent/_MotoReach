@@ -16,10 +16,11 @@ import {
   Target
 } from 'lucide-react';
 import MechanicNavbar from '../../components/navbars/MechanicNavbar';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 
 const MechanicDashboard = () => {
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState({
     todays_earnings: 0.00,
     completed_today: 0,
@@ -161,7 +162,10 @@ const MechanicDashboard = () => {
                 <h2 className="text-2xl font-bold text-gray-800 mb-1">Your Recent Requests</h2>
                 <p className="text-gray-600">Assigned work and ongoing services</p>
               </div>
-              <button className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1">
+              <button
+                onClick={() => navigate('/mechanic/requests')}
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-1"
+              >
                 View All
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -211,7 +215,10 @@ const MechanicDashboard = () => {
                     </div>
 
                     {/* Action Button */}
-                    <button className="w-full lg:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-semibold rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center justify-center gap-2 group-hover:scale-105">
+                    <button
+                      onClick={() => navigate(`/mechanic/service-flow/${request.requestId}`)}
+                      className="w-full lg:w-auto px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 text-white font-semibold rounded-lg hover:from-orange-700 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center justify-center gap-2 group-hover:scale-105"
+                    >
                       View Details
                       <ArrowRight className="w-4 h-4" />
                     </button>
