@@ -6,7 +6,7 @@ function UserLayout() {
     return (
         <div className="flex flex-col min-h-screen">
             <UserNavbar />
-            <div className="flex-grow pt-16">
+            <div className="flex-grow">
                 <Outlet />
             </div>
             <Footer />
