@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import ProfileInput from '../../components/ProfileInput';
 import {
@@ -27,7 +27,9 @@ const UserProfile = () => {
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [profileError, setProfileError] = useState(null); 
-
+    
+    // Ref to track the created URL object to prevent memory leaks
+    const objectUrlRef = useRef(null);
 
     const [editedData, setEditedData] = useState({
         fullName: '',
@@ -44,6 +46,13 @@ const UserProfile = () => {
 
     useEffect(() => {
         dispatch(getProfile());
+        
+        // Cleanup object URL on unmount
+        return () => {
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+            }
+        };
     }, [dispatch]);
 
     useEffect(() => {
@@ -57,20 +66,30 @@ const UserProfile = () => {
         }
     }, [profile]);
 
+    // Fixed timeout handling to prevent memory leaks / race conditions
     useEffect(() => {
         if (success) {
             dispatch(clearStatus()); 
         }
+        
+        let timer;
         if (error) {
-            setTimeout(() => {
+            timer = setTimeout(() => {
                 dispatch(clearStatus());
             }, 5000);
         }
+        
+        return () => clearTimeout(timer);
     }, [success, error, dispatch]);
-
 
     const handleEditToggle = () => {
         if (isEditMode) {
+            // Revoke temporary image URL if user cancels editing
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+                objectUrlRef.current = null;
+            }
+            
             setEditedData({
                 fullName: profile?.full_name || '',
                 email: profile?.email || '',
@@ -82,13 +101,11 @@ const UserProfile = () => {
         setIsEditMode(!isEditMode);
     };
 
-
     const validateProfileData = () => {
         if (editedData.fullName.trim().length < 3) {
             setProfileError('Full name must be at least 3 characters long.');
             return false;
         }
-
         setProfileError(null);
         return true;
     };
@@ -107,6 +124,7 @@ const UserProfile = () => {
             .unwrap()
             .then(() => {
                 setIsEditMode(false);
+                objectUrlRef.current = null; // Successfully saved, forget ref
             })
             .catch(backendError => {
                 console.error("Profile Update Failed:", backendError);
@@ -133,15 +151,21 @@ const UserProfile = () => {
     const handleProfilePictureChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            // Clean up previous temporary preview URL if it exists
+            if (objectUrlRef.current) {
+                URL.revokeObjectURL(objectUrlRef.current);
+            }
+            
+            const newUrl = URL.createObjectURL(file);
+            objectUrlRef.current = newUrl;
+
             setEditedData(prev => ({
                 ...prev,
                 profilePictureFile: file,
-                profilePicture: URL.createObjectURL(file) 
+                profilePicture: newUrl 
             }));
         }
     };
-
-
 
     const handlePasswordChange = (field, value) => {
         setPasswordData(prev => ({
@@ -150,18 +174,20 @@ const UserProfile = () => {
         }));
     };
 
-    const isPasswordValid = (password) => {
-        return password.length >= 8 
-            && /[A-Z]/.test(password) 
-            && /\d/.test(password) 
-            && /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    // Granular rules for user validation and contextual checklist tracking
+    const passwordRules = {
+        length: passwordData.newPassword.length >= 8,
+        uppercase: /[A-Z]/.test(passwordData.newPassword),
+        number: /\d/.test(passwordData.newPassword),
+        special: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword)
     };
 
+    const isPasswordValidNow = Object.values(passwordRules).every(Boolean);
     const passwordsMatch = passwordData.newPassword === passwordData.confirmPassword;
 
     const isPasswordFormValid = 
         passwordData.currentPassword.length > 0 && 
-        isPasswordValid(passwordData.newPassword) && 
+        isPasswordValidNow && 
         passwordData.confirmPassword.length > 0 &&
         passwordsMatch;
 
@@ -209,7 +235,7 @@ const UserProfile = () => {
         );
     }
     
-const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('en-US', { 
+    const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'long' 
     });
@@ -281,7 +307,7 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                             </div>
 
                             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-                                {/* Profile Picture */}
+                                {/* Profile Picture Container */}
                                 <div className="relative group">
                                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl overflow-hidden">
                                         {editedData.profilePicture ? (
@@ -326,32 +352,28 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                                 </div>
                             </div>
 
-                            {/* Profile Info Fields */}
+                            {/* Profile Fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                
                                 <ProfileInput
                                     label="Full Name"
                                     value={editedData.fullName}
                                     Icon={User}
                                     isEditMode={isEditMode}
                                     onChange={(e) => handleInputChange('fullName', e.target.value)}
-                                    errorMessage={profileError} // Displaying generic error for now
+                                    errorMessage={profileError}
                                 />
-
-                                {/* Email is read-only (not included in ProfileUpdateSerializer) */}
                                 <ProfileInput
                                     label="Email Address (Read-only)"
                                     value={profile.email}
                                     Icon={Mail}
-                                    isEditMode={false} // Always read-only
+                                    isEditMode={false}
                                     type="email"
                                 />
-
                             </div>
                         </div>
                     </div>
 
-                    {/* Change Password Section */}
+                    {/* Change Password Card */}
                     <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
@@ -364,7 +386,6 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                         </div>
 
                         <div className="space-y-5">
-                            
                             <ProfileInput
                                 label="Current Password"
                                 value={passwordData.currentPassword}
@@ -387,7 +408,7 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                                 onTogglePassword={() => setShowNewPassword(!showNewPassword)}
                                 onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
                                 errorMessage={
-                                    passwordData.newPassword && !isPasswordValid(passwordData.newPassword) 
+                                    passwordData.newPassword && !isPasswordValidNow 
                                         ? 'New password does not meet all requirements.' 
                                         : null
                                 }
@@ -421,19 +442,20 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                                 {loading ? <Loader2 className="w-5 h-5 inline-block mr-2 animate-spin" /> : 'Update Password'}
                             </button>
 
+                            {/* Dynamically Styled Password Requirements Checklist */}
                             <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                                 <p className="text-sm text-blue-800 font-medium mb-2">Password requirements:</p>
-                                <ul className="text-sm text-blue-700 space-y-1">
-                                    <li className={isPasswordValid(passwordData.newPassword) || passwordData.newPassword.length === 0 ? '' : 'text-red-500'}>
+                                <ul className="text-sm space-y-1">
+                                    <li className={passwordRules.length || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
                                         • At least 8 characters long
                                     </li>
-                                    <li className={isPasswordValid(passwordData.newPassword) || passwordData.newPassword.length === 0 ? '' : 'text-red-500'}>
+                                    <li className={passwordRules.uppercase || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
                                         • Contains at least one uppercase letter
                                     </li>
-                                    <li className={isPasswordValid(passwordData.newPassword) || passwordData.newPassword.length === 0 ? '' : 'text-red-500'}>
+                                    <li className={passwordRules.number || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
                                         • Contains at least one number
                                     </li>
-                                    <li className={isPasswordValid(passwordData.newPassword) || passwordData.newPassword.length === 0 ? '' : 'text-red-500'}>
+                                    <li className={passwordRules.special || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
                                         • Contains at least one special character
                                     </li>
                                 </ul>
@@ -442,7 +464,6 @@ const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('e
                     </div>
                 </div>
             </div>
-
         </div>
     );
 };
