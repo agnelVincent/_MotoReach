@@ -208,14 +208,14 @@ const UserWorkshopNearby = () => {
                 </div>
                 <div style={styles.feeDivider} />
                 <div style={styles.feeAmountRow}>
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={styles.feeTotalLabel}>Total Amount Due</p>
                     <p style={styles.feeNote}>One-time fee · Valid for this service request</p>
                   </div>
                   <div style={styles.feeAmount}>₹{PLATFORM_FEE.toFixed(2)}</div>
                 </div>
                 <div style={styles.feeInfoRow}>
-                  <Info size={13} color="#6B7280" />
+                  <Info size={13} color="#6B7280" style={{ flexShrink: 0, marginTop: 1 }} />
                   <span style={styles.feeInfoText}>This fee allows you to connect with any workshop for this request.</span>
                 </div>
               </div>
@@ -249,7 +249,7 @@ const UserWorkshopNearby = () => {
                     <Wallet size={18} color={paymentMethod === 'wallet' ? '#fff' : '#6B7280'} />
                   </div>
                   <div style={styles.methodInfo}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 4 }}>
                       <p style={styles.methodName}>Wallet Balance</p>
                       <span style={{ ...styles.balanceBadge, ...(insufficientBalance ? styles.balanceBadgeInsufficient : styles.balanceBadgeSufficient) }}>
                         ₹{Number(balance).toFixed(2)}
@@ -294,12 +294,12 @@ const UserWorkshopNearby = () => {
               <div style={styles.disconnectIconWrap}>
                 <AlertTriangle size={28} color="#EF4444" />
               </div>
-              <h3 style={{ ...styles.modalTitle, textAlign: 'center', marginBottom: 8 }}>Disconnect Workshop?</h3>
+              <h3 style={{ ...styles.modalTitle, textAlign: 'center', marginBottom: 8, color: '#111827', padding: '0 24px' }}>Disconnect Workshop?</h3>
               <p style={styles.disconnectBody}>
                 You're about to cancel your connection with this workshop. Any ongoing communication will end immediately.
               </p>
               <div style={styles.warningBox}>
-                <AlertCircle size={15} color="#B45309" />
+                <AlertCircle size={15} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
                 <span style={styles.warningText}>This action cannot be undone. You'll need to send a new connection request.</span>
               </div>
               <div style={styles.modalActions}>
@@ -341,7 +341,6 @@ const UserWorkshopNearby = () => {
         <section style={styles.hero}>
           <div style={styles.heroBlobA} />
           <div style={styles.heroBlobB} />
-          {/* Decorative ring (hidden on mobile via CSS) */}
           <div className="nw-ring" style={styles.heroRing}>
             <div style={styles.heroRingInner} />
             <div style={{ ...styles.heroRingInner, inset: 32 }} />
@@ -380,8 +379,8 @@ const UserWorkshopNearby = () => {
           {/* Toast banners */}
           {showSuccessMessage && (
             <div style={{ ...styles.toast, ...styles.toastSuccess }}>
-              <CheckCircle size={18} color="#059669" />
-              <div>
+              <CheckCircle size={18} color="#059669" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.toastTitle}>Payment Successful</p>
                 <p style={styles.toastSub}>Platform fee paid. Connection request sent.</p>
               </div>
@@ -390,8 +389,8 @@ const UserWorkshopNearby = () => {
           )}
           {showCancelMessage && (
             <div style={{ ...styles.toast, ...styles.toastDanger }}>
-              <AlertCircle size={18} color="#DC2626" />
-              <div>
+              <AlertCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={styles.toastTitle}>Payment Cancelled</p>
                 <p style={styles.toastSub}>Pay the platform fee to connect with workshops.</p>
               </div>
@@ -400,7 +399,7 @@ const UserWorkshopNearby = () => {
           )}
 
           {/* Stats */}
-          <div style={styles.statsGrid}>
+          <div style={styles.statsGrid} className="stats-grid">
             <div style={styles.statCard}>
               <div style={{ ...styles.statIcon, background: 'linear-gradient(135deg,#6366F1,#4F46E5)' }}>
                 <MapPin size={18} color="#fff" />
@@ -437,7 +436,7 @@ const UserWorkshopNearby = () => {
           </div>
 
           {/* Search & Sort */}
-          <div style={styles.toolbar}>
+          <div style={styles.toolbar} className="toolbar">
             <div style={styles.searchWrap}>
               <Search size={16} color="#9CA3AF" style={styles.searchIcon} />
               <input
@@ -463,7 +462,7 @@ const UserWorkshopNearby = () => {
           </div>
 
           {/* Cards */}
-          <div style={styles.cardGrid}>
+          <div style={styles.cardGrid} className="card-grid">
             {sortedWorkshops.map((workshop, idx) => {
               const connection = currentRequest?.active_connection;
               const isConnectedToThis = connection?.workshop_id === workshop.id;
@@ -581,17 +580,17 @@ const styles = {
   heroBadge: { display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 14px', borderRadius: 100, marginBottom: 20 },
   heroPulseDot: { width: 8, height: 8, borderRadius: '50%', background: '#34d399', display: 'inline-block', animation: 'pulse 2s ease-in-out infinite' },
   heroBadgeText: { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase' },
-  heroTitle: { fontSize: 'clamp(2.2rem,5vw,3.8rem)', fontWeight: 800, color: '#fff', lineHeight: 1.05, margin: '0 0 14px', letterSpacing: '-0.02em' },
+  heroTitle: { fontSize: 'clamp(2rem,5vw,3.8rem)', fontWeight: 800, color: '#fff', lineHeight: 1.05, margin: '0 0 14px', letterSpacing: '-0.02em' },
   heroTitleGrad: { background: 'linear-gradient(to right,#c4b5fd,#e0e7ff,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
-  heroSub: { display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.6)', fontSize: '1rem', margin: '0 0 24px' },
+  heroSub: { display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.6)', fontSize: '1rem', margin: '0 0 24px', flexWrap: 'wrap' },
   heroFeeNotice: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '12px 18px' },
-  heroFeeIcon: { width: 32, height: 32, borderRadius: 9, background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  heroFeeIcon: { width: 32, height: 32, borderRadius: 9, background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   heroFeeText: { fontSize: 13, color: 'rgba(255,255,255,0.65)' },
   heroFeeAmt: { fontSize: 18, fontWeight: 800, color: '#c4b5fd' },
   heroFeeBadge: { fontSize: 11, fontWeight: 700, background: '#FFF7ED', color: '#C2410C', padding: '4px 10px', borderRadius: 6, border: '1px solid #FED7AA' },
   heroCurve: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 56, background: '#F8F9FC', clipPath: 'ellipse(55% 100% at 50% 100%)' },
   page: { minHeight: '100vh', background: '#F8F9FC', fontFamily: "'DM Sans','Segoe UI',sans-serif" },
-  container: { maxWidth: 1200, margin: '0 auto', padding: '40px 24px 64px', backgroundImage: 'linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px)', backgroundSize: '40px 40px' },
+  container: { maxWidth: 1200, margin: '0 auto', padding: '40px 16px 64px', backgroundImage: 'linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px)', backgroundSize: '40px 40px' },
 
   // Loading
   loadingScreen: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, background: '#F8F9FC' },
@@ -600,52 +599,38 @@ const styles = {
   spinnerCore: { position: 'absolute', inset: 0, borderRadius: '50%', border: '3px solid transparent', borderTopColor: '#6366F1', animation: 'spin 0.8s linear infinite' },
   loadingText: { color: '#6B7280', fontWeight: 600, fontSize: 15 },
 
-  // Header
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 20, marginBottom: 36 },
-  headerLeft: {},
-  pill: { display: 'inline-flex', alignItems: 'center', gap: 6, background: '#EEF2FF', color: '#4F46E5', fontSize: 12, fontWeight: 700, padding: '5px 12px', borderRadius: 100, marginBottom: 12, letterSpacing: 0.3 },
-  heading: { fontSize: 34, fontWeight: 800, color: '#111827', margin: '0 0 8px', letterSpacing: -0.5 },
-  subheading: { display: 'flex', alignItems: 'center', color: '#6B7280', fontSize: 15, margin: 0 },
-
-  // Fee notice
-  feeNotice: { display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1.5px solid #E0E7FF', borderRadius: 14, padding: '14px 18px', boxShadow: '0 1px 6px rgba(99,102,241,0.08)' },
-  feeNoticeIcon: { width: 36, height: 36, borderRadius: 10, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  feeNoticeLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-  feeNoticeAmount: { fontSize: 22, fontWeight: 800, color: '#4F46E5', lineHeight: 1 },
-  feeNoticeBadge: { background: '#FFF7ED', color: '#C2410C', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #FED7AA', marginLeft: 4 },
-
   // Stats
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 },
-  statCard: { background: '#fff', borderRadius: 16, padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 16, border: '1.5px solid #F3F4F6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', transition: 'transform 0.2s ease,box-shadow 0.2s ease', cursor: 'default' },
-  statIcon: { width: 46, height: 46, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' },
-  statValue: { fontSize: 28, fontWeight: 800, color: '#111827', lineHeight: 1 },
+  statCard: { background: '#fff', borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, border: '1.5px solid #F3F4F6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', transition: 'transform 0.2s ease,box-shadow 0.2s ease', cursor: 'default' },
+  statIcon: { width: 42, height: 42, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  statLabel: { fontSize: 10, color: '#9CA3AF', fontWeight: 700, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  statValue: { fontSize: 24, fontWeight: 800, color: '#111827', lineHeight: 1 },
 
   // Toolbar
   toolbar: { display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' },
-  searchWrap: { flex: 1, minWidth: 220, position: 'relative' },
+  searchWrap: { flex: 1, minWidth: 200, position: 'relative' },
   searchIcon: { position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
   searchInput: { width: '100%', padding: '11px 14px 11px 40px', border: '1.5px solid #E5E7EB', borderRadius: 11, fontSize: 14, color: '#111827', background: '#fff', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
-  sortWrap: { position: 'relative', minWidth: 170 },
+  sortWrap: { position: 'relative', minWidth: 160 },
   sortIcon: { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
   sortSelect: { width: '100%', padding: '11px 36px 11px 36px', border: '1.5px solid #E5E7EB', borderRadius: 11, fontSize: 14, color: '#374151', background: '#fff', outline: 'none', appearance: 'none', fontFamily: 'inherit', cursor: 'pointer' },
   sortChevron: { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
 
   // Cards
-  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 22 },
+  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 20 },
   card: { background: '#fff', borderRadius: 20, border: '1.5px solid #F1F5F9', overflow: 'hidden', transition: 'box-shadow 0.3s ease,transform 0.3s ease,border-color 0.3s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
-  cardStrip: { padding: '14px 20px', background: 'linear-gradient(to right,#FAFBFF,#F5F3FF)', borderBottom: '1px solid #EEF2FF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  cardStrip: { padding: '12px 18px', background: 'linear-gradient(to right,#FAFBFF,#F5F3FF)', borderBottom: '1px solid #EEF2FF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   cardDistanceBadge: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '5px 11px', borderRadius: 9 },
   verifiedBadge: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#10B981', background: '#ECFDF5', padding: '4px 9px', borderRadius: 7 },
-  cardBody: { padding: '20px 22px 14px' },
-  cardName: { fontSize: 18, fontWeight: 800, color: '#111827', margin: '0 0 8px', lineHeight: 1.25 },
-  cardAddress: { display: 'flex', gap: 6, alignItems: 'flex-start', color: '#6B7280', fontSize: 13, marginBottom: 14, lineHeight: 1.55 },
+  cardBody: { padding: '18px 20px 12px' },
+  cardName: { fontSize: 17, fontWeight: 800, color: '#111827', margin: '0 0 8px', lineHeight: 1.25 },
+  cardAddress: { display: 'flex', gap: 6, alignItems: 'flex-start', color: '#6B7280', fontSize: 13, marginBottom: 12, lineHeight: 1.55 },
   ratingRow: { display: 'flex', alignItems: 'center', gap: 7 },
   stars: { display: 'flex', gap: 1 },
   ratingNum: { fontWeight: 800, fontSize: 14, color: '#111827' },
   ratingCount: { fontSize: 12, color: '#9CA3AF' },
-  cardDivider: { height: 1, background: '#F3F4F6', margin: '0 22px' },
-  cardFooter: { padding: '14px 20px' },
+  cardDivider: { height: 1, background: '#F3F4F6', margin: '0 20px' },
+  cardFooter: { padding: '12px 18px' },
 
   // Action buttons
   actionRow: { display: 'flex', gap: 8 },
@@ -656,51 +641,51 @@ const styles = {
   btnXSmall: { padding: '11px 13px', background: '#FEF2F2', color: '#EF4444', border: '1.5px solid #FECACA', borderRadius: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'inherit' },
 
   // Backdrop / Modal
-  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 20 },
-  modal: { background: '#fff', borderRadius: 22, width: '100%', maxWidth: 520, boxShadow: '0 24px 60px rgba(0,0,0,0.18)', overflow: 'hidden' },
+  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, padding: '0' },
+  modal: { background: '#fff', borderRadius: '22px 22px 0 0', width: '100%', maxWidth: '100%', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)', overflow: 'hidden', maxHeight: '92vh', overflowY: 'auto' },
 
   // Modal header
-  modalHeader: { background: 'linear-gradient(135deg,#6366F1,#4338CA)', padding: '22px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  modalHeader: { background: 'linear-gradient(135deg,#6366F1,#4338CA)', padding: '20px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 1 },
   modalHeaderInner: { display: 'flex', alignItems: 'center', gap: 14 },
-  modalIcon: { width: 42, height: 42, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modalIcon: { width: 42, height: 42, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   modalLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 },
-  modalTitle: { fontSize: 20, fontWeight: 800, color: '#fff', margin: 0 },
-  modalClose: { background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 7, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 800, color: '#fff', margin: 0 },
+  modalClose: { background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: 7, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 },
 
   // Fee breakdown
-  feeBanner: { padding: '20px 24px', borderBottom: '1px solid #F3F4F6' },
-  feeRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  feeLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 },
-  feeWorkshop: { fontSize: 13, fontWeight: 700, color: '#374151', maxWidth: 260, textAlign: 'right' },
+  feeBanner: { padding: '18px 20px', borderBottom: '1px solid #F3F4F6' },
+  feeRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
+  feeLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, flexShrink: 0 },
+  feeWorkshop: { fontSize: 13, fontWeight: 700, color: '#374151', textAlign: 'right', wordBreak: 'break-word' },
   feeDivider: { height: 1, background: '#F3F4F6', marginBottom: 14 },
-  feeAmountRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  feeAmountRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12 },
   feeTotalLabel: { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 3 },
   feeNote: { fontSize: 12, color: '#9CA3AF' },
-  feeAmount: { fontSize: 32, fontWeight: 900, color: '#4F46E5', letterSpacing: -1 },
+  feeAmount: { fontSize: 28, fontWeight: 900, color: '#4F46E5', letterSpacing: -1, flexShrink: 0 },
   feeInfoRow: { display: 'flex', alignItems: 'flex-start', gap: 7, background: '#F8F9FF', borderRadius: 8, padding: '10px 12px' },
   feeInfoText: { fontSize: 12, color: '#6B7280', lineHeight: 1.5 },
 
   // Method picker
-  methodHeading: { fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 24px', margin: '18px 0 10px' },
-  methodList: { display: 'flex', flexDirection: 'column', gap: 10, padding: '0 24px 20px' },
-  methodCard: { display: 'flex', alignItems: 'center', gap: 12, border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' },
+  methodHeading: { fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 20px', margin: '16px 0 10px' },
+  methodList: { display: 'flex', flexDirection: 'column', gap: 10, padding: '0 20px 18px' },
+  methodCard: { display: 'flex', alignItems: 'center', gap: 12, border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '14px 14px', cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s' },
   methodCardActive: { borderColor: '#6366F1', background: '#F5F3FF' },
   methodCardDisabled: { opacity: 0.55, cursor: 'not-allowed' },
-  methodIconBox: { width: 38, height: 38, borderRadius: 10, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  methodIconBox: { width: 36, height: 36, borderRadius: 10, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   methodIconBoxActive: { background: '#6366F1' },
-  methodInfo: { flex: 1 },
+  methodInfo: { flex: 1, minWidth: 0 },
   methodName: { fontSize: 14, fontWeight: 700, color: '#111827', margin: '0 0 3px' },
   methodSub: { fontSize: 12, color: '#9CA3AF' },
   methodSubDanger: { fontSize: 12, color: '#EF4444', fontWeight: 600 },
   methodRadio: { width: 18, height: 18, borderRadius: '50%', border: '2px solid #D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   methodRadioActive: { borderColor: '#6366F1' },
   methodRadioDot: { width: 8, height: 8, borderRadius: '50%', background: '#6366F1' },
-  balanceBadge: { fontSize: 13, fontWeight: 800, padding: '2px 10px', borderRadius: 8 },
+  balanceBadge: { fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 8 },
   balanceBadgeSufficient: { background: '#ECFDF5', color: '#059669' },
   balanceBadgeInsufficient: { background: '#FEF2F2', color: '#EF4444' },
 
   // Modal actions
-  modalActions: { display: 'flex', gap: 10, padding: '0 24px 24px' },
+  modalActions: { display: 'flex', gap: 10, padding: '0 20px 24px' },
   btnCancel: { flex: 1, padding: '12px', border: '1.5px solid #E5E7EB', borderRadius: 12, background: '#fff', color: '#374151', fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' },
   btnPay: { flex: 2, padding: '12px', background: 'linear-gradient(135deg,#6366F1,#4338CA)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 800, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: 'inherit' },
   btnDanger: { flex: 2, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: 'inherit' },
@@ -709,28 +694,28 @@ const styles = {
 
   // Disconnect modal
   disconnectIconWrap: { display: 'flex', justifyContent: 'center', paddingTop: 28, paddingBottom: 12 },
-  disconnectBody: { textAlign: 'center', color: '#6B7280', fontSize: 14, lineHeight: 1.6, padding: '0 24px 16px' },
-  warningBox: { margin: '0 24px 20px', display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 14px' },
+  disconnectBody: { textAlign: 'center', color: '#6B7280', fontSize: 14, lineHeight: 1.6, padding: '0 20px 16px' },
+  warningBox: { margin: '0 20px 20px', display: 'flex', gap: 8, alignItems: 'flex-start', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '12px 14px' },
   warningText: { fontSize: 13, color: '#92400E', lineHeight: 1.5 },
 
   // Expired
   expiredOverlay: { position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(8px)', zIndex: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  expiredCard: { background: '#fff', borderRadius: 20, padding: '40px 36px', maxWidth: 440, width: '100%', textAlign: 'center', border: '1.5px solid #FEE2E2', boxShadow: '0 20px 50px rgba(0,0,0,0.1)' },
+  expiredCard: { background: '#fff', borderRadius: 20, padding: '36px 24px', maxWidth: 440, width: '100%', textAlign: 'center', border: '1.5px solid #FEE2E2', boxShadow: '0 20px 50px rgba(0,0,0,0.1)' },
   expiredIcon: { width: 64, height: 64, borderRadius: 16, background: '#FEF2F2', border: '1px solid #FECACA', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' },
-  expiredTitle: { fontSize: 26, fontWeight: 800, color: '#111827', margin: '0 0 12px' },
-  expiredBody: { color: '#6B7280', fontSize: 15, lineHeight: 1.6, marginBottom: 28 },
+  expiredTitle: { fontSize: 24, fontWeight: 800, color: '#111827', margin: '0 0 12px' },
+  expiredBody: { color: '#6B7280', fontSize: 14, lineHeight: 1.6, marginBottom: 24 },
   btnBack: { padding: '13px 28px', background: '#111827', color: '#fff', border: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15, cursor: 'pointer', fontFamily: 'inherit' },
 
   // Toasts
-  toast: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px', borderRadius: 14, marginBottom: 24, border: '1.5px solid' },
+  toast: { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 16px', borderRadius: 14, marginBottom: 20, border: '1.5px solid' },
   toastSuccess: { background: '#ECFDF5', borderColor: '#A7F3D0', color: '#065F46' },
   toastDanger: { background: '#FEF2F2', borderColor: '#FECACA', color: '#991B1B' },
   toastTitle: { fontWeight: 700, fontSize: 14, marginBottom: 2 },
   toastSub: { fontSize: 12, opacity: 0.8 },
-  toastClose: { marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit', opacity: 0.6 },
+  toastClose: { marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'inherit', opacity: 0.6, flexShrink: 0 },
 
   // Empty
-  empty: { background: '#fff', borderRadius: 18, padding: '60px 24px', textAlign: 'center', border: '1.5px solid #F3F4F6' },
+  empty: { background: '#fff', borderRadius: 18, padding: '52px 20px', textAlign: 'center', border: '1.5px solid #F3F4F6' },
   emptyIcon: { width: 72, height: 72, borderRadius: 18, background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' },
   emptyTitle: { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 8 },
   emptySub: { fontSize: 14, color: '#9CA3AF' },
@@ -740,22 +725,148 @@ const css = `
   @keyframes spin  { to { transform: rotate(360deg); } }
   @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
   @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-  @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(12px); } to { opacity:1; transform:none; } }
+  @keyframes modalIn { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
   .spin         { animation: spin 0.7s linear infinite; }
-  .modal-enter  { animation: modalIn 0.22s cubic-bezier(.22,1,.36,1); }
+  .modal-enter  { animation: modalIn 0.28s cubic-bezier(.22,1,.36,1); }
   .card-hover:hover { box-shadow: 0 12px 36px rgba(99,102,241,0.14) !important; transform: translateY(-4px) !important; border-color: #C7D2FE !important; }
   .btn-connect-hover { transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
   .btn-connect-hover:hover { filter: brightness(1.08); transform: translateY(-2px) scale(1.01); box-shadow: 0 8px 24px rgba(99,102,241,0.38); }
   .btn-connect-hover:active { transform: scale(0.98); }
-  .stat-hover:hover { transform: translateY(-3px) !important; box-shadow: 0 12px 32px rgba(0,0,0,0.09) !important; }
   input:focus  { border-color: #6366F1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   select:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   .nw-ring { display: none; }
-  @media (min-width: 768px) { .nw-ring { display: block; } }
-  @media (max-width: 640px) {
-    .stat-responsive { grid-template-columns: 1fr !important; }
-    .card-responsive  { grid-template-columns: 1fr !important; }
+
+  /* ── Tablet+ (≥ 640px): modal as centered dialog ── */
+  @media (min-width: 640px) {
+    .nw-ring { display: block; }
+    .modal-backdrop-center {
+      align-items: center !important;
+      padding: 20px !important;
+    }
+  }
+
+  /* ── Stats grid: 3-col → 1-col with horizontal scroll on tiny screens ── */
+  @media (max-width: 480px) {
+    .stats-grid {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+  }
+  @media (min-width: 481px) and (max-width: 767px) {
+    .stats-grid {
+      grid-template-columns: repeat(3,1fr) !important;
+    }
+    .stats-grid > div {
+      padding: 14px 12px !important;
+      gap: 10px !important;
+    }
+  }
+
+  /* ── Toolbar: stack on mobile ── */
+  @media (max-width: 480px) {
+    .toolbar {
+      flex-direction: column !important;
+    }
+    .toolbar > div {
+      width: 100% !important;
+      min-width: unset !important;
+    }
+  }
+
+  /* ── Card grid: 1 col on mobile ── */
+  @media (max-width: 600px) {
+    .card-grid {
+      grid-template-columns: 1fr !important;
+      gap: 14px !important;
+    }
+  }
+
+  /* ── Modal: bottom sheet on mobile, centered dialog on tablet+ ── */
+  @media (min-width: 640px) {
+    [data-modal-backdrop] {
+      align-items: center !important;
+      padding: 20px !important;
+    }
+    [data-modal-sheet] {
+      border-radius: 22px !important;
+      max-width: 520px !important;
+    }
+    [data-modal-disconnect] {
+      border-radius: 22px !important;
+      max-width: 440px !important;
+    }
+  }
+
+  /* ── Hero content padding on mobile ── */
+  @media (max-width: 480px) {
+    .hero-content-inner {
+      padding-top: 48px !important;
+      padding-left: 16px !important;
+      padding-right: 16px !important;
+    }
+  }
+
+  /* ── Container padding on mobile ── */
+  @media (max-width: 480px) {
+    .page-container {
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+      padding-top: 28px !important;
+    }
+  }
+
+  /* ── Stat value font on small screens ── */
+  @media (max-width: 360px) {
+    .stat-val { font-size: 18px !important; }
+    .stat-lbl { font-size: 9px !important; }
   }
 `;
+
+// ─── Responsive Modal wrapper that switches between bottom-sheet and centered ──
+// We use a small wrapper component to apply different layout depending on viewport
+const ResponsiveBackdrop = ({ children, maxWidth = 520 }) => (
+  <div
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.45)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'flex-end',      // bottom sheet by default (mobile)
+      justifyContent: 'center',
+      zIndex: 50,
+      padding: 0,
+    }}
+    className="resp-backdrop"
+  >
+    <style>{`
+      @media (min-width: 640px) {
+        .resp-backdrop {
+          align-items: center !important;
+          padding: 20px !important;
+        }
+        .resp-modal {
+          border-radius: 22px !important;
+          max-width: ${maxWidth}px !important;
+        }
+      }
+    `}</style>
+    <div
+      className="resp-modal modal-enter"
+      style={{
+        background: '#fff',
+        borderRadius: '22px 22px 0 0',
+        width: '100%',
+        maxWidth: '100%',
+        boxShadow: '0 -8px 40px rgba(0,0,0,0.18)',
+        overflow: 'hidden',
+        maxHeight: '92vh',
+        overflowY: 'auto',
+      }}
+    >
+      {children}
+    </div>
+  </div>
+);
 
 export default UserWorkshopNearby;
