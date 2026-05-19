@@ -22,6 +22,7 @@ const UserServiceFlow = () => {
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [ratingState, setRatingState] = useState({
     workshop_rating: { rating: 0, comment: '' },
     mechanic_ratings: {}
@@ -29,13 +30,13 @@ const UserServiceFlow = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     if (requestId) {
       dispatch(fetchServiceRequestDetails(requestId));
     }
-    return () => {
-      dispatch(clearCurrentRequest());
-    };
+    return () => { dispatch(clearCurrentRequest()); };
   }, [dispatch, requestId]);
 
   const currentRequestRef = useRef(currentRequest);
@@ -45,9 +46,7 @@ const UserServiceFlow = () => {
     if (requestId) {
       dispatch(fetchServiceRequestDetails(requestId));
       const connectionId = currentRequestRef.current?.active_connection?.id;
-      if (connectionId) {
-        dispatch(fetchEstimates(connectionId));
-      }
+      if (connectionId) dispatch(fetchEstimates(connectionId));
     }
   });
 
@@ -70,7 +69,6 @@ const UserServiceFlow = () => {
     }
   }, [searchParams, setSearchParams, dispatch, requestId]);
 
-  // Redirect to Stripe when escrow checkout URL is set
   useEffect(() => {
     if (escrowCheckoutUrl) {
       window.location.href = escrowCheckoutUrl;
@@ -80,13 +78,10 @@ const UserServiceFlow = () => {
 
   const handleCancelConnection = async () => {
     if (!requestId) return;
-
-    // Optimistic check: if already cancelled, just notify
     if (currentRequest?.status === 'PLATFORM_FEE_PAID' && !currentRequest?.active_connection) {
       toast.success("Connection already cancelled");
       return;
     }
-
     try {
       const result = await dispatch(userCancelConnection(requestId)).unwrap();
       if (result) {
@@ -94,8 +89,6 @@ const UserServiceFlow = () => {
         dispatch(fetchNearbyWorkshops(requestId));
       }
     } catch (error) {
-      // If backend returns 200 "Connection already cancelled", unwrap handles it as success if payload is right.
-      // But if it was an error, we catch it.
       console.error(error);
       toast.error(typeof error === 'string' ? error : "Failed to cancel connection");
     }
@@ -104,7 +97,6 @@ const UserServiceFlow = () => {
   const currentStatus = currentRequest?.status || 'CREATED';
   const connection = currentRequest?.active_connection;
 
-  // Status Flow
   const statusFlow = [
     { key: 'CREATED', label: 'Request Created', icon: FileCheck },
     { key: 'PLATFORM_FEE_PAID', label: 'Platform Fee Paid', icon: CreditCard },
@@ -117,25 +109,15 @@ const UserServiceFlow = () => {
     { key: 'VERIFIED', label: 'Verified & Closed', icon: Shield }
   ];
 
-  const getCurrentStatusIndex = () => {
-    return statusFlow.findIndex(s => s.key === currentStatus);
-  };
-
-  const isStatusCompleted = (index) => {
-    return index < getCurrentStatusIndex();
-  };
-
-  const isStatusCurrent = (index) => {
-    return index === getCurrentStatusIndex();
-  };
+  const getCurrentStatusIndex = () => statusFlow.findIndex(s => s.key === currentStatus);
+  const isStatusCompleted = (index) => index < getCurrentStatusIndex();
+  const isStatusCurrent = (index) => index === getCurrentStatusIndex();
 
   const handleOtpChange = (index, value) => {
     if (value.length <= 1 && /^\d*$/.test(value)) {
       const newOtp = [...otpValues];
       newOtp[index] = value;
       setOtpValues(newOtp);
-
-      // Auto-focus next input
       if (value && index < 5) {
         const nextInput = document.getElementById(`otp-input-${index + 1}`);
         if (nextInput) nextInput.focus();
@@ -144,7 +126,6 @@ const UserServiceFlow = () => {
   };
 
   const handleOtpKeyDown = (index, e) => {
-    // Handle backspace to move to previous input
     if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
       const prevInput = document.getElementById(`otp-input-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -157,7 +138,6 @@ const UserServiceFlow = () => {
     if (/^\d+$/.test(pastedData)) {
       const newOtp = pastedData.split('').concat(Array(6 - pastedData.length).fill(''));
       setOtpValues(newOtp.slice(0, 6));
-      // Focus the last filled input or the first empty one
       const nextIndex = Math.min(pastedData.length, 5);
       const nextInput = document.getElementById(`otp-input-${nextIndex}`);
       if (nextInput) nextInput.focus();
@@ -194,15 +174,9 @@ const UserServiceFlow = () => {
 
   const handleVerifyOtp = async () => {
     const otp = otpValues.join('');
-    if (otp.length !== 6) {
-      toast.error('Enter 6-digit OTP');
-      return;
-    }
+    if (otp.length !== 6) { toast.error('Enter 6-digit OTP'); return; }
     const executionId = currentRequest?.execution?.id;
-    if (!executionId) {
-      toast.error('No service execution found');
-      return;
-    }
+    if (!executionId) { toast.error('No service execution found'); return; }
     setVerifyingOtp(true);
     try {
       await dispatch(verifyServiceOTP({ executionId, otp, requestId })).unwrap();
@@ -218,8 +192,6 @@ const UserServiceFlow = () => {
   const handleSubmitRatings = async () => {
     const executionId = currentRequest?.execution?.id;
     if (!executionId) return;
-
-    // Build mechanics rating array
     const mechanicArray = [];
     Object.keys(ratingState.mechanic_ratings).forEach(mechId => {
       if (ratingState.mechanic_ratings[mechId].rating > 0) {
@@ -230,17 +202,14 @@ const UserServiceFlow = () => {
         });
       }
     });
-
     const payload = {
       workshop_rating: ratingState.workshop_rating.rating > 0 ? ratingState.workshop_rating : null,
       mechanic_ratings: mechanicArray
     };
-
     if (!payload.workshop_rating && payload.mechanic_ratings.length === 0) {
       toast.error("Please provide at least one rating.");
       return;
     }
-
     setSubmittingRating(true);
     try {
       await dispatch(submitServiceRating({ executionId, ratingData: payload })).unwrap();
@@ -255,8 +224,11 @@ const UserServiceFlow = () => {
 
   if (loading && !currentRequest) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
+          <p className="font-display text-sm font-semibold text-gray-500 tracking-wide uppercase">Loading request…</p>
+        </div>
       </div>
     );
   }
@@ -264,74 +236,169 @@ const UserServiceFlow = () => {
   const showCancelButton = !['SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Page Header */}
-        <div className="mb-8 bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-blue-100">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                Service Tracking
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 font-medium">Request ID:</span>
-                <span className="text-sm font-mono bg-blue-50 text-blue-700 px-3 py-1 rounded-lg font-semibold">
-                  #{requestId}
-                </span>
-              </div>
+    <div className="min-h-screen bg-[#f8f9fc] font-sans">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-body { font-family: 'Geist', 'Inter', sans-serif; }
+
+        .hero-gradient {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+        }
+        .hero-noise::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+          opacity: 0.4;
+          pointer-events: none;
+        }
+        .glow-dot {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+        .badge-pill {
+          background: rgba(255,255,255,0.12);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+
+        .section-label {
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-size: 0.7rem;
+        }
+        .grid-lines {
+          background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+        .feature-card {
+          transition: all 0.3s ease;
+          border: 1px solid #f1f5f9;
+        }
+        .feature-card:hover {
+          border-color: #e0e7ff;
+          box-shadow: 0 8px 30px rgba(99,102,241,0.08);
+          transform: translateY(-3px);
+        }
+        .action-btn {
+          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .action-btn:hover { transform: translateY(-2px) scale(1.02); }
+        .action-btn:active { transform: scale(0.98); }
+
+        /* Status tracker */
+        .status-node-done { background: linear-gradient(135deg, #10b981, #059669); }
+        .status-node-active { background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: 0 0 0 4px rgba(99,102,241,0.2); }
+        .status-node-idle { background: #e2e8f0; }
+
+        /* OTP inputs */
+        .otp-box {
+          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .otp-box:focus {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+          background: white;
+          outline: none;
+        }
+
+        /* Star rating */
+        .star-btn { transition: transform 0.15s ease; }
+        .star-btn:hover { transform: scale(1.2); }
+      `}</style>
+
+      {/* ── HERO ── */}
+      <section className="hero-gradient hero-noise relative overflow-hidden">
+        <div className="glow-dot w-96 h-96 bg-indigo-500 opacity-20 top-[-80px] left-[-60px]" />
+        <div className="glow-dot w-64 h-64 bg-violet-400 opacity-15 bottom-0 right-10" />
+
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          {/* Badge */}
+          <div className={`inline-flex items-center gap-2 badge-pill px-4 py-1.5 rounded-full text-white/90 mb-5 opacity-0 ${mounted ? 'animate-fade-up' : ''}`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="section-label text-white/80">Live Tracking</span>
+          </div>
+
+          <h1 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-3 opacity-0 ${mounted ? 'animate-fade-up delay-100' : ''}`}>
+            Service{' '}
+            <span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-indigo-200 bg-clip-text text-transparent">
+              Tracking
+            </span>
+          </h1>
+
+          <div className={`flex flex-wrap items-center gap-3 opacity-0 ${mounted ? 'animate-fade-up delay-200' : ''}`}>
+            <div className="flex items-center gap-2">
+              <span className="section-label text-white/50">Request ID</span>
+              <span className="font-mono bg-white/10 border border-white/20 text-white/90 px-3 py-1 rounded-lg text-sm font-semibold">
+                #{requestId}
+              </span>
             </div>
             {currentRequest?.created_at && (
-              <div className="text-right">
-                <p className="text-xs text-gray-500 mb-1">Created on</p>
-                <p className="text-sm font-semibold text-gray-700">
-                  {new Date(currentRequest.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
+              <span className="section-label text-white/40">
+                {new Date(currentRequest.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
             )}
           </div>
         </div>
 
-        {/* Status Flow */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-8 border border-gray-100">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-800">Service Progress</h2>
-            <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-4 py-2 rounded-full">
-              Step {getCurrentStatusIndex() + 1} of {statusFlow.length}
+        {/* Bottom curve */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-[#f8f9fc]" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+      </section>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="grid-lines max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+
+        {/* ── STATUS TRACKER ── */}
+        <div className="feature-card bg-white rounded-2xl p-6 md:p-8 mb-8">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div>
+              <span className="section-label text-indigo-500 mb-1 block">Service Progress</span>
+              <h2 className="font-display font-bold text-xl md:text-2xl text-gray-900">Step-by-step status</h2>
+            </div>
+            <span className="badge-pill !bg-indigo-50 !border-indigo-100 !backdrop-filter-none px-4 py-1.5 rounded-full section-label text-indigo-600">
+              Step {getCurrentStatusIndex() + 1} / {statusFlow.length}
             </span>
           </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[800px] md:min-w-0">
-              <div className="flex items-center justify-between relative pb-2">
-                {/* Progress Bar Background */}
-                <div className="absolute top-5 md:top-7 left-0 w-full h-2 bg-gray-200 rounded-full -z-0" />
 
-                {/* Progress Bar Fill */}
+          <div className="overflow-x-auto -mx-2 px-2 pb-2">
+            <div className="min-w-[720px] md:min-w-0">
+              <div className="flex items-start justify-between relative">
+                {/* Track background */}
+                <div className="absolute top-5 left-0 w-full h-1.5 bg-slate-100 rounded-full" />
+                {/* Track fill */}
                 <div
-                  className="absolute top-5 md:top-7 left-0 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500 -z-0"
-                  style={{ width: `${(getCurrentStatusIndex() / (statusFlow.length - 1)) * 100}%` }}
+                  className="absolute top-5 left-0 h-1.5 rounded-full transition-all duration-700"
+                  style={{
+                    width: `${(getCurrentStatusIndex() / (statusFlow.length - 1)) * 100}%`,
+                    background: 'linear-gradient(90deg, #4f46e5, #7c3aed)'
+                  }}
                 />
 
                 {statusFlow.map((status, index) => {
                   const Icon = status.icon;
                   const completed = isStatusCompleted(index);
                   const current = isStatusCurrent(index);
-
                   return (
                     <div key={status.key} className="relative z-10 flex flex-col items-center flex-1">
-                      <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-4 border-white shadow-md ${completed
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-600'
-                        : current
-                          ? 'bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg scale-110 ring-4 ring-blue-200'
-                          : 'bg-gray-300'
-                        }`}>
-                        <Icon className={`w-5 h-5 md:w-7 md:h-7 text-white ${current ? 'animate-pulse' : ''}`} />
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center border-4 border-white shadow-md transition-all duration-300 ${completed ? 'status-node-done' : current ? 'status-node-active scale-110' : 'status-node-idle'}`}>
+                        <Icon className={`w-4 h-4 text-white ${current ? 'animate-pulse' : ''}`} />
                       </div>
-                      <p className={`text-[10px] md:text-xs text-center mt-3 font-bold px-1 max-w-[80px] md:max-w-none ${completed || current ? 'text-gray-900' : 'text-gray-400'
-                        }`}>
+                      <p className={`text-[10px] text-center mt-2.5 font-display font-bold px-1 max-w-[72px] leading-tight ${completed || current ? 'text-gray-800' : 'text-gray-400'}`}>
                         {status.label}
                       </p>
                     </div>
@@ -342,7 +409,10 @@ const UserServiceFlow = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* ── CHAT + SIDEBAR ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+          {/* Chat */}
           <div className="lg:col-span-2">
             <Chat
               key={requestId}
@@ -351,51 +421,54 @@ const UserServiceFlow = () => {
               headerTitle={connection ? connection.workshop_name : 'Finding Workshop...'}
               headerSubtitle={connection ? 'Connected' : 'Pending'}
               headerIcon={Wrench}
-              gradientFrom="from-blue-600"
-              gradientTo="to-indigo-600"
+              gradientFrom="from-indigo-600"
+              gradientTo="to-violet-600"
               disabledMessage="Chat will be available once a workshop accepts your request and the connection is active."
             />
           </div>
 
-          <div className="space-y-6">
+          {/* Sidebar */}
+          <div className="space-y-5">
+
+            {/* Workshop Details */}
             {connection && (
-              <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-xl p-6 border border-blue-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <Wrench className="w-5 h-5 text-white" />
+              <div className="feature-card bg-white rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
+                    <Wrench className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Workshop Details</h3>
+                  <div>
+                    <span className="section-label text-indigo-500 block">Connected to</span>
+                    <h3 className="font-display font-bold text-gray-900 text-base">Workshop Details</h3>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="bg-white rounded-xl p-4 border border-blue-100">
-                    <p className="text-2xl font-bold text-gray-800 mb-2">{connection.workshop_name}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-full text-sm font-semibold shadow-md">
-                        <CheckCircle className="w-4 h-4" />
-                        Connected
-                      </span>
-                    </div>
+                <div className="space-y-3">
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 flex items-center justify-between">
+                    <p className="font-display font-bold text-gray-900 text-base">{connection.workshop_name}</p>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white rounded-full text-xs font-bold">
+                      <CheckCircle className="w-3.5 h-3.5" /> Connected
+                    </span>
                   </div>
 
-                  <div className="space-y-3 bg-white rounded-xl p-4 border border-gray-100">
+                  <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-3">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <MapPin className="w-4 h-4 text-blue-600" />
+                      <div className="w-8 h-8 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-indigo-500" />
                       </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-gray-500 mb-1">Address</p>
-                        <p className="text-sm text-gray-700 leading-relaxed">{connection.address}</p>
+                      <div>
+                        <p className="section-label text-gray-400 mb-0.5">Address</p>
+                        <p className="font-body text-sm text-gray-700 leading-relaxed">{connection.address}</p>
                       </div>
                     </div>
                     {connection.workshop_phone && (
-                      <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Phone className="w-4 h-4 text-blue-600" />
+                      <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
+                        <div className="w-8 h-8 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Phone className="w-4 h-4 text-indigo-500" />
                         </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-gray-500 mb-1">Contact</p>
-                          <p className="text-sm font-semibold text-gray-700">{connection.workshop_phone}</p>
+                        <div>
+                          <p className="section-label text-gray-400 mb-0.5">Contact</p>
+                          <p className="font-body text-sm font-semibold text-gray-800">{connection.workshop_phone}</p>
                         </div>
                       </div>
                     )}
@@ -404,257 +477,253 @@ const UserServiceFlow = () => {
               </div>
             )}
 
-            {/* Service Personnel Section */}
+            {/* Service Personnel */}
             {currentRequest?.execution && (
-              <div className="bg-gradient-to-br from-white to-purple-50 rounded-2xl shadow-xl p-6 border border-purple-100">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <Users className="w-5 h-5 text-white" />
+              <div className="feature-card bg-white rounded-2xl p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center">
+                    <Users className="w-5 h-5 text-violet-600" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800">Service Personnel</h3>
+                  <div>
+                    <span className="section-label text-violet-500 block">Assigned team</span>
+                    <h3 className="font-display font-bold text-gray-900 text-base">Service Personnel</h3>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  {/* Lead Technician */}
                   {currentRequest.execution.lead_technician && (
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border-2 border-blue-200">
+                    <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4">
                       <div className="flex items-start gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-display font-bold text-lg shadow-md flex-shrink-0">
                           {currentRequest.execution.lead_technician.name.charAt(0)}
                         </div>
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-800 text-lg">{currentRequest.execution.lead_technician.name}</p>
-                          <p className="text-xs text-blue-700 font-bold uppercase tracking-wide mb-2">Lead Technician</p>
-                          <div className="flex items-center gap-2 text-xs text-gray-600 bg-white rounded-lg px-3 py-1.5 inline-flex">
-                            <Mail className="w-3.5 h-3.5 text-blue-600" />
-                            {currentRequest.execution.lead_technician.email}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-display font-bold text-gray-900">{currentRequest.execution.lead_technician.name}</p>
+                          <span className="section-label text-indigo-600 block mb-2">Lead Technician</span>
+                          <div className="inline-flex items-center gap-1.5 bg-white border border-indigo-100 rounded-lg px-2.5 py-1 text-xs text-gray-600 truncate max-w-full">
+                            <Mail className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                            <span className="truncate">{currentRequest.execution.lead_technician.email}</span>
                           </div>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Assigned Mechanics */}
-                  {currentRequest.execution.mechanics && currentRequest.execution.mechanics.length > 0 && (
-                    <>
-                      {currentRequest.execution.mechanics.map((mechanic) => (
-                        <div key={mechanic.id} className="bg-white rounded-xl p-4 border border-gray-200 hover:border-gray-300 transition-colors">
-                          <div className="flex items-start gap-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0 shadow-md">
-                              {mechanic.name.charAt(0)}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-bold text-gray-800">{mechanic.name}</p>
-                              <p className="text-xs text-gray-600 font-semibold uppercase tracking-wide mb-2">Mechanic</p>
-                              {mechanic.contact_number && (
-                                <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-1.5 inline-flex">
-                                  <Phone className="w-3.5 h-3.5 text-gray-600" />
-                                  {mechanic.contact_number}
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  {currentRequest.execution.mechanics?.length > 0 && currentRequest.execution.mechanics.map((mechanic) => (
+                    <div key={mechanic.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white font-display font-bold text-lg shadow-md flex-shrink-0">
+                          {mechanic.name.charAt(0)}
                         </div>
-                      ))}
-                    </>
-                  )}
-
-                  {/* No Personnel Assigned */}
-                  {!currentRequest.execution.lead_technician && (!currentRequest.execution.mechanics || currentRequest.execution.mechanics.length === 0) && (
-                    <div className="text-center py-8 bg-white rounded-xl border-2 border-dashed border-gray-200">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <User className="w-8 h-8 text-gray-400" />
+                        <div className="flex-1">
+                          <p className="font-display font-bold text-gray-900">{mechanic.name}</p>
+                          <span className="section-label text-gray-500 block mb-2">Mechanic</span>
+                          {mechanic.contact_number && (
+                            <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-gray-600">
+                              <Phone className="w-3.5 h-3.5 text-slate-500" />
+                              {mechanic.contact_number}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm font-medium text-gray-600">No personnel assigned yet</p>
-                      <p className="text-xs text-gray-400 mt-1">The workshop will assign technicians soon</p>
+                    </div>
+                  ))}
+
+                  {!currentRequest.execution.lead_technician && (!currentRequest.execution.mechanics || currentRequest.execution.mechanics.length === 0) && (
+                    <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-2xl">
+                      <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <User className="w-7 h-7 text-slate-300" />
+                      </div>
+                      <p className="font-display font-semibold text-sm text-gray-500">No personnel assigned yet</p>
+                      <p className="font-body text-xs text-gray-400 mt-1">The workshop will assign technicians soon</p>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            <div className="bg-gradient-to-br from-white to-green-50 rounded-2xl shadow-xl p-6 border border-green-100">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-white" />
+            {/* Service Estimate */}
+            <div className="feature-card bg-white rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-emerald-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-800">Service Estimate</h3>
+                <div>
+                  <span className="section-label text-emerald-500 block">Cost breakdown</span>
+                  <h3 className="font-display font-bold text-gray-900 text-base">Service Estimate</h3>
+                </div>
               </div>
 
-              {estimates && estimates.length > 0 ? (
-                (() => {
-                  // Find the most recent SENT or APPROVED estimate
-                  const activeEstimate = estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0];
-
-                  return (
-                    <div className="space-y-4">
-                      {/* Estimate Status */}
-                      <div className="flex items-center justify-between">
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${activeEstimate.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                          activeEstimate.status === 'SENT' ? 'bg-blue-100 text-blue-700' :
-                            activeEstimate.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                          }`}>
-                          {activeEstimate.status === 'APPROVED' && <CheckCircle className="w-4 h-4" />}
-                          {activeEstimate.status}
+              {estimates && estimates.length > 0 ? (() => {
+                const activeEstimate = estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0];
+                return (
+                  <div className="space-y-4">
+                    {/* Status badge */}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                        activeEstimate.status === 'APPROVED' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' :
+                        activeEstimate.status === 'SENT' ? 'bg-indigo-50 border border-indigo-200 text-indigo-700' :
+                        activeEstimate.status === 'REJECTED' ? 'bg-red-50 border border-red-200 text-red-700' :
+                        'bg-slate-50 border border-slate-200 text-slate-700'
+                      }`}>
+                        {activeEstimate.status === 'APPROVED' && <CheckCircle className="w-3.5 h-3.5" />}
+                        {activeEstimate.status}
+                      </span>
+                      {activeEstimate.expires_at && (
+                        <span className="text-xs text-gray-400 font-body">
+                          Expires {new Date(activeEstimate.expires_at).toLocaleDateString()}
                         </span>
-                        {activeEstimate.expires_at && (
-                          <span className="text-xs text-gray-500">
-                            Expires: {new Date(activeEstimate.expires_at).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Line Items */}
-                      {activeEstimate.line_items && activeEstimate.line_items.length > 0 && (
-                        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                          <h4 className="font-semibold text-gray-700 text-sm">Cost Breakdown</h4>
-                          {activeEstimate.line_items.map((item, index) => (
-                            <div key={index} className="flex justify-between items-start border-b border-gray-200 pb-2 last:border-0">
-                              <div className="flex-1">
-                                <p className="font-medium text-gray-800">{item.description}</p>
-                                <p className="text-xs text-gray-500">
-                                  {item.item_type} • {item.quantity} × ₹{parseFloat(item.unit_price).toFixed(2)}
-                                </p>
-                              </div>
-                              <p className="font-semibold text-gray-800">₹{parseFloat(item.total).toFixed(2)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Financial Summary */}
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Subtotal</span>
-                          <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
-                        </div>
-                        {parseFloat(activeEstimate.tax_amount) > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Tax ({activeEstimate.tax_rate}%)</span>
-                            <span className="font-medium text-gray-800">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {parseFloat(activeEstimate.discount_amount) > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Discount</span>
-                            <span className="font-medium text-green-600">-₹{parseFloat(activeEstimate.discount_amount).toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between pt-2 border-t border-blue-200">
-                          <span className="font-bold text-gray-800">Total Amount</span>
-                          <span className="font-bold text-xl text-blue-600">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      {activeEstimate.notes && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                          <p className="text-xs font-semibold text-yellow-800 mb-1">Workshop Notes</p>
-                          <p className="text-sm text-gray-700">{activeEstimate.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Action Buttons for SENT estimates */}
-                      {activeEstimate.status === 'SENT' && (
-                        <div className="space-y-2 pt-2">
-                          {activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date() && (
-                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                              This estimate has expired. You can still reject it or ask the workshop for a new one.
-                            </p>
-                          )}
-                          <div className="flex gap-3">
-                            <button
-                              onClick={() => handleApproveEstimate(activeEstimate.id)}
-                              disabled={!!(activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date())}
-                              className="flex-1 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Approve Estimate
-                            </button>
-                            <button
-                              onClick={() => handleRejectEstimate(activeEstimate.id)}
-                              className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-300 font-semibold"
-                            >
-                              Reject Estimate
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Pay escrow: approved but not yet paid */}
-                      {activeEstimate.status === 'APPROVED' && currentRequest?.execution && !currentRequest.execution.escrow_paid && (
-                        <div className="pt-2">
-                          <button
-                            onClick={() => handlePayEscrow(activeEstimate.id)}
-                            disabled={escrowLoading}
-                            className="w-full py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-semibold disabled:opacity-70 flex items-center justify-center gap-2"
-                          >
-                            <CreditCard className="w-5 h-5" />
-                            {escrowLoading ? 'Redirecting to payment...' : `Pay ₹${parseFloat(activeEstimate.total_amount).toFixed(2)} (Escrow)`}
-                          </button>
-                          <p className="text-xs text-gray-500 mt-2 text-center">Amount is held securely until you verify service completion.</p>
-                        </div>
                       )}
                     </div>
-                  );
-                })()
-              ) : (
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200 border-dashed min-h-[120px] flex items-center justify-center">
-                  <div className="text-center">
-                    <Clock className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-700">
-                      Waiting for workshop to share estimate
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">You'll be notified once the estimate is ready</p>
+
+                    {/* Line items */}
+                    {activeEstimate.line_items?.length > 0 && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-3">
+                        <p className="section-label text-gray-500 mb-2">Cost breakdown</p>
+                        {activeEstimate.line_items.map((item, index) => (
+                          <div key={index} className="flex justify-between items-start pb-2 border-b border-slate-100 last:border-0 last:pb-0">
+                            <div className="flex-1 pr-3">
+                              <p className="font-display font-semibold text-sm text-gray-800">{item.description}</p>
+                              <p className="font-body text-xs text-gray-400 mt-0.5">
+                                {item.item_type} · {item.quantity} × ₹{parseFloat(item.unit_price).toFixed(2)}
+                              </p>
+                            </div>
+                            <p className="font-display font-bold text-gray-800 text-sm">₹{parseFloat(item.total).toFixed(2)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Financial summary */}
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
+                      <div className="flex justify-between font-body text-sm">
+                        <span className="text-gray-500">Subtotal</span>
+                        <span className="font-semibold text-gray-800">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
+                      </div>
+                      {parseFloat(activeEstimate.tax_amount) > 0 && (
+                        <div className="flex justify-between font-body text-sm">
+                          <span className="text-gray-500">Tax ({activeEstimate.tax_rate}%)</span>
+                          <span className="font-semibold text-gray-800">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {parseFloat(activeEstimate.discount_amount) > 0 && (
+                        <div className="flex justify-between font-body text-sm">
+                          <span className="text-gray-500">Discount</span>
+                          <span className="font-semibold text-emerald-600">-₹{parseFloat(activeEstimate.discount_amount).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t border-indigo-200">
+                        <span className="font-display font-bold text-gray-900">Total</span>
+                        <span className="font-display font-bold text-xl text-indigo-600">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Workshop notes */}
+                    {activeEstimate.notes && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                        <p className="section-label text-amber-700 mb-1">Workshop Notes</p>
+                        <p className="font-body text-sm text-gray-700">{activeEstimate.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Approve / Reject */}
+                    {activeEstimate.status === 'SENT' && (
+                      <div className="space-y-2 pt-1">
+                        {activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date() && (
+                          <p className="font-body text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                            This estimate has expired. You can still reject it or ask the workshop for a new one.
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleApproveEstimate(activeEstimate.id)}
+                            disabled={!!(activeEstimate.expires_at && new Date(activeEstimate.expires_at) < new Date())}
+                            className="action-btn flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-display font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectEstimate(activeEstimate.id)}
+                            className="action-btn flex-1 py-3 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded-xl font-display font-bold text-sm"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Pay escrow */}
+                    {activeEstimate.status === 'APPROVED' && currentRequest?.execution && !currentRequest.execution.escrow_paid && (
+                      <div className="pt-1">
+                        <button
+                          onClick={() => handlePayEscrow(activeEstimate.id)}
+                          disabled={escrowLoading}
+                          className="action-btn w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-display font-bold text-sm disabled:opacity-70 flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          {escrowLoading ? 'Redirecting…' : `Pay ₹${parseFloat(activeEstimate.total_amount).toFixed(2)} (Escrow)`}
+                        </button>
+                        <p className="font-body text-xs text-gray-400 mt-2 text-center">
+                          Amount is held securely until you verify service completion.
+                        </p>
+                      </div>
+                    )}
                   </div>
+                );
+              })() : (
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center gap-2">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-indigo-400" />
+                  </div>
+                  <p className="font-display font-semibold text-sm text-gray-600 text-center">Waiting for estimate</p>
+                  <p className="font-body text-xs text-gray-400 text-center">You'll be notified once the estimate is ready</p>
                 </div>
               )}
             </div>
 
+            {/* Action buttons */}
             <div className="space-y-3">
               {showCancelButton && (
                 <button
                   onClick={handleCancelConnection}
-                  className="w-full py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
-                  <Ban className="w-5 h-5" />
+                  className="action-btn w-full py-3.5 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-2xl font-display font-bold flex items-center justify-center gap-2 shadow-lg"
+                >
+                  <Ban className="w-4 h-4" />
                   Cancel Connection
                 </button>
               )}
-
               <button
                 onClick={() => setShowComplaintModal(true)}
-                className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl hover:from-orange-600 hover:to-amber-700 transition-all duration-300 flex items-center justify-center gap-2 font-bold shadow-lg hover:shadow-xl">
-                <AlertCircle className="w-5 h-5" />
+                className="action-btn w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-2xl font-display font-bold flex items-center justify-center gap-2 shadow-lg"
+              >
+                <AlertCircle className="w-4 h-4" />
                 Report a Problem
               </button>
             </div>
           </div>
         </div>
 
-        {/* Service Completion Verification */}
+        {/* ── OTP VERIFICATION ── */}
         {currentRequest?.execution?.escrow_paid && currentRequest?.status !== 'VERIFIED' && (
-          <div className="bg-gradient-to-br from-white to-blue-50 rounded-2xl shadow-2xl p-8 md:p-10 border border-blue-100">
-            <div className="max-w-xl mx-auto">
+          <div className="feature-card bg-white rounded-2xl p-8 md:p-10 mb-8">
+            <div className="max-w-lg mx-auto">
               {/* Header */}
               <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-                  <Shield className="w-10 h-10 text-white" />
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 mb-4">
+                  <Shield className="w-8 h-8 text-indigo-600" />
                 </div>
-                <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
+                <span className="section-label text-indigo-500 mb-2 block">Secure Verification</span>
+                <h3 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-3">
                   Service Completion Verification
                 </h3>
-                <p className="text-gray-600 text-sm md:text-base leading-relaxed max-w-md mx-auto">
+                <p className="font-body text-sm text-gray-500 leading-relaxed max-w-sm mx-auto">
                   Once the service is completed, the workshop will provide you with a 6-digit OTP. Enter it below to verify and release payment.
                 </p>
               </div>
 
-              {/* OTP Input Section */}
-              <div className="bg-white rounded-xl p-6 md:p-8 shadow-lg border border-gray-100">
-                <label className="block text-sm font-bold text-gray-700 mb-6 text-center uppercase tracking-wide">
-                  Enter 6-Digit OTP
-                </label>
-
-                {/* OTP Input Boxes */}
+              {/* OTP boxes */}
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 md:p-8 mb-5">
+                <p className="section-label text-gray-400 text-center mb-5">Enter 6-Digit OTP</p>
                 <div className="flex gap-2 md:gap-3 justify-center mb-6" onPaste={handleOtpPaste}>
                   {otpValues.map((value, index) => (
                     <input
@@ -667,22 +736,21 @@ const UserServiceFlow = () => {
                       onChange={(e) => handleOtpChange(index, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(index, e)}
                       disabled={verifyingOtp || currentRequest?.status === 'VERIFIED'}
-                      className="w-12 h-12 md:w-16 md:h-16 text-center text-xl md:text-2xl font-bold border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-500/30 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:border-blue-400"
+                      className="otp-box w-11 h-11 md:w-14 md:h-14 text-center font-display font-bold text-xl md:text-2xl bg-white border-2 border-slate-200 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                       autoComplete="off"
                     />
                   ))}
                 </div>
 
-                {/* Verify Button */}
                 <button
                   onClick={handleVerifyOtp}
                   disabled={verifyingOtp || currentRequest?.status === 'VERIFIED' || otpValues.join('').length !== 6}
-                  className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-bold text-base md:text-lg shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg flex items-center justify-center gap-2"
+                  className="action-btn w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-display font-bold text-base shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {verifyingOtp ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                      Verifying...
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                      Verifying…
                     </>
                   ) : (
                     <>
@@ -692,129 +760,133 @@ const UserServiceFlow = () => {
                   )}
                 </button>
 
-                {/* Helper Text */}
-                <div className="mt-4 text-center">
-                  <p className="text-xs text-gray-500">
-                    💡 Tip: You can paste the OTP directly into the first box
-                  </p>
-                </div>
+                <p className="font-body text-xs text-gray-400 text-center mt-4">
+                  💡 You can paste the OTP directly into the first box
+                </p>
               </div>
 
-              {/* Security Note */}
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-blue-900 mb-1">Secure Payment Release</p>
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      Your payment is held securely in escrow. It will only be released to the workshop after you verify the service completion with the OTP.
-                    </p>
-                  </div>
+              {/* Security note */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-start gap-3">
+                <Shield className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-display font-bold text-sm text-indigo-900 mb-0.5">Secure Payment Release</p>
+                  <p className="font-body text-xs text-indigo-700 leading-relaxed">
+                    Your payment is held securely in escrow and will only be released after you verify completion with the OTP.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Service Verified Message */}
+        {/* ── SERVICE VERIFIED + RATING ── */}
         {currentRequest?.status === 'VERIFIED' && (
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-xl p-8 border border-green-200">
-            <div className="text-center max-w-xl mx-auto">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl mb-4 shadow-lg">
-                <CheckCircle className="w-10 h-10 text-white" />
+          <div className="feature-card bg-white rounded-2xl p-8 md:p-10">
+            <div className="max-w-2xl mx-auto">
+              {/* Success banner */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 mb-4">
+                  <CheckCircle className="w-8 h-8 text-emerald-600" />
+                </div>
+                <span className="section-label text-emerald-500 mb-2 block">Service Complete</span>
+                <h3 className="font-display font-bold text-2xl md:text-3xl text-gray-900 mb-3">
+                  Service Verified Successfully!
+                </h3>
+                <p className="font-body text-sm text-gray-500 leading-relaxed">
+                  Payment has been released to the workshop. Thank you for using our service!
+                </p>
               </div>
-              <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
-                Service Verified Successfully!
-              </h3>
-              <p className="text-gray-600 text-sm md:text-base mb-6">
-                Payment has been released to the workshop. Thank you for using our service!
-              </p>
+
               {!ratingSubmitted ? (
-                <div className="bg-white rounded-xl p-6 w-full shadow-md text-left">
-                  <h4 className="text-xl font-bold text-gray-800 mb-6 text-center border-b pb-4">Rate your experience</h4>
-                  
-                  {/* Workshop Rating */}
-                  <div className="mb-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-                    <p className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <Wrench className="w-4 h-4 text-blue-600" />
-                        Workshop: {connection?.workshop_name || "Workshop"}
-                    </p>
-                    <div className="flex gap-2 mb-3">
+                <div className="space-y-4">
+                  <div className="text-center mb-6">
+                    <span className="section-label text-indigo-500 mb-1 block">Your feedback</span>
+                    <h4 className="font-display font-bold text-xl text-gray-900">Rate your experience</h4>
+                  </div>
+
+                  {/* Workshop rating */}
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-8 h-8 bg-indigo-100 border border-indigo-200 rounded-xl flex items-center justify-center">
+                        <Wrench className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <p className="font-display font-bold text-gray-900">
+                        {connection?.workshop_name || 'Workshop'}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 mb-4">
                       {[1, 2, 3, 4, 5].map((star) => (
-                        <Star 
-                          key={`ws-${star}`} 
-                          onClick={() => setRatingState(prev => ({...prev, workshop_rating: {...prev.workshop_rating, rating: star}}))}
-                          className={`w-7 h-7 cursor-pointer hover:scale-110 transition-transform ${star <= ratingState.workshop_rating.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
-                        />
+                        <button
+                          key={`ws-${star}`}
+                          onClick={() => setRatingState(prev => ({ ...prev, workshop_rating: { ...prev.workshop_rating, rating: star } }))}
+                          className="star-btn"
+                        >
+                          <Star className={`w-7 h-7 ${star <= ratingState.workshop_rating.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} />
+                        </button>
                       ))}
                     </div>
-                    <textarea 
-                       className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                       placeholder="Leave a comment about the workshop..."
-                       value={ratingState.workshop_rating.comment}
-                       onChange={(e) => setRatingState(prev => ({...prev, workshop_rating: {...prev.workshop_rating, comment: e.target.value}}))}
+                    <textarea
+                      className="w-full font-body text-sm p-3 bg-white border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:outline-none resize-none"
+                      rows={2}
+                      placeholder="Leave a comment about the workshop…"
+                      value={ratingState.workshop_rating.comment}
+                      onChange={(e) => setRatingState(prev => ({ ...prev, workshop_rating: { ...prev.workshop_rating, comment: e.target.value } }))}
                     />
                   </div>
 
-                  {/* Mechanics Rating */}
+                  {/* Mechanic ratings */}
                   {currentRequest?.execution?.mechanics?.length > 0 && currentRequest.execution.mechanics.map(mechanic => (
-                     <div key={`mech-${mechanic.id}`} className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                        <p className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-600" />
-                          Mechanic: {mechanic.name}
-                        </p>
-                        <div className="flex gap-2 mb-3">
-                          {[1, 2, 3, 4, 5].map((star) => {
-                             const currentRating = ratingState.mechanic_ratings[mechanic.id]?.rating || 0;
-                             return (
-                                <Star 
-                                  key={`mech-${mechanic.id}-${star}`} 
-                                  onClick={() => setRatingState(prev => ({
-                                    ...prev, 
-                                    mechanic_ratings: {
-                                        ...prev.mechanic_ratings, 
-                                        [mechanic.id]: {
-                                            ...prev.mechanic_ratings[mechanic.id],
-                                            rating: star
-                                        }
-                                    }
-                                  }))}
-                                  className={`w-6 h-6 cursor-pointer hover:scale-110 transition-transform ${star <= currentRating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} 
-                                />
-                             )
-                          })}
+                    <div key={`mech-${mechanic.id}`} className="bg-slate-50 border border-slate-100 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-400 to-slate-600 flex items-center justify-center text-white font-display font-bold text-base">
+                          {mechanic.name.charAt(0)}
                         </div>
-                        <textarea 
-                           className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                           placeholder={`Leave a comment about ${mechanic.name}...`}
-                           value={ratingState.mechanic_ratings[mechanic.id]?.comment || ''}
-                           onChange={(e) => setRatingState(prev => ({
-                             ...prev, 
-                             mechanic_ratings: {
-                               ...prev.mechanic_ratings, 
-                               [mechanic.id]: {
-                                  ...prev.mechanic_ratings[mechanic.id],
-                                  comment: e.target.value
-                               }
-                             }
-                           }))}
-                        />
-                     </div>
+                        <p className="font-display font-bold text-gray-900">{mechanic.name}</p>
+                        <span className="section-label text-gray-400">Mechanic</span>
+                      </div>
+                      <div className="flex gap-2 mb-4">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const currentRating = ratingState.mechanic_ratings[mechanic.id]?.rating || 0;
+                          return (
+                            <button
+                              key={`mech-${mechanic.id}-${star}`}
+                              onClick={() => setRatingState(prev => ({
+                                ...prev,
+                                mechanic_ratings: { ...prev.mechanic_ratings, [mechanic.id]: { ...prev.mechanic_ratings[mechanic.id], rating: star } }
+                              }))}
+                              className="star-btn"
+                            >
+                              <Star className={`w-6 h-6 ${star <= currentRating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <textarea
+                        className="w-full font-body text-sm p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-400 focus:outline-none resize-none"
+                        rows={2}
+                        placeholder={`Leave a comment about ${mechanic.name}…`}
+                        value={ratingState.mechanic_ratings[mechanic.id]?.comment || ''}
+                        onChange={(e) => setRatingState(prev => ({
+                          ...prev,
+                          mechanic_ratings: { ...prev.mechanic_ratings, [mechanic.id]: { ...prev.mechanic_ratings[mechanic.id], comment: e.target.value } }
+                        }))}
+                      />
+                    </div>
                   ))}
 
-                  <button 
+                  <button
                     onClick={handleSubmitRatings}
                     disabled={submittingRating}
-                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-70"
+                    className="action-btn w-full py-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-2xl font-display font-bold shadow-lg disabled:opacity-70"
                   >
-                    {submittingRating ? "Submitting..." : "Submit Review"}
+                    {submittingRating ? 'Submitting…' : 'Submit Review'}
                   </button>
-
                 </div>
               ) : (
-                <div className="bg-white rounded-xl p-6 inline-block shadow-md border border-green-100">
-                   <h4 className="text-xl font-bold text-gray-800 mb-2">Thank you!</h4>
-                   <p className="text-gray-600 text-sm">Your feedback helps us improve our service.</p>
+                <div className="text-center bg-emerald-50 border border-emerald-100 rounded-2xl p-8">
+                  <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+                  <h4 className="font-display font-bold text-gray-900 text-lg mb-1">Thank you!</h4>
+                  <p className="font-body text-sm text-gray-500">Your feedback helps us improve our service.</p>
                 </div>
               )}
             </div>
