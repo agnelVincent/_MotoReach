@@ -10,13 +10,13 @@ import {
   ShieldCheck,
   MapPin,
   Camera,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import LocationPicker from '../../components/LocationPicker';
 import { useDispatch } from 'react-redux';
 import { createServiceRequest } from '../../redux/slices/serviceRequestSlice';
 import { useNavigate } from 'react-router-dom';
-
 import { toast } from 'react-hot-toast';
 
 const UserRequest = () => {
@@ -97,195 +97,239 @@ const UserRequest = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-500 selection:text-white">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Geist:wght@400;500;600&display=swap');
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-body { font-family: 'Geist', sans-serif; }
+        .hero-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%); }
+        .hero-noise::before { content:''; position:absolute; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events:none; }
+        @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
+      `}</style>
 
-        {/* Header Section */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center p-4 bg-gradient-to-br from-blue-600 to-blue-700 rounded-3xl shadow-lg shadow-blue-200/50 mb-6 transform hover:scale-105 transition-transform">
-            <Car className="text-white w-10 h-10" />
+      {/* ── HERO SECTION ── */}
+      <section className="hero-gradient hero-noise relative overflow-hidden pb-20 pt-16 md:pb-28 md:pt-24">
+        <div className="absolute -left-10 -top-10 h-80 w-80 rounded-full bg-indigo-500 opacity-20 blur-[100px] pointer-events-none" />
+        <div className="absolute right-10 top-10 h-64 w-64 rounded-full bg-violet-400 opacity-15 blur-[80px] pointer-events-none" />
+        
+        {/* Decorative Ring */}
+        <div className="absolute right-12 top-16 hidden h-40 w-40 rounded-full border border-white/10 md:flex items-center justify-center pointer-events-none" style={{ animation: 'float 6s ease-in-out infinite' }}>
+          <div className="h-32 w-32 rounded-full border border-white/5 flex items-center justify-center">
+            <Car className="h-8 w-8 text-white/20" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-3">
-            Request Service
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center md:text-left">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md px-4 py-1.5 text-white/90 mb-6">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-display text-[10px] tracking-widest font-bold uppercase text-white/80">New Service Request</span>
+          </div>
+          <h1 className="font-display text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl max-w-2xl leading-[1.1]">
+            Tell us what's{' '}
+            <span className="bg-gradient-to-r from-indigo-300 via-purple-200 to-pink-200 bg-clip-text text-transparent">wrong</span>
           </h1>
-          <p className="text-slate-600 text-lg max-w-2xl mx-auto">
-            Describe your vehicle issue and connect with trusted workshops nearby
+          <p className="font-body mt-4 max-w-xl text-base md:text-lg leading-relaxed text-slate-300/80">
+            Describe your vehicle issue and we'll connect you with verified workshops nearby — fast, transparent, and hassle-free.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Clean Modern Wave Curve Transition */}
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-slate-50" style={{ clipPath: 'ellipse(60% 100% at 50% 100%)' }} />
+      </section>
 
-          {/* Section 1: Vehicle & Issue Info */}
-          <div className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow">
-            <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-xl">
-                  <Wrench className="w-5 h-5 text-blue-600" />
-                </div>
-                Vehicle Information
-              </h2>
-              <p className="text-sm text-slate-500 mt-1 ml-12">Tell us about your vehicle</p>
+      {/* ── FORM CONTENT ── */}
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pb-24 -mt-6 relative z-20">
+        <form onSubmit={handleSubmit} className="space-y-8">
+
+          {/* Card 1: Vehicle & Issue */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-300/70">
+            <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8 flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-200">
+                <Wrench className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-slate-900 text-lg">Vehicle Information</h2>
+                <p className="font-body text-xs text-slate-500 mt-0.5">Tell us about your vehicle and the dynamic issue</p>
+              </div>
             </div>
 
-            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Vehicle Type <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., Sedan, SUV, Bike"
-                  className="w-full px-5 py-3.5 rounded-xl border-2 border-slate-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-slate-900 placeholder:text-slate-400"
-                  onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                  required
-                />
+            <div className="p-6 sm:p-8 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-2">
+                  <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Vehicle Type <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Sedan, SUV, Motorcycle"
+                    className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                    onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Vehicle Model <span className="text-rose-500">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Toyota Camry 2022"
+                    className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
+                    onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Vehicle Model <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., Toyota Camry 2022"
-                  className="w-full px-5 py-3.5 rounded-xl border-2 border-slate-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-slate-900 placeholder:text-slate-400"
-                  onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Issue Category <span className="text-red-500">*</span>
-                </label>
+                <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Issue Category <span className="text-rose-500">*</span></label>
                 <div className="relative">
                   <select
-                    className="w-full px-5 py-3.5 rounded-xl border-2 border-slate-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all appearance-none bg-white text-slate-900 font-medium cursor-pointer"
+                    className="font-body w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 py-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer"
                     onChange={(e) => setFormData({ ...formData, issueCategory: e.target.value })}
                     required
+                    defaultValue=""
                   >
-                    <option value="">Select issue category</option>
+                    <option value="" disabled>Select the most relevant category</option>
                     {issueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                 </div>
               </div>
 
-              <div className="md:col-span-2 space-y-2">
-                <label className="block text-sm font-semibold text-slate-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  Problem Description <span className="text-red-500">*</span>
+              <div className="space-y-2">
+                <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-slate-400" />
+                  Problem Description <span className="text-rose-500">*</span>
                 </label>
                 <textarea
-                  rows="5"
-                  placeholder="Please describe the issue in detail. The more information you provide, the better we can help..."
-                  className="w-full px-5 py-3.5 rounded-xl border-2 border-slate-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all text-slate-900 placeholder:text-slate-400 resize-none"
+                  rows={4}
+                  placeholder="Please describe the issue in detail. The more info you share, the faster workshops can diagnose..."
+                  className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-none"
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   required
-                ></textarea>
+                />
               </div>
             </div>
           </div>
 
-          {/* Section 2: Location Picker */}
-          <div className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow">
-            <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-emerald-100 rounded-xl">
-                  <MapPin className="w-5 h-5 text-emerald-600" />
-                </div>
-                Vehicle Location
-              </h2>
-              <p className="text-sm text-slate-500 mt-1 ml-12">Pin your exact location for accurate service</p>
+          {/* Card 2: Location */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-300/70">
+            <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8 flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-200">
+                <MapPin className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-slate-900 text-lg">Vehicle Location</h2>
+                <p className="font-body text-xs text-slate-500 mt-0.5">Pin your precise breakdown or pick-up location</p>
+              </div>
             </div>
-            <div className="p-8">
-              {formData.latitude && formData.longitude && (
-                <div className="mb-4 flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-200">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Location selected successfully</span>
+            
+            <div className="p-6 sm:p-8 space-y-4">
+              {formData.latitude && formData.longitude ? (
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-emerald-800">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                  <span className="font-body text-sm font-medium">Location successfully locked in</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3 text-amber-800">
+                  <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+                  <span className="font-body text-sm font-medium">Map interaction required to dispatch nearby dynamic aid</span>
                 </div>
               )}
-              <LocationPicker onLocationSelect={handleLocationSelect} />
+              <div className="rounded-xl overflow-hidden border border-slate-200">
+                <LocationPicker onLocationSelect={handleLocationSelect} />
+              </div>
             </div>
           </div>
 
-          {/* Section 3: Multi-Image Upload */}
-          <div className="bg-white rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow">
-            <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-violet-100 rounded-xl">
-                  <Camera className="w-5 h-5 text-violet-600" />
-                </div>
-                Add Photos
-              </h2>
-              <p className="text-sm text-slate-500 mt-1 ml-12">Upload images to help workshops understand the issue (Optional)</p>
+          {/* Card 3: Photos */}
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-300/70">
+            <div className="border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8 flex items-center gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-600 text-white shadow-sm shadow-purple-200">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-display font-bold text-slate-900 text-lg">Add Photos <span className="text-xs font-normal text-slate-400 ml-1">(Optional)</span></h2>
+                <p className="font-body text-xs text-slate-500 mt-0.5">Visual details help mechanics estimate costs more accurately</p>
+              </div>
             </div>
-            <div className="p-8">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            
+            <div className="p-6 sm:p-8">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {images.map((img, index) => (
-                  <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border-2 border-slate-200 shadow-sm hover:shadow-md transition-all">
-                    <img src={img.preview} alt="preview" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <button
-                      type="button"
+                  <div key={index} className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 shadow-sm">
+                    <img src={img.preview} alt="upload preview" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <button 
+                      type="button" 
+                      className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-rose-500 text-white shadow-md transform scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 transition-all duration-200 hover:bg-rose-600"
                       onClick={() => removeImage(index)}
-                      className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg transform hover:scale-110"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}
-                <label className="flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/50 transition-all cursor-pointer group">
-                  <div className="p-3 bg-slate-100 group-hover:bg-blue-100 rounded-full transition-colors mb-2">
-                    <Plus className="w-7 h-7 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                
+                <label className="flex flex-col items-center justify-center aspect-square rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/30 hover:border-indigo-400 cursor-pointer transition-all duration-200 group">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 group-hover:bg-indigo-100 text-slate-500 group-hover:text-indigo-600 transition-colors duration-200">
+                    <Plus className="h-5 w-5" />
                   </div>
-                  <span className="text-sm text-slate-600 font-semibold">Add Photo</span>
-                  <span className="text-xs text-slate-400 mt-1">Up to 10MB</span>
+                  <span className="font-display text-xs font-bold text-slate-700 mt-3">Upload Media</span>
+                  <span className="font-body text-[10px] text-slate-400 mt-1">Max 10MB each</span>
                   <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
                 </label>
               </div>
             </div>
           </div>
 
-          {/* Submit Button Section */}
-          <div className="pt-4 pb-8">
-            <div className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-3xl p-8 border border-slate-200">
-              <button
-                type="submit"
-                disabled={isSubmitting || !formData.latitude}
-                className={`w-full flex items-center justify-center gap-3 px-8 py-5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-200/50 hover:shadow-2xl hover:shadow-blue-300/50 active:scale-[0.98] transition-all disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none disabled:cursor-not-allowed group`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Processing Request...
-                  </>
-                ) : (
-                  <>
-                    Find Nearby Workshops
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
+          {/* Submit Action Block */}
+          <div className="rounded-2xl bg-slate-900 p-6 sm:p-8 text-white relative overflow-hidden shadow-lg shadow-slate-900/20">
+            <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-white/5 blur-2xl pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div>
+                <h3 className="font-display font-bold text-xl sm:text-2xl">Ready to broadcast your request?</h3>
+                <p className="font-body text-xs sm:text-sm text-slate-400 mt-1">We will fetch active offers from matching verified stations near you instantly.</p>
+              </div>
 
-              <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4 text-sm">
-                <div className="flex items-center gap-2 text-slate-500">
-                  <div className="p-1.5 bg-emerald-100 rounded-full">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  </div>
-                  <span className="font-medium">Secure escrow payment</span>
-                </div>
-                <div className="hidden sm:block w-1 h-1 bg-slate-300 rounded-full" />
-                <div className="flex items-center gap-2 text-slate-500">
-                  <div className="p-1.5 bg-blue-100 rounded-full">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <span className="font-medium">Verified workshops only</span>
-                </div>
+              <div className="w-full md:w-auto shrink-0">
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !formData.latitude}
+                  className="w-full md:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] px-6 py-3.5 font-display font-bold text-sm text-white shadow-xl shadow-indigo-900/40 transition-all duration-150 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed group"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-white" />
+                      <span>Sourcing Stations...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Find Nearby Workshops</span>
+                      <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Validation warning directly inside the action banner context */}
+            {!formData.latitude && (
+              <p className="font-body text-amber-400 text-xs mt-4 flex items-center gap-1.5 border-t border-white/5 pt-4">
+                <MapPin className="h-3.5 w-3.5" /> Please set your location in Section 2 above to activate search dispatch.
+              </p>
+            )}
+
+            {/* Trust Assurances */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/5 pt-5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                <span className="font-body">Secure platform network</span>
+              </div>
+              <div className="h-1 w-1 rounded-full bg-slate-700 hidden sm:block" />
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-indigo-400" />
+                <span className="font-body">100% Certified Mechanics Only</span>
               </div>
             </div>
           </div>
