@@ -432,7 +432,7 @@ const WorkshopServiceFlow = () => {
 
             {/* ── Estimate Manager ── */}
             {activeConnection && activeConnection.status === 'ACCEPTED' && (
-              <div className="ws-card overflow-hidden">
+              <div className="ws-card overflow-hidden max-w-full">
                 <EstimateManager
                   connectionId={activeConnection.id}
                   requestId={requestId}
