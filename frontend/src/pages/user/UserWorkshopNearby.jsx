@@ -337,9 +337,46 @@ const UserWorkshopNearby = () => {
           </div>
         )}
 
-        {/* ── PAGE CONTENT ───────────────────────────────────────────────── */}
-        <div style={styles.container}>
+        {/* ── HERO ── */}
+        <section style={styles.hero}>
+          <div style={styles.heroBlobA} />
+          <div style={styles.heroBlobB} />
+          {/* Decorative ring (hidden on mobile via CSS) */}
+          <div className="nw-ring" style={styles.heroRing}>
+            <div style={styles.heroRingInner} />
+            <div style={{ ...styles.heroRingInner, inset: 32 }} />
+            <div style={styles.heroRingCenter}><MapPin size={28} color="rgba(255,255,255,0.15)" /></div>
+          </div>
+          <div style={styles.heroContent}>
+            {/* Badge */}
+            <div style={styles.heroBadge}>
+              <span style={styles.heroPulseDot} />
+              <span style={styles.heroBadgeText}>Live Results</span>
+            </div>
+            {/* Title */}
+            <h1 style={styles.heroTitle}>
+              Nearby{' '}
+              <span style={styles.heroTitleGrad}>Workshops</span>
+            </h1>
+            <p style={styles.heroSub}>
+              <MapPin size={15} color="#a78bfa" style={{ marginRight: 6, flexShrink: 0 }} />
+              Showing verified workshops near your location
+            </p>
+            {/* Fee notice */}
+            {!currentRequest?.platform_fee_paid && (
+              <div style={styles.heroFeeNotice}>
+                <div style={styles.heroFeeIcon}><CreditCard size={15} color="#4F46E5" /></div>
+                <span style={styles.heroFeeText}>One-time platform fee of</span>
+                <span style={styles.heroFeeAmt}>₹{PLATFORM_FEE.toFixed(2)}</span>
+                <span style={styles.heroFeeBadge}>Required to connect</span>
+              </div>
+            )}
+          </div>
+          <div style={styles.heroCurve} />
+        </section>
 
+        {/* ── PAGE CONTENT ── */}
+        <div style={styles.container}>
           {/* Toast banners */}
           {showSuccessMessage && (
             <div style={{ ...styles.toast, ...styles.toastSuccess }}>
@@ -361,29 +398,6 @@ const UserWorkshopNearby = () => {
               <button style={styles.toastClose} onClick={() => setShowCancelMessage(false)}><X size={15} /></button>
             </div>
           )}
-
-          {/* Header */}
-          <div style={styles.header}>
-            <div style={styles.headerLeft}>
-              <span style={styles.pill}><Zap size={12} />  Live Results</span>
-              <h1 style={styles.heading}>Nearby Workshops</h1>
-              <p style={styles.subheading}>
-                <MapPin size={15} color="#6366F1" style={{ marginRight: 6 }} />
-                Showing results near your location
-              </p>
-            </div>
-            {/* Fee notice if not yet paid */}
-            {!currentRequest?.platform_fee_paid && (
-              <div style={styles.feeNotice}>
-                <div style={styles.feeNoticeIcon}><CreditCard size={16} color="#4F46E5" /></div>
-                <div>
-                  <p style={styles.feeNoticeLabel}>One-time platform fee</p>
-                  <p style={styles.feeNoticeAmount}>₹{PLATFORM_FEE.toFixed(2)}</p>
-                </div>
-                <div style={styles.feeNoticeBadge}>Required to connect</div>
-              </div>
-            )}
-          </div>
 
           {/* Stats */}
           <div style={styles.statsGrid}>
@@ -556,12 +570,28 @@ const UserWorkshopNearby = () => {
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const styles = {
-  page: {
-    minHeight: '100vh',
-    background: '#F8F9FC',
-    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
-  },
-  container: { maxWidth: 1200, margin: '0 auto', padding: '40px 24px 64px' },
+  /* ── Hero ── */
+  hero: { background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 40%,#312e81 70%,#1e3a5f 100%)', position: 'relative', overflow: 'hidden', paddingBottom: 56 },
+  heroBlobA: { position: 'absolute', width: 340, height: 340, borderRadius: '50%', background: '#6366F1', opacity: 0.18, filter: 'blur(80px)', top: -80, left: -60, pointerEvents: 'none' },
+  heroBlobB: { position: 'absolute', width: 260, height: 260, borderRadius: '50%', background: '#818cf8', opacity: 0.13, filter: 'blur(80px)', top: 20, right: 40, pointerEvents: 'none' },
+  heroRing: { position: 'absolute', right: 48, top: 40, width: 200, height: 200, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.06)', animation: 'float 6s ease-in-out infinite' },
+  heroRingInner: { position: 'absolute', inset: 16, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.05)' },
+  heroRingCenter: { position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  heroContent: { position: 'relative', zIndex: 10, maxWidth: 1200, margin: '0 auto', padding: '64px 24px 20px' },
+  heroBadge: { display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.2)', padding: '6px 14px', borderRadius: 100, marginBottom: 20 },
+  heroPulseDot: { width: 8, height: 8, borderRadius: '50%', background: '#34d399', display: 'inline-block', animation: 'pulse 2s ease-in-out infinite' },
+  heroBadgeText: { fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', letterSpacing: '0.08em', textTransform: 'uppercase' },
+  heroTitle: { fontSize: 'clamp(2.2rem,5vw,3.8rem)', fontWeight: 800, color: '#fff', lineHeight: 1.05, margin: '0 0 14px', letterSpacing: '-0.02em' },
+  heroTitleGrad: { background: 'linear-gradient(to right,#c4b5fd,#e0e7ff,#818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
+  heroSub: { display: 'flex', alignItems: 'center', color: 'rgba(255,255,255,0.6)', fontSize: '1rem', margin: '0 0 24px' },
+  heroFeeNotice: { display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '12px 18px' },
+  heroFeeIcon: { width: 32, height: 32, borderRadius: 9, background: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  heroFeeText: { fontSize: 13, color: 'rgba(255,255,255,0.65)' },
+  heroFeeAmt: { fontSize: 18, fontWeight: 800, color: '#c4b5fd' },
+  heroFeeBadge: { fontSize: 11, fontWeight: 700, background: '#FFF7ED', color: '#C2410C', padding: '4px 10px', borderRadius: 6, border: '1px solid #FED7AA' },
+  heroCurve: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 56, background: '#F8F9FC', clipPath: 'ellipse(55% 100% at 50% 100%)' },
+  page: { minHeight: '100vh', background: '#F8F9FC', fontFamily: "'DM Sans','Segoe UI',sans-serif" },
+  container: { maxWidth: 1200, margin: '0 auto', padding: '40px 24px 64px', backgroundImage: 'linear-gradient(rgba(99,102,241,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.03) 1px,transparent 1px)', backgroundSize: '40px 40px' },
 
   // Loading
   loadingScreen: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, background: '#F8F9FC' },
@@ -585,11 +615,11 @@ const styles = {
   feeNoticeBadge: { background: '#FFF7ED', color: '#C2410C', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, border: '1px solid #FED7AA', marginLeft: 4 },
 
   // Stats
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 },
-  statCard: { background: '#fff', borderRadius: 14, padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 14, border: '1.5px solid #F3F4F6', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' },
-  statIcon: { width: 42, height: 42, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  statLabel: { fontSize: 12, color: '#9CA3AF', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.4 },
-  statValue: { fontSize: 26, fontWeight: 800, color: '#111827', lineHeight: 1 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 },
+  statCard: { background: '#fff', borderRadius: 16, padding: '22px 24px', display: 'flex', alignItems: 'center', gap: 16, border: '1.5px solid #F3F4F6', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', transition: 'transform 0.2s ease,box-shadow 0.2s ease', cursor: 'default' },
+  statIcon: { width: 46, height: 46, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  statLabel: { fontSize: 11, color: '#9CA3AF', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' },
+  statValue: { fontSize: 28, fontWeight: 800, color: '#111827', lineHeight: 1 },
 
   // Toolbar
   toolbar: { display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' },
@@ -602,20 +632,20 @@ const styles = {
   sortChevron: { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
 
   // Cards
-  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 },
-  card: { background: '#fff', borderRadius: 18, border: '1.5px solid #F3F4F6', overflow: 'hidden', transition: 'box-shadow 0.2s, transform 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
-  cardStrip: { padding: '14px 18px', background: '#FAFAFA', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  cardDistanceBadge: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '4px 10px', borderRadius: 8 },
-  verifiedBadge: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#6B7280' },
-  cardBody: { padding: '18px 20px 14px' },
-  cardName: { fontSize: 17, fontWeight: 700, color: '#111827', margin: '0 0 8px', lineHeight: 1.3 },
-  cardAddress: { display: 'flex', gap: 6, alignItems: 'flex-start', color: '#6B7280', fontSize: 13, marginBottom: 14, lineHeight: 1.5 },
-  ratingRow: { display: 'flex', alignItems: 'center', gap: 6 },
+  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 22 },
+  card: { background: '#fff', borderRadius: 20, border: '1.5px solid #F1F5F9', overflow: 'hidden', transition: 'box-shadow 0.3s ease,transform 0.3s ease,border-color 0.3s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+  cardStrip: { padding: '14px 20px', background: 'linear-gradient(to right,#FAFBFF,#F5F3FF)', borderBottom: '1px solid #EEF2FF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  cardDistanceBadge: { display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '5px 11px', borderRadius: 9 },
+  verifiedBadge: { display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: '#10B981', background: '#ECFDF5', padding: '4px 9px', borderRadius: 7 },
+  cardBody: { padding: '20px 22px 14px' },
+  cardName: { fontSize: 18, fontWeight: 800, color: '#111827', margin: '0 0 8px', lineHeight: 1.25 },
+  cardAddress: { display: 'flex', gap: 6, alignItems: 'flex-start', color: '#6B7280', fontSize: 13, marginBottom: 14, lineHeight: 1.55 },
+  ratingRow: { display: 'flex', alignItems: 'center', gap: 7 },
   stars: { display: 'flex', gap: 1 },
-  ratingNum: { fontWeight: 700, fontSize: 14, color: '#111827' },
+  ratingNum: { fontWeight: 800, fontSize: 14, color: '#111827' },
   ratingCount: { fontSize: 12, color: '#9CA3AF' },
-  cardDivider: { height: 1, background: '#F3F4F6', margin: '0 20px' },
-  cardFooter: { padding: '14px 18px' },
+  cardDivider: { height: 1, background: '#F3F4F6', margin: '0 22px' },
+  cardFooter: { padding: '14px 20px' },
 
   // Action buttons
   actionRow: { display: 'flex', gap: 8 },
@@ -707,16 +737,24 @@ const styles = {
 };
 
 const css = `
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spin { animation: spin 0.7s linear infinite; }
-  .modal-enter { animation: modalIn 0.22s cubic-bezier(.22,1,.36,1); }
+  @keyframes spin  { to { transform: rotate(360deg); } }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
   @keyframes modalIn { from { opacity:0; transform:scale(0.95) translateY(12px); } to { opacity:1; transform:none; } }
-  .card-hover:hover { box-shadow: 0 8px 30px rgba(99,102,241,0.12) !important; transform: translateY(-3px) !important; border-color: #C7D2FE !important; }
-  .btn-connect-hover:hover { filter: brightness(1.07); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.35); }
-  input:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
+  .spin         { animation: spin 0.7s linear infinite; }
+  .modal-enter  { animation: modalIn 0.22s cubic-bezier(.22,1,.36,1); }
+  .card-hover:hover { box-shadow: 0 12px 36px rgba(99,102,241,0.14) !important; transform: translateY(-4px) !important; border-color: #C7D2FE !important; }
+  .btn-connect-hover { transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
+  .btn-connect-hover:hover { filter: brightness(1.08); transform: translateY(-2px) scale(1.01); box-shadow: 0 8px 24px rgba(99,102,241,0.38); }
+  .btn-connect-hover:active { transform: scale(0.98); }
+  .stat-hover:hover { transform: translateY(-3px) !important; box-shadow: 0 12px 32px rgba(0,0,0,0.09) !important; }
+  input:focus  { border-color: #6366F1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
   select:focus { border-color: #6366F1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
+  .nw-ring { display: none; }
+  @media (min-width: 768px) { .nw-ring { display: block; } }
   @media (max-width: 640px) {
-    .stats-grid { grid-template-columns: 1fr !important; }
+    .stat-responsive { grid-template-columns: 1fr !important; }
+    .card-responsive  { grid-template-columns: 1fr !important; }
   }
 `;
 
