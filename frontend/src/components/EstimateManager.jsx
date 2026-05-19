@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  DollarSign, Plus, Trash2, Send, Edit2, Save, X, FileText,
+  DollarSign, Plus, Trash2, Send, Edit2, Save, FileText,
   CheckCircle2, XCircle, AlertCircle, Calendar, Percent, Tag, FileDiff
 } from 'lucide-react';
 import {
@@ -21,7 +21,6 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   
-  // Form states separated to handle user typing naturally without zero-clashes
   const [formData, setFormData] = useState({
     tax_rate: '',
     discount_amount: '',
@@ -237,10 +236,10 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
         {(isEditing || showCreateModal) ? (
           <div className="space-y-6">
             
-            {/* Line Items Table View */}
+            {/* Modernized Grid-Based Line Items System */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-semibold text-slate-700 tracking-wide uppercase">Line Items</h4>
+                <h4 className="text-xs font-bold text-slate-700 tracking-wide uppercase">Line Items</h4>
                 <button
                   onClick={handleAddLineItem}
                   className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1.5 text-xs font-semibold shadow-sm shadow-indigo-100 transition"
@@ -249,81 +248,97 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                 </button>
               </div>
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
-                      <th className="p-3 w-1/4">Type</th>
-                      <th className="p-3 w-2/5">Description</th>
-                      <th className="p-3 w-1/6">Qty</th>
-                      <th className="p-3 w-1/6">Price (₹)</th>
-                      <th className="p-3 text-right">Amount</th>
-                      <th className="p-3 w-12 text-center"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
+              {/* Scrollable container with min-width guard rails preventing compression */}
+              <div className="border border-slate-200 rounded-xl shadow-sm overflow-x-auto bg-white">
+                <div className="min-w-[768px]">
+                  
+                  {/* Table Header via CSS Grid */}
+                  <div className="grid grid-cols-[140px_1fr_90px_130px_110px_44px] bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200 p-3 gap-3">
+                    <div>Type</div>
+                    <div>Description</div>
+                    <div className="text-center">Qty</div>
+                    <div className="text-right">Price (₹)</div>
+                    <div className="text-right">Amount</div>
+                    <div></div>
+                  </div>
+
+                  {/* Table Body */}
+                  <div className="divide-y divide-slate-100">
                     {formData.line_items.map((item, index) => {
                       const rowAmount = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
                       return (
-                        <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-2">
+                        <div key={index} className="grid grid-cols-[140px_1fr_90px_130px_110px_44px] items-center p-2.5 gap-3 hover:bg-slate-50/40 transition-colors">
+                          {/* Item Type Dropdown */}
+                          <div>
                             <select
                               value={item.item_type}
                               onChange={(e) => handleLineItemChange(index, 'item_type', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none"
                             >
                               <option value="LABOR">Labor</option>
                               <option value="PARTS">Parts</option>
                               <option value="ADDITIONAL">Additional</option>
                             </select>
-                          </td>
-                          <td className="p-2">
+                          </div>
+
+                          {/* Description Text Input */}
+                          <div>
                             <input
                               type="text"
                               value={item.description}
                               onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
                               placeholder="e.g. Brake pad replacement"
-                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none text-slate-800"
                             />
-                          </td>
-                          <td className="p-2">
+                          </div>
+
+                          {/* Quantity Input */}
+                          <div>
                             <input
                               type="number"
                               min="0"
                               step="any"
                               value={item.quantity}
                               onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium text-center focus:ring-2 focus:ring-indigo-500'}"
+                              className="w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-xs font-semibold text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none text-slate-800"
                             />
-                          </td>
-                          <td className="p-2">
-                            <input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={item.unit_price}
-                              onChange={(e) => handleLineItemChange(index, 'unit_price', e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium text-right focus:ring-2 focus:ring-indigo-500"
-                            />
-                          </td>
-                          <td className="p-2 font-semibold text-slate-700 text-right pr-3">
+                          </div>
+
+                          {/* Unit Price Input */}
+                          <div>
+                            <div className="relative rounded-lg shadow-sm">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={item.unit_price}
+                                onChange={(e) => handleLineItemChange(index, 'unit_price', e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-2 text-xs font-semibold text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow outline-none text-slate-800"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Total Row Amount */}
+                          <div className="font-bold text-slate-700 text-right pr-1 text-xs">
                             ₹{rowAmount.toFixed(2)}
-                          </td>
-                          <td className="p-2 text-center">
+                          </div>
+
+                          {/* Delete Row Action Button */}
+                          <div className="text-center">
                             <button
                               onClick={() => handleRemoveLineItem(index)}
                               className="p-1.5 text-slate-400 hover:text-rose-500 rounded-md hover:bg-rose-50 transition"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-                
+                  </div>
+                </div>
+
                 {formData.line_items.length === 0 && (
                   <div className="p-8 text-center text-slate-400 bg-slate-50/30">
                     <FileDiff className="w-8 h-8 mx-auto mb-2 text-slate-300" />
@@ -334,7 +349,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
             </div>
 
             {/* Financial Adjustments & Meta details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
                   <Percent className="w-3.5 h-3.5 text-slate-400" /> Tax Rate (%)
@@ -346,7 +361,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                   placeholder="0.00"
                   value={formData.tax_rate}
                   onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
               <div>
@@ -360,7 +375,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                   placeholder="0.00"
                   value={formData.discount_amount}
                   onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
               <div>
@@ -372,7 +387,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                   min={new Date().toISOString().split('T')[0]}
                   value={formData.expires_at}
                   onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                 />
               </div>
             </div>
@@ -385,12 +400,12 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                 placeholder="Provide terms, scope details, or general notes..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none outline-none"
               />
             </div>
 
             {/* Calculations Summary Card */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 ml-auto max-w-sm space-y-2 shadow-sm">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 ml-auto w-full sm:max-w-sm space-y-2 shadow-sm">
               <div className="flex justify-between text-sm text-slate-600">
                 <span>Subtotal</span>
                 <span className="font-semibold text-slate-800">₹{subtotal.toFixed(2)}</span>
@@ -477,7 +492,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
             </div>
 
             {/* Total Invoicing Breakdown Block */}
-            <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-2xl p-5 ml-auto max-w-sm space-y-2.5 shadow-lg">
+            <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-2xl p-5 ml-auto w-full sm:max-w-sm space-y-2.5 shadow-lg">
               <div className="flex justify-between text-sm text-slate-400">
                 <span>Subtotal</span>
                 <span className="font-semibold text-white">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
