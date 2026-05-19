@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   DollarSign, Plus, Trash2, Send, Edit2, Save, X, FileText,
-  CheckCircle, XCircle, AlertCircle, Calendar, ChevronDown, ChevronUp
+  CheckCircle2, XCircle, AlertCircle, Calendar, Percent, Tag, FileDiff
 } from 'lucide-react';
 import {
   createEstimate,
@@ -20,10 +20,11 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
 
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [expandedItem, setExpandedItem] = useState(null);
+  
+  // Form states separated to handle user typing naturally without zero-clashes
   const [formData, setFormData] = useState({
-    tax_rate: 0,
-    discount_amount: 0,
+    tax_rate: '',
+    discount_amount: '',
     notes: '',
     expires_at: '',
     line_items: []
@@ -40,12 +41,12 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
       const items = (currentEstimate.line_items || []).map((item) => ({
         item_type: item.item_type || 'LABOR',
         description: item.description || '',
-        quantity: Number(item.quantity) || 0,
-        unit_price: Number(item.unit_price) || 0,
+        quantity: String(item.quantity || ''),
+        unit_price: String(item.unit_price || ''),
       }));
       setFormData({
-        tax_rate: Number(currentEstimate.tax_rate) || 0,
-        discount_amount: Number(currentEstimate.discount_amount) || 0,
+        tax_rate: String(currentEstimate.tax_rate || ''),
+        discount_amount: String(currentEstimate.discount_amount || ''),
         notes: currentEstimate.notes || '',
         expires_at: currentEstimate.expires_at ? currentEstimate.expires_at.split('T')[0] : '',
         line_items: items,
@@ -55,66 +56,58 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
   }, [currentEstimate]);
 
   const handleAddLineItem = () => {
-    const newIndex = formData.line_items.length;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       line_items: [
-        ...formData.line_items,
-        {
-          item_type: 'LABOR',
-          description: '',
-          quantity: 1,
-          unit_price: 0
-        }
+        ...prev.line_items,
+        { item_type: 'LABOR', description: '', quantity: '1', unit_price: '' }
       ]
-    });
-    setExpandedItem(newIndex);
+    }));
   };
 
   const handleRemoveLineItem = (index) => {
-    const newLineItems = formData.line_items.filter((_, i) => i !== index);
-    setFormData({ ...formData, line_items: newLineItems });
-    if (expandedItem === index) setExpandedItem(null);
+    setFormData(prev => ({
+      ...prev,
+      line_items: prev.line_items.filter((_, i) => i !== index)
+    }));
   };
 
   const handleLineItemChange = (index, field, value) => {
-    const newLineItems = [...formData.line_items];
-    newLineItems[index][field] = value;
-    
-    if (field === 'quantity' || field === 'unit_price') {
-      const quantity = parseFloat(newLineItems[index].quantity) || 0;
-      const unitPrice = parseFloat(newLineItems[index].unit_price) || 0;
-      newLineItems[index].total = quantity * unitPrice;
-    }
-    
-    setFormData({ ...formData, line_items: newLineItems });
+    setFormData(prev => {
+      const newLineItems = [...prev.line_items];
+      newLineItems[index] = { ...newLineItems[index], [field]: value };
+      return { ...prev, line_items: newLineItems };
+    });
   };
 
   const calculateTotals = () => {
     const subtotal = formData.line_items.reduce((sum, item) => {
-      const total = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
-      return sum + total;
+      const qty = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.unit_price) || 0;
+      return sum + (qty * price);
     }, 0);
 
-    const taxAmount = (subtotal * (parseFloat(formData.tax_rate) || 0)) / 100;
-    const totalAmount = subtotal + taxAmount - (parseFloat(formData.discount_amount) || 0);
+    const taxRate = parseFloat(formData.tax_rate) || 0;
+    const discountAmount = parseFloat(formData.discount_amount) || 0;
+    
+    const taxAmount = (subtotal * taxRate) / 100;
+    const totalAmount = Math.max(0, subtotal + taxAmount - discountAmount);
 
     return { subtotal, taxAmount, totalAmount };
   };
 
   const buildEstimatePayload = () => {
-    const line_items = formData.line_items.map((item) => ({
-      item_type: item.item_type || 'LABOR',
-      description: String(item.description || '').trim(),
-      quantity: Number(item.quantity) || 0,
-      unit_price: Number(item.unit_price) || 0,
-    }));
     return {
       tax_rate: Number(formData.tax_rate) || 0,
       discount_amount: Number(formData.discount_amount) || 0,
       notes: String(formData.notes || '').trim() || null,
       expires_at: formData.expires_at || null,
-      line_items,
+      line_items: formData.line_items.map((item) => ({
+        item_type: item.item_type,
+        description: String(item.description || '').trim(),
+        quantity: Number(item.quantity) || 0,
+        unit_price: Number(item.unit_price) || 0,
+      })),
     };
   };
 
@@ -124,37 +117,23 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
       return;
     }
 
-    const invalidItems = formData.line_items.filter(
-      (item) => !String(item.description || '').trim()
-    );
-    if (invalidItems.length > 0) {
-      toast.error('Please add a description for all line items');
+    const hasInvalidItem = formData.line_items.some(item => !item.description.trim() || !item.quantity || !item.unit_price);
+    if (hasInvalidItem) {
+      toast.error('Please complete description, quantity, and price for all items');
       return;
     }
 
     const estimateData = buildEstimatePayload();
     try {
       if (currentEstimate && (currentEstimate.status === 'DRAFT' || currentEstimate.status === 'REJECTED')) {
-        await dispatch(updateEstimate({
-          estimateId: currentEstimate.id,
-          estimateData,
-        })).unwrap();
-        toast.success('Estimate saved successfully');
+        await dispatch(updateEstimate({ estimateId: currentEstimate.id, estimateData })).unwrap();
+        toast.success('Estimate updated successfully');
         setIsEditing(false);
       } else {
-        await dispatch(createEstimate({
-          connectionId,
-          estimateData,
-        })).unwrap();
+        await dispatch(createEstimate({ connectionId, estimateData })).unwrap();
         toast.success('Estimate created successfully');
         setShowCreateModal(false);
-        setFormData({
-          tax_rate: 0,
-          discount_amount: 0,
-          notes: '',
-          expires_at: '',
-          line_items: []
-        });
+        resetForm();
       }
       dispatch(fetchEstimates(connectionId));
     } catch (error) {
@@ -163,507 +142,408 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
   };
 
   const handleSendEstimate = async () => {
-    if (!currentEstimate) {
-      toast.error('No estimate to send');
-      return;
-    }
-
-    if (formData.line_items.length === 0) {
-      toast.error('Cannot send estimate without line items');
-      return;
-    }
-
+    if (!currentEstimate) return toast.error('No estimate to send');
     const { totalAmount } = calculateTotals();
-    if (totalAmount <= 0) {
-      toast.error('Total amount must be greater than zero');
-      return;
-    }
+    if (totalAmount <= 0) return toast.error('Total amount must be greater than zero');
 
     try {
-      await dispatch(sendEstimate({
-        estimateId: currentEstimate.id,
-        requestId
-      })).unwrap();
-      toast.success('Estimate sent successfully');
+      await dispatch(sendEstimate({ estimateId: currentEstimate.id, requestId })).unwrap();
+      toast.success('Estimate sent to customer');
       setIsEditing(false);
-      if (onEstimateSent) {
-        onEstimateSent();
-      }
+      if (onEstimateSent) onEstimateSent();
     } catch (error) {
       toast.error(error.error || 'Failed to send estimate');
     }
   };
 
   const handleDeleteEstimate = async () => {
-    if (!currentEstimate || currentEstimate.status !== 'DRAFT') {
-      toast.error('Can only delete draft estimates');
-      return;
-    }
-
-    if (!window.confirm('Are you sure you want to delete this estimate?')) {
-      return;
-    }
+    if (!currentEstimate || currentEstimate.status !== 'DRAFT') return;
+    if (!window.confirm('Are you sure you want to delete this draft estimate?')) return;
 
     try {
-      await dispatch(deleteEstimate({
-        estimateId: currentEstimate.id,
-        connectionId
-      })).unwrap();
-      toast.success('Estimate deleted successfully');
-      setFormData({
-        tax_rate: 0,
-        discount_amount: 0,
-        notes: '',
-        expires_at: '',
-        line_items: []
-      });
+      await dispatch(deleteEstimate({ estimateId: currentEstimate.id, connectionId })).unwrap();
+      toast.success('Estimate deleted');
+      resetForm();
       setIsEditing(false);
     } catch (error) {
       toast.error(error.error || 'Failed to delete estimate');
     }
   };
 
+  const resetForm = () => {
+    setFormData({ tax_rate: '', discount_amount: '', notes: '', expires_at: '', line_items: [] });
+  };
+
   const { subtotal, taxAmount, totalAmount } = calculateTotals();
-  const draftEstimate = estimates.find(e => e.status === 'DRAFT');
-  const sentEstimate = estimates.find(e => e.status === 'SENT');
-  const rejectedEstimate = estimates.find(e => e.status === 'REJECTED');
-  const activeEstimate = draftEstimate || sentEstimate || rejectedEstimate || estimates[0];
+  const activeEstimate = estimates.find(e => e.status === 'DRAFT') || 
+                         estimates.find(e => e.status === 'SENT') || 
+                         estimates.find(e => e.status === 'REJECTED') || 
+                         estimates[0];
 
   if (!connectionId) {
     return (
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-        <div className="text-center py-6">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-          <p className="text-gray-500 text-sm">No active connection found</p>
-        </div>
+      <div className="bg-slate-50 rounded-2xl p-8 text-center border border-slate-200 max-w-4xl mx-auto">
+        <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+        <p className="text-slate-500 font-medium">No active connection found</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-gray-200">
-      {/* Compact Header */}
-      <div className="border-b border-gray-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-gray-900">Estimate</h3>
-              {activeEstimate && (
-                <span className={`text-xs font-semibold ${
-                  activeEstimate.status === 'DRAFT' ? 'text-yellow-600' :
-                  activeEstimate.status === 'SENT' ? 'text-blue-600' :
-                  activeEstimate.status === 'APPROVED' ? 'text-green-600' :
-                  'text-red-600'
-                }`}>
-                  {activeEstimate.status}
-                </span>
-              )}
-            </div>
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-4xl mx-auto overflow-hidden transition-all duration-300">
+      
+      {/* Header Panel */}
+      <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+            <DollarSign className="w-5 h-5 text-emerald-400" />
           </div>
-          {!activeEstimate && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              title="Create Estimate"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
-          {activeEstimate && activeEstimate.status === 'DRAFT' && (
-            <div className="flex gap-1">
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Edit"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDeleteEstimate}
-                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+          <div>
+            <h3 className="text-lg font-bold tracking-tight">Estimate Manager</h3>
+            {activeEstimate && (
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider mt-0.5 ${
+                activeEstimate.status === 'DRAFT' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                activeEstimate.status === 'SENT' ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' :
+                activeEstimate.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              }`}>
+                ● {activeEstimate.status}
+              </span>
+            )}
+          </div>
         </div>
+
+        {activeEstimate && activeEstimate.status === 'DRAFT' && !isEditing && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition"
+            >
+              <Edit2 className="w-4 h-4" /> Edit
+            </button>
+            <button
+              onClick={handleDeleteEstimate}
+              className="flex items-center justify-center p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition"
+              title="Delete Draft"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="p-4">
-        {/* Estimate Form */}
-        {(isEditing || showCreateModal) && (
-          <div className="space-y-4">
-            {/* Line Items - Collapsible */}
+      <div className="p-6">
+        {/* Form Mode (Create / Edit) */}
+        {(isEditing || showCreateModal) ? (
+          <div className="space-y-6">
+            
+            {/* Line Items Table View */}
             <div>
               <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-bold text-gray-900">Items ({formData.line_items.length})</h4>
+                <h4 className="text-sm font-semibold text-slate-700 tracking-wide uppercase">Line Items</h4>
                 <button
                   onClick={handleAddLineItem}
-                  className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1 text-xs font-medium"
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1.5 text-xs font-semibold shadow-sm shadow-indigo-100 transition"
                 >
-                  <Plus className="w-3 h-3" />
-                  Add
+                  <Plus className="w-3.5 h-3.5" /> Add Item
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {formData.line_items.map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg border border-gray-200">
-                    {/* Compact Header */}
-                    <div 
-                      onClick={() => setExpandedItem(expandedItem === index ? null : index)}
-                      className="p-3 cursor-pointer hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
-                              {item.item_type}
-                            </span>
-                            {expandedItem === index ? <ChevronUp className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
-                          </div>
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {item.description || 'Click to edit'}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            Qty {item.quantity} × ₹{parseFloat(item.unit_price || 0).toFixed(2)}
-                          </p>
-                        </div>
-                        <div className="flex items-start gap-2">
-                          <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
-                            ₹{((parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0)).toFixed(2)}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveLineItem(index);
-                            }}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Remove"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expanded Form */}
-                    {expandedItem === index && (
-                      <div className="px-3 pb-3 space-y-2 border-t border-gray-200 pt-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Type</label>
-                          <select
-                            value={item.item_type}
-                            onChange={(e) => handleLineItemChange(index, 'item_type', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
-                          >
-                            <option value="LABOR">Labor</option>
-                            <option value="PARTS">Parts</option>
-                            <option value="ADDITIONAL">Additional</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
-                          <textarea
-                            value={item.description}
-                            onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
-                            placeholder="Enter description..."
-                            rows="2"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white placeholder-gray-400 resize-none"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Quantity</label>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-600 text-xs font-bold uppercase border-b border-slate-200">
+                      <th className="p-3 w-1/4">Type</th>
+                      <th className="p-3 w-2/5">Description</th>
+                      <th className="p-3 w-1/6">Qty</th>
+                      <th className="p-3 w-1/6">Price (₹)</th>
+                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3 w-12 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {formData.line_items.map((item, index) => {
+                      const rowAmount = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0);
+                      return (
+                        <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-2">
+                            <select
+                              value={item.item_type}
+                              onChange={(e) => handleLineItemChange(index, 'item_type', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            >
+                              <option value="LABOR">Labor</option>
+                              <option value="PARTS">Parts</option>
+                              <option value="ADDITIONAL">Additional</option>
+                            </select>
+                          </td>
+                          <td className="p-2">
+                            <input
+                              type="text"
+                              value={item.description}
+                              onChange={(e) => handleLineItemChange(index, 'description', e.target.value)}
+                              placeholder="e.g. Brake pad replacement"
+                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                          </td>
+                          <td className="p-2">
                             <input
                               type="number"
-                              min={0}
-                              step={0.01}
-                              value={item.quantity === undefined || item.quantity === null ? '' : item.quantity}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                handleLineItemChange(index, 'quantity', v === '' ? 0 : parseFloat(v));
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
+                              min="0"
+                              step="any"
+                              value={item.quantity}
+                              onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium text-center focus:ring-2 focus:ring-indigo-500'}"
                             />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">Price (₹)</label>
+                          </td>
+                          <td className="p-2">
                             <input
                               type="number"
-                              min={0}
-                              step={0.01}
-                              value={item.unit_price === undefined || item.unit_price === null ? '' : item.unit_price}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                handleLineItemChange(index, 'unit_price', v === '' ? 0 : parseFloat(v));
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              value={item.unit_price}
+                              onChange={(e) => handleLineItemChange(index, 'unit_price', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-1.5 text-xs font-medium text-right focus:ring-2 focus:ring-indigo-500"
                             />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
+                          </td>
+                          <td className="p-2 font-semibold text-slate-700 text-right pr-3">
+                            ₹{rowAmount.toFixed(2)}
+                          </td>
+                          <td className="p-2 text-center">
+                            <button
+                              onClick={() => handleRemoveLineItem(index)}
+                              className="p-1.5 text-slate-400 hover:text-rose-500 rounded-md hover:bg-rose-50 transition"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                
                 {formData.line_items.length === 0 && (
-                  <div className="text-center py-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
-                    <FileText className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                    <p className="text-xs text-gray-500">No items added</p>
+                  <div className="p-8 text-center text-slate-400 bg-slate-50/30">
+                    <FileDiff className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                    <p className="text-xs font-medium">No line items added yet. Click 'Add Item' to start building.</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Tax and Discount */}
-            <div className="space-y-2">
+            {/* Financial Adjustments & Meta details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Tax Rate (%)</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
+                  <Percent className="w-3.5 h-3.5 text-slate-400" /> Tax Rate (%)
+                </label>
                 <input
                   type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
                   value={formData.tax_rate}
-                  onChange={(e) => setFormData({ ...formData, tax_rate: parseFloat(e.target.value) || 0 })}
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
+                  onChange={(e) => setFormData({ ...formData, tax_rate: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Discount (₹)</label>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5 text-slate-400" /> Discount Amount (₹)
+                </label>
                 <input
                   type="number"
-                  value={formData.discount_amount}
-                  onChange={(e) => setFormData({ ...formData, discount_amount: parseFloat(e.target.value) || 0 })}
                   min="0"
                   step="0.01"
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
+                  value={formData.discount_amount}
+                  onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" /> Expiry Date
+                </label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().split('T')[0]}
+                  value={formData.expires_at}
+                  onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
             </div>
 
-            {/* Expiry Date */}
+            {/* Form Notes */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Expiry Date</label>
-              <input
-                type="date"
-                value={formData.expires_at}
-                onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm bg-white"
-              />
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Notes</label>
+              <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Notes to Customer</label>
               <textarea
+                rows="2"
+                placeholder="Provide terms, scope details, or general notes..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows="2"
-                placeholder="Additional notes..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none bg-white"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
               />
             </div>
 
-            {/* Totals Summary */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border border-gray-300">
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-medium">Subtotal</span>
-                  <span className="font-bold text-gray-900">₹{subtotal.toFixed(2)}</span>
+            {/* Calculations Summary Card */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 ml-auto max-w-sm space-y-2 shadow-sm">
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Subtotal</span>
+                <span className="font-semibold text-slate-800">₹{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-slate-600">
+                <span>Tax ({parseFloat(formData.tax_rate) || 0}%)</span>
+                <span className="font-semibold text-slate-800">₹{taxAmount.toFixed(2)}</span>
+              </div>
+              {(parseFloat(formData.discount_amount) > 0) && (
+                <div className="flex justify-between text-sm text-rose-600 font-medium">
+                  <span>Discount</span>
+                  <span>-₹{(parseFloat(formData.discount_amount) || 0).toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-medium">Tax ({formData.tax_rate}%)</span>
-                  <span className="font-bold text-gray-900">₹{taxAmount.toFixed(2)}</span>
-                </div>
-                {formData.discount_amount > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span className="font-medium">Discount</span>
-                    <span className="font-bold">-₹{formData.discount_amount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t border-gray-300"></div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900">Total</span>
-                  <span className="text-lg font-bold text-green-600">₹{totalAmount.toFixed(2)}</span>
-                </div>
+              )}
+              <div className="border-t border-slate-200 pt-2 flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-800">Grand Total</span>
+                <span className="text-xl font-black text-emerald-600">₹{totalAmount.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2">
+            {/* Form Actions Footers */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
               <button
                 onClick={handleSaveEstimate}
                 disabled={loading}
-                className="w-full py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm shadow-md shadow-indigo-100"
               >
-                <Save className="w-4 h-4" />
-                {currentEstimate ? 'Update' : 'Save'}
+                <Save className="w-4 h-4" /> {currentEstimate ? 'Update Draft' : 'Save Draft'}
               </button>
               {currentEstimate && currentEstimate.status === 'DRAFT' && (
                 <button
                   onClick={handleSendEstimate}
                   disabled={loading || formData.line_items.length === 0 || totalAmount <= 0}
-                  className="w-full py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-semibold flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition disabled:opacity-50 text-sm shadow-md shadow-emerald-100"
                 >
-                  <Send className="w-4 h-4" />
-                  Send to Customer
+                  <Send className="w-4 h-4" /> Send to Customer
                 </button>
               )}
               <button
                 onClick={() => {
                   setIsEditing(false);
                   setShowCreateModal(false);
-                  if (currentEstimate) {
-                    setFormData({
-                      tax_rate: currentEstimate.tax_rate || 0,
-                      discount_amount: currentEstimate.discount_amount || 0,
-                      notes: currentEstimate.notes || '',
-                      expires_at: currentEstimate.expires_at ? currentEstimate.expires_at.split('T')[0] : '',
-                      line_items: currentEstimate.line_items || []
-                    });
-                  }
+                  if (!currentEstimate) resetForm();
                 }}
-                className="w-full py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all font-semibold text-sm"
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold transition text-sm"
               >
                 Cancel
               </button>
             </div>
           </div>
-        )}
-
-        {/* View Mode - Display Estimate */}
-        {activeEstimate && !isEditing && !showCreateModal && (
-          <div className="space-y-4">
-            {/* Status Badge with Expiry */}
+        ) : activeEstimate ? (
+          /* View Mode - Static Dashboard Display */
+          <div className="space-y-6">
             {activeEstimate.expires_at && (
-              <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                <Calendar className="w-3 h-3" />
-                <span className="font-medium">Expires:</span>
-                <span>{new Date(activeEstimate.expires_at).toLocaleDateString()}</span>
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <span>Valid Until: {new Date(activeEstimate.expires_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
               </div>
             )}
 
-            {/* Line Items Display */}
+            {/* Displaying Items Cleanly */}
             <div>
-              <h4 className="text-sm font-bold text-gray-900 mb-2">Items</h4>
-              <div className="space-y-2">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Itemized Summary</h4>
+              <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
                 {activeEstimate.line_items.map((item, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded">
-                            {item.item_type}
-                          </span>
-                        </div>
-                        <p className="font-medium text-gray-900 text-sm">{item.description}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {item.quantity} × ₹{parseFloat(item.unit_price).toFixed(2)}
-                        </p>
+                  <div key={index} className="p-4 bg-slate-50/40 flex justify-between items-center gap-4 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
+                          {item.item_type}
+                        </span>
+                        <p className="font-semibold text-slate-800 truncate">{item.description}</p>
                       </div>
-                      <div className="text-sm font-bold text-gray-900">
-                        ₹{parseFloat(item.total).toFixed(2)}
-                      </div>
+                      <p className="text-xs text-slate-500">
+                        {item.quantity} units × ₹{parseFloat(item.unit_price).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="font-bold text-slate-900 whitespace-nowrap">
+                      ₹{parseFloat(item.total).toFixed(2)}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Totals Display */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-3 border border-gray-300">
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-medium">Subtotal</span>
-                  <span className="font-bold text-gray-900">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
+            {/* Total Invoicing Breakdown Block */}
+            <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-2xl p-5 ml-auto max-w-sm space-y-2.5 shadow-lg">
+              <div className="flex justify-between text-sm text-slate-400">
+                <span>Subtotal</span>
+                <span className="font-semibold text-white">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
+              </div>
+              {activeEstimate.tax_amount > 0 && (
+                <div className="flex justify-between text-sm text-slate-400">
+                  <span>Tax ({activeEstimate.tax_rate}%)</span>
+                  <span className="font-semibold text-white">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
                 </div>
-                {activeEstimate.tax_amount > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 font-medium">Tax ({activeEstimate.tax_rate}%)</span>
-                    <span className="font-bold text-gray-900">₹{parseFloat(activeEstimate.tax_amount).toFixed(2)}</span>
-                  </div>
-                )}
-                {activeEstimate.discount_amount > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span className="font-medium">Discount</span>
-                    <span className="font-bold">-₹{parseFloat(activeEstimate.discount_amount).toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="pt-2 border-t border-gray-300"></div>
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900">Total</span>
-                  <span className="text-lg font-bold text-green-600">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
+              )}
+              {activeEstimate.discount_amount > 0 && (
+                <div className="flex justify-between text-sm text-rose-400 font-medium">
+                  <span>Discount Applied</span>
+                  <span>-₹{parseFloat(activeEstimate.discount_amount).toFixed(2)}</span>
                 </div>
+              )}
+              <div className="border-t border-slate-800 pt-2.5 flex justify-between items-center">
+                <span className="text-sm font-bold text-white">Final Total</span>
+                <span className="text-xl font-black text-emerald-400">₹{parseFloat(activeEstimate.total_amount).toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Notes Display */}
+            {/* Customer Notes display */}
             {activeEstimate.notes && (
-              <div>
-                <h4 className="text-sm font-bold text-gray-900 mb-2">Notes</h4>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <p className="text-xs text-gray-700 leading-relaxed">{activeEstimate.notes}</p>
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5">
+                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Estimate Notes</h5>
+                <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{activeEstimate.notes}</p>
+              </div>
+            )}
+
+            {/* Real-time Status feedback blocks & Interactive Resending paths */}
+            {activeEstimate.status === 'SENT' && (
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-sky-600 flex-shrink-0" />
+                <div>
+                  <p className="font-bold text-sky-900 text-sm">Awaiting Review</p>
+                  <p className="text-xs text-sky-700">This estimate was successfully dispatched to your customer. Waiting for customer action.</p>
                 </div>
               </div>
             )}
 
-            {/* Status Messages */}
-            {activeEstimate.status === 'SENT' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-blue-900 text-sm">Sent to Customer</p>
-                  <p className="text-xs text-blue-700">Waiting for approval</p>
-                </div>
-              </div>
-            )}
             {activeEstimate.status === 'APPROVED' && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <p className="font-bold text-green-900 text-sm">Approved</p>
-                  <p className="text-xs text-green-700">Customer approved</p>
+                  <p className="font-bold text-emerald-900 text-sm">Estimate Approved</p>
+                  <p className="text-xs text-emerald-700">The client signed off on this transaction configuration.</p>
                 </div>
               </div>
             )}
+
             {activeEstimate.status === 'REJECTED' && (
-              <div className="space-y-3">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                  <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-3">
+                <div className="flex gap-3">
+                  <XCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
                   <div>
-                    <p className="font-bold text-red-900 text-sm">Rejected</p>
-                    <p className="text-xs text-red-700">Edit and resend or send as-is</p>
+                    <p className="font-bold text-rose-900 text-sm">Estimate Declined</p>
+                    <p className="text-xs text-rose-700">The customer rejected this quote layout. Revise or re-send to retry.</p>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
                   <button
-                    onClick={() => {
-                      setFormData({
-                        tax_rate: Number(activeEstimate.tax_rate) || 0,
-                        discount_amount: Number(activeEstimate.discount_amount) || 0,
-                        notes: activeEstimate.notes || '',
-                        expires_at: activeEstimate.expires_at ? activeEstimate.expires_at.split('T')[0] : '',
-                        line_items: (activeEstimate.line_items || []).map((item) => ({
-                          item_type: item.item_type || 'LABOR',
-                          description: item.description || '',
-                          quantity: Number(item.quantity) || 0,
-                          unit_price: Number(item.unit_price) || 0,
-                        })),
-                      });
-                      setIsEditing(true);
-                    }}
-                    className="w-full py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 font-semibold flex items-center justify-center gap-2 text-sm"
+                    onClick={() => setIsEditing(true)}
+                    className="flex-1 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition shadow-sm"
                   >
-                    <Edit2 className="w-4 h-4" />
-                    Edit
+                    <Edit2 className="w-3.5 h-3.5" /> Revise Quote
                   </button>
                   <button
                     onClick={async () => {
@@ -676,31 +556,27 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
                         toast.error(e?.error || 'Failed to resend estimate');
                       }
                     }}
-                    className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 text-xs transition shadow-sm shadow-sky-100"
                   >
-                    <Send className="w-4 h-4" />
-                    Resend
+                    <Send className="w-3.5 h-3.5" /> Force Resend As-Is
                   </button>
                 </div>
               </div>
             )}
           </div>
-        )}
-
-        {/* Empty State */}
-        {!activeEstimate && !showCreateModal && (
-          <div className="text-center py-10">
-            <div className="w-16 h-16 bg-gray-100 rounded-xl flex items-center justify-center mx-auto mb-3">
-              <FileText className="w-8 h-8 text-gray-400" />
+        ) : (
+          /* Empty Initial State */
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-slate-400 shadow-inner">
+              <FileText className="w-7 h-7" />
             </div>
-            <p className="text-sm font-semibold text-gray-900 mb-1">No Estimate</p>
-            <p className="text-xs text-gray-500 mb-4">Create one for the customer</p>
+            <p className="text-base font-bold text-slate-800 mb-0.5">No active estimate</p>
+            <p className="text-xs text-slate-400 mb-5 max-w-xs mx-auto">Prepare an itemized billing configuration statement details to share values transparently with the customer.</p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-semibold inline-flex items-center gap-2 text-sm"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold inline-flex items-center gap-2 text-sm shadow-md shadow-emerald-100 transition"
             >
-              <Plus className="w-4 h-4" />
-              Create Estimate
+              <Plus className="w-4 h-4" /> Create Estimate
             </button>
           </div>
         )}
