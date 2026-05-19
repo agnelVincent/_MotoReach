@@ -8,15 +8,14 @@ import { getWebSocketBase } from '../config/ws';
 const ACCESS_TOKEN_KEY = 'accessToken';
 const PAGE_SIZE = 50;
 
-
 const Chat = ({
   serviceRequestId,
   canChat,
   headerTitle,
   headerSubtitle,
   headerIcon: HeaderIcon,
-  gradientFrom = 'from-blue-600',
-  gradientTo = 'to-indigo-600',
+  gradientFrom = 'from-indigo-600',
+  gradientTo = 'to-violet-600',
   disabledMessage = 'Chat will be available once a workshop is connected.',
 }) => {
   const { user } = useSelector((state) => state.auth);
@@ -26,9 +25,8 @@ const Chat = ({
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // ── Image preview state ───────────────────────────────────────────────────
-  const [imageFile, setImageFile] = useState(null);       // raw File object
-  const [imagePreviewUrl, setImagePreviewUrl] = useState(null); // local blob URL
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
   const [isSendingImage, setIsSendingImage] = useState(false);
 
   const socketRef = useRef(null);
@@ -42,31 +40,24 @@ const Chat = ({
 
   const scrollToBottom = useCallback((behavior = 'smooth') => {
     const container = scrollContainerRef.current;
-    if (container) {
-      container.scrollTo({ top: container.scrollHeight, behavior });
-    }
+    if (container) container.scrollTo({ top: container.scrollHeight, behavior });
   }, []);
 
-  // ── Open image picker ─────────────────────────────────────────────────────
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // Revoke any previous blob URL to avoid memory leaks
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     setImageFile(file);
     setImagePreviewUrl(URL.createObjectURL(file));
-    // Reset input so the same file can be re-selected if cancelled
     e.target.value = '';
   };
 
-  // ── Cancel preview ────────────────────────────────────────────────────────
   const handleCancelPreview = () => {
     if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
     setImageFile(null);
     setImagePreviewUrl(null);
   };
 
-  // ── Upload & send image ───────────────────────────────────────────────────
   const handleImageSend = async () => {
     if (!canChat || !isConnected || !imageFile) return;
     setIsSendingImage(true);
@@ -78,7 +69,6 @@ const Chat = ({
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
-      // Close preview — the WebSocket broadcast will append the message
       handleCancelPreview();
     } catch (err) {
       toast.error('Failed to send image. Please try again.');
@@ -87,7 +77,6 @@ const Chat = ({
     }
   };
 
-  // ── Scroll-position preservation when prepending older messages ───────────
   const preserveScrollOnPrepend = useCallback((prependFn) => {
     const container = scrollContainerRef.current;
     if (!container) { prependFn(); return; }
@@ -98,10 +87,8 @@ const Chat = ({
     });
   }, []);
 
-  // ── WebSocket setup ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!serviceRequestId || !canChat) return;
-
     const token = localStorage.getItem(ACCESS_TOKEN_KEY);
     if (!token) return;
 
@@ -117,25 +104,17 @@ const Chat = ({
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-
         if (data.type === 'chat.history') {
           setMessages(data.messages || []);
           setHasMore((data.messages?.length ?? 0) === PAGE_SIZE);
           setIsLoadingMore(false);
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => scrollToBottom('instant'));
-          });
-
+          requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom('instant')));
         } else if (data.type === 'chat.message') {
           setMessages((prev) => [...prev, data.message]);
           setTimeout(() => scrollToBottom('smooth'), 0);
-
         } else if (data.type === 'chat.history_page') {
           setIsLoadingMore(false);
-          if (!data.messages?.length) {
-            setHasMore(false);
-            return;
-          }
+          if (!data.messages?.length) { setHasMore(false); return; }
           setHasMore(data.has_more ?? data.messages.length === PAGE_SIZE);
           preserveScrollOnPrepend(() => {
             setMessages((prev) => [...data.messages, ...prev]);
@@ -160,25 +139,20 @@ const Chat = ({
     };
   }, [serviceRequestId, canChat]);
 
-  // ── Scroll handler — fetch older messages on scroll-up ───────────────────
   const handleScroll = useCallback((e) => {
     const container = e.currentTarget;
     if (
       container.scrollTop === 0 &&
-      hasMore &&
-      !isLoadingMore &&
+      hasMore && !isLoadingMore &&
       socketRef.current?.readyState === WebSocket.OPEN &&
       messages.length > 0
     ) {
       const oldestId = messages[0].id;
       setIsLoadingMore(true);
-      socketRef.current.send(
-        JSON.stringify({ type: 'fetch_history', before_id: oldestId })
-      );
+      socketRef.current.send(JSON.stringify({ type: 'fetch_history', before_id: oldestId }));
     }
   }, [hasMore, isLoadingMore, messages]);
 
-  // ── Send text message ─────────────────────────────────────────────────────
   const handleSend = (e) => {
     e.preventDefault();
     const text = messageInput.trim();
@@ -187,69 +161,59 @@ const Chat = ({
     setMessageInput('');
   };
 
-  // ── Render a single message bubble ───────────────────────────────────────
   const renderMessage = (msg) => {
     const own = isOwn(msg.sender_id);
     const isImage = msg.message_type === 'image' && msg.image_url;
+    const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // Avatar letter
+    const senderLetter = (msg.sender_name || '?').charAt(0).toUpperCase();
 
     return (
-      <div
-        key={msg.id}
-        className={`flex mb-3 ${own ? 'justify-end' : 'justify-start'}`}
-      >
-        <div
-          className={`max-w-[75%] rounded-2xl shadow-sm overflow-hidden ${
-            own
-              ? isImage
-                ? 'rounded-br-none'
-                : 'bg-blue-600 text-white rounded-br-none px-4 py-2'
-              : isImage
-              ? 'rounded-bl-none'
-              : 'bg-gray-100 text-gray-900 rounded-bl-none px-4 py-2'
-          }`}
-        >
-          {/* Sender name (only for others) */}
+      <div key={msg.id} className={`chat-msg flex gap-2 mb-4 ${own ? 'flex-row-reverse' : 'flex-row'}`}>
+        {/* Avatar — only for others */}
+        {!own && (
+          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-[10px] font-display font-bold self-end mb-1">
+            {senderLetter}
+          </div>
+        )}
+
+        <div className={`flex flex-col max-w-[72%] ${own ? 'items-end' : 'items-start'}`}>
+          {/* Sender name for others */}
           {!own && !isImage && (
-            <p className="text-xs font-semibold text-gray-600 mb-0.5">
+            <span className="text-[10px] font-semibold text-indigo-500 mb-1 px-1 font-display tracking-wide">
               {msg.sender_name}
-            </p>
+            </span>
           )}
 
-          {/* Image message */}
           {isImage ? (
-            <div className={`relative ${own ? 'bg-blue-600' : 'bg-gray-100'} px-2 pt-2`}>
+            <div className={`rounded-2xl overflow-hidden shadow-md ${own ? 'rounded-br-sm' : 'rounded-bl-sm'}`}>
               {!own && (
-                <p className="text-xs font-semibold text-gray-600 mb-1 px-1">
+                <p className="text-[10px] font-semibold text-indigo-400 px-3 pt-2 font-display">
                   {msg.sender_name}
                 </p>
               )}
               <img
                 src={msg.image_url}
                 alt="Shared image"
-                className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer"
+                className="max-w-full max-h-56 object-cover cursor-pointer block"
+                style={{ minWidth: 120 }}
                 onClick={() => window.open(msg.image_url, '_blank')}
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
+                onError={(e) => { e.target.style.display = 'none'; }}
               />
-              <p className={`mt-1 pb-1 px-1 text-[10px] ${own ? 'text-blue-100 text-right' : 'text-gray-400'}`}>
-                {new Date(msg.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
+              <div className={`px-3 py-1.5 flex justify-end ${own ? 'bg-indigo-600' : 'bg-white'}`}>
+                <span className={`text-[9px] ${own ? 'text-indigo-200' : 'text-gray-400'}`}>{timeStr}</span>
+              </div>
             </div>
           ) : (
-            /* Text message */
-            <>
-              <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-              <p className={`mt-1 text-[10px] ${own ? 'text-blue-100' : 'text-gray-400'}`}>
-                {new Date(msg.created_at).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-            </>
+            <div className={`relative px-4 py-2.5 shadow-sm ${
+              own
+                ? 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-2xl rounded-br-sm'
+                : 'bg-white text-gray-800 rounded-2xl rounded-bl-sm border border-gray-100'
+            }`}>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words font-body">{msg.content}</p>
+              <p className={`mt-1 text-[9px] text-right ${own ? 'text-indigo-200' : 'text-gray-400'}`}>{timeStr}</p>
+            </div>
           )}
         </div>
       </div>
@@ -259,45 +223,257 @@ const Chat = ({
   const isInputDisabled = !canChat || !isConnected;
 
   return (
-    <div
-      className="bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
-      style={{ height: '600px' }}
-    >
-      {/* Header */}
-      <div
-        className={`bg-gradient-to-r ${gradientFrom} ${gradientTo} p-4 flex items-center justify-between`}
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            {HeaderIcon && <HeaderIcon className="w-5 h-5 text-white" />}
-          </div>
-          <div>
-            <h3 className="text-white font-bold truncate">{headerTitle}</h3>
-            <p className="text-xs text-white/80 truncate">
-              {headerSubtitle || (canChat ? 'Connected' : 'Unavailable')}
-            </p>
-          </div>
-        </div>
-        {!isConnected && canChat && (
-          <span className="text-xs text-white/80 italic">Connecting...</span>
-        )}
-      </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-body    { font-family: 'Geist', 'Inter', sans-serif; }
 
-      {/* Messages area */}
-      <div className="flex-1 bg-gray-50 flex flex-col min-h-0">
+        .chat-container {
+          display: flex;
+          flex-direction: column;
+          height: 600px;
+          background: white;
+          border-radius: 1.25rem;
+          overflow: hidden;
+          border: 1px solid #f1f5f9;
+          box-shadow: 0 8px 32px rgba(99,102,241,0.08), 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        /* Header */
+        .chat-header {
+          background: linear-gradient(135deg, #4f46e5 0%, #6d28d9 100%);
+          padding: 1rem 1.25rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-shrink: 0;
+          position: relative;
+          overflow: hidden;
+        }
+        .chat-header::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+          opacity: 0.5;
+          pointer-events: none;
+        }
+        .chat-header-glow {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(40px);
+          pointer-events: none;
+        }
+
+        /* Scrollable messages */
+        .chat-messages {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          padding: 1.25rem 1rem;
+          background: #f8f9fc;
+          background-image:
+            radial-gradient(circle at 20px 20px, rgba(99,102,241,0.03) 1px, transparent 1px);
+          background-size: 28px 28px;
+          scrollbar-width: thin;
+          scrollbar-color: #e0e7ff transparent;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent; }
+        .chat-messages::-webkit-scrollbar-thumb { background: #e0e7ff; border-radius: 99px; }
+
+        @keyframes msgIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .chat-msg { animation: msgIn 0.2s ease forwards; }
+
+        /* Date chip */
+        .date-chip {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0.75rem 0;
+        }
+        .date-chip span {
+          font-family: 'Syne', sans-serif;
+          font-size: 0.65rem;
+          font-weight: 600;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: #94a3b8;
+          background: white;
+          border: 1px solid #e2e8f0;
+          padding: 2px 10px;
+          border-radius: 99px;
+        }
+
+        /* Image preview */
+        .img-preview-bar {
+          border-top: 1px solid #f1f5f9;
+          background: white;
+          padding: 0.75rem 1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-shrink: 0;
+        }
+
+        /* Input bar */
+        .chat-input-bar {
+          border-top: 1px solid #f1f5f9;
+          padding: 0.875rem 1rem;
+          background: white;
+          flex-shrink: 0;
+        }
+        .chat-input-inner {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: #f8f9fc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 1rem;
+          padding: 0.375rem 0.375rem 0.375rem 1rem;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .chat-input-inner:focus-within {
+          border-color: #a5b4fc;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.08);
+        }
+        .chat-text-input {
+          flex: 1;
+          background: transparent;
+          border: none;
+          outline: none;
+          font-family: 'Geist', sans-serif;
+          font-size: 0.875rem;
+          color: #1e293b;
+          min-width: 0;
+        }
+        .chat-text-input::placeholder { color: #94a3b8; }
+        .chat-text-input:disabled { cursor: not-allowed; }
+
+        .icon-btn {
+          width: 36px; height: 36px;
+          border-radius: 0.625rem;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.18s ease;
+          flex-shrink: 0;
+        }
+        .icon-btn-img {
+          background: #f1f5f9;
+          color: #64748b;
+          border: 1px solid #e2e8f0;
+        }
+        .icon-btn-img:hover:not(:disabled) {
+          background: #ede9fe;
+          color: #6366f1;
+          border-color: #c4b5fd;
+        }
+        .icon-btn-img.active {
+          background: #ede9fe;
+          color: #6366f1;
+          border-color: #c4b5fd;
+        }
+        .icon-btn-send {
+          background: linear-gradient(135deg, #6366f1, #7c3aed);
+          color: white;
+          width: 40px; height: 40px;
+          border-radius: 0.75rem;
+          box-shadow: 0 4px 12px rgba(99,102,241,0.35);
+        }
+        .icon-btn-send:hover:not(:disabled) {
+          background: linear-gradient(135deg, #4f46e5, #6d28d9);
+          box-shadow: 0 6px 16px rgba(99,102,241,0.45);
+          transform: translateY(-1px);
+        }
+        .icon-btn-send:disabled {
+          background: #e2e8f0;
+          box-shadow: none;
+          color: #94a3b8;
+          cursor: not-allowed;
+        }
+
+        .send-img-btn {
+          display: flex; align-items: center; gap: 0.375rem;
+          padding: 0.5rem 1rem;
+          background: linear-gradient(135deg, #6366f1, #7c3aed);
+          color: white;
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          font-size: 0.8rem;
+          border-radius: 0.75rem;
+          transition: all 0.18s ease;
+          box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+          flex-shrink: 0;
+        }
+        .send-img-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(99,102,241,0.4);
+        }
+        .send-img-btn:disabled { background: #e2e8f0; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+
+        /* Status dot */
+        .status-dot {
+          width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        }
+        .status-dot.online  { background: #34d399; box-shadow: 0 0 0 2px rgba(52,211,153,0.3); }
+        .status-dot.offline { background: #fbbf24; }
+        .status-dot.away    { background: #94a3b8; }
+      `}</style>
+
+      <div className="chat-container font-body">
+
+        {/* ── HEADER ── */}
+        <div className="chat-header">
+          <div className="chat-header-glow w-32 h-32 bg-white opacity-5 -top-8 -right-4" />
+          <div className="chat-header-glow w-20 h-20 bg-violet-300 opacity-10 bottom-0 left-8" />
+
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center flex-shrink-0">
+              {HeaderIcon && <HeaderIcon className="w-5 h-5 text-white" />}
+            </div>
+            <div>
+              <h3 className="font-display font-bold text-white text-sm leading-tight truncate">{headerTitle}</h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`status-dot ${canChat && isConnected ? 'online' : canChat ? 'offline' : 'away'}`} />
+                <p className="text-[11px] text-white/70 font-body">
+                  {canChat
+                    ? isConnected ? (headerSubtitle || 'Connected') : 'Connecting…'
+                    : 'Unavailable'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Message count badge */}
+          {messages.length > 0 && (
+            <div className="relative z-10 bg-white/15 border border-white/20 rounded-xl px-2.5 py-1 flex items-center gap-1.5">
+              <span className="font-display font-bold text-white text-xs">{messages.length}</span>
+              <span className="text-white/60 text-[10px]">msgs</span>
+            </div>
+          )}
+        </div>
+
+        {/* ── MESSAGES ── */}
         <div
           ref={scrollContainerRef}
           onScroll={handleScroll}
-          className="flex-1 min-h-0 overflow-y-auto px-4 py-4 custom-scrollbar"
+          className="chat-messages"
         >
           {isLoadingMore && (
-            <div className="flex justify-center py-2 mb-2">
-              <span className="text-xs text-gray-400 italic">Loading older messages…</span>
+            <div className="flex justify-center py-3">
+              <div className="flex items-center gap-2 bg-white border border-indigo-100 rounded-full px-3 py-1 shadow-sm">
+                <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />
+                <span className="text-[10px] text-indigo-400 font-display font-semibold tracking-wide uppercase">Loading older messages</span>
+              </div>
             </div>
           )}
+
           {canChat && !isLoadingMore && !hasMore && messages.length > 0 && (
-            <div className="flex justify-center py-2 mb-2">
-              <span className="text-xs text-gray-400 italic">Beginning of conversation</span>
+            <div className="date-chip">
+              <span>Beginning of conversation</span>
             </div>
           )}
 
@@ -305,121 +481,113 @@ const Chat = ({
             messages.length > 0 ? (
               messages.map(renderMessage)
             ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-gray-400 italic text-sm">
-                  Start the conversation for this service.
-                </p>
+              <div className="h-full flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-white border border-indigo-100 shadow-sm flex items-center justify-center">
+                  <Send className="w-5 h-5 text-indigo-300" />
+                </div>
+                <p className="font-body text-gray-400 text-sm">Start the conversation for this service.</p>
               </div>
             )
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-gray-400 italic text-sm text-center max-w-xs">
-                {disabledMessage}
-              </p>
+            <div className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+                <ImageIcon className="w-6 h-6 text-gray-300" />
+              </div>
+              <p className="font-body text-gray-400 text-sm leading-relaxed max-w-xs">{disabledMessage}</p>
             </div>
           )}
 
           <div ref={messagesEndRef} />
         </div>
-      </div>
 
-      {/* ── Image Preview Panel ── */}
-      {imagePreviewUrl && (
-        <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 flex items-center gap-3">
-          <div className="relative flex-shrink-0">
-            <img
-              src={imagePreviewUrl}
-              alt="Preview"
-              className="h-20 w-20 rounded-xl object-cover border border-gray-300 shadow-sm"
-            />
+        {/* ── IMAGE PREVIEW BAR ── */}
+        {imagePreviewUrl && (
+          <div className="img-preview-bar">
+            <div className="relative flex-shrink-0">
+              <img
+                src={imagePreviewUrl}
+                alt="Preview"
+                className="h-16 w-16 rounded-xl object-cover border border-indigo-100 shadow-sm"
+              />
+              <button
+                type="button"
+                onClick={handleCancelPreview}
+                disabled={isSendingImage}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gray-700 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors shadow"
+              >
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-display font-semibold text-gray-800 text-sm truncate">{imageFile?.name}</p>
+              <p className="font-body text-gray-400 text-xs mt-0.5">
+                {imageFile ? `${(imageFile.size / 1024).toFixed(1)} KB` : ''}
+              </p>
+            </div>
             <button
               type="button"
-              onClick={handleCancelPreview}
-              disabled={isSendingImage}
-              className="absolute -top-2 -right-2 bg-gray-700 text-white rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-500 transition-colors"
+              onClick={handleImageSend}
+              disabled={isSendingImage || !isConnected}
+              className="send-img-btn"
             >
-              <X className="w-3 h-3" />
+              {isSendingImage ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</>
+              ) : (
+                <><Send className="w-3.5 h-3.5" /> Send</>
+              )}
             </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-gray-700 font-medium truncate">{imageFile?.name}</p>
-            <p className="text-xs text-gray-400">
-              {imageFile ? `${(imageFile.size / 1024).toFixed(1)} KB` : ''}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleImageSend}
-            disabled={isSendingImage || !isConnected}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            {isSendingImage ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Sending…
-              </>
-            ) : (
-              <>
+        )}
+
+        {/* ── INPUT BAR ── */}
+        <div className="chat-input-bar">
+          <form onSubmit={handleSend}>
+            <div className="chat-input-inner">
+              <input
+                type="text"
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                placeholder={
+                  canChat
+                    ? isConnected ? 'Type a message…' : 'Connecting to chat…'
+                    : 'Chat unavailable for this service'
+                }
+                className="chat-text-input"
+                disabled={isInputDisabled}
+              />
+
+              {/* Image upload */}
+              <label
+                htmlFor="chat-image-upload"
+                className={`icon-btn icon-btn-img ${imagePreviewUrl ? 'active' : ''} ${isInputDisabled ? 'opacity-40 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                title="Send image"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </label>
+              <input
+                ref={fileInputRef}
+                id="chat-image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+                disabled={isInputDisabled}
+              />
+
+              {/* Send */}
+              <button
+                type="submit"
+                disabled={isInputDisabled || !messageInput.trim()}
+                className="icon-btn icon-btn-send"
+              >
                 <Send className="w-4 h-4" />
-                Send
-              </>
-            )}
-          </button>
+              </button>
+            </div>
+          </form>
         </div>
-      )}
 
-      {/* Input */}
-      <form onSubmit={handleSend} className="border-t border-gray-200 p-4 bg-white">
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            placeholder={
-              canChat
-                ? isConnected
-                  ? 'Type your message...'
-                  : 'Connecting to chat...'
-                : 'Chat unavailable for this service'
-            }
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 text-sm"
-            disabled={isInputDisabled}
-          />
-
-          {/* Image upload button */}
-          <label
-            htmlFor="chat-image-upload"
-            className={`flex items-center justify-center w-11 h-11 rounded-lg border transition-all duration-200 ${
-              isInputDisabled
-                ? 'border-gray-200 opacity-40 cursor-not-allowed pointer-events-none'
-                : imagePreviewUrl
-                ? 'border-blue-500 bg-blue-50 cursor-pointer'
-                : 'border-gray-300 hover:bg-gray-100 cursor-pointer'
-            }`}
-            title="Send image"
-          >
-            <ImageIcon className={`w-5 h-5 ${imagePreviewUrl ? 'text-blue-500' : 'text-gray-500'}`} />
-          </label>
-          <input
-            ref={fileInputRef}
-            id="chat-image-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageSelect}
-            disabled={isInputDisabled}
-          />
-
-          <button
-            type="submit"
-            disabled={isInputDisabled || !messageInput.trim()}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </form>
-    </div>
+      </div>
+    </>
   );
 };
 
