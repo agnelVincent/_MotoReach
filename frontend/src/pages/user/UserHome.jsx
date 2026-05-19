@@ -1,13 +1,12 @@
-import React from 'react';
-import { 
-  FileText, 
-  MapPin, 
-  PackageCheck, 
-  CreditCard, 
-  History, 
-  TrendingUp, 
-  DollarSign, 
-  Building2, 
+import React, { useState, useEffect } from 'react';
+import {
+  FileText,
+  MapPin,
+  PackageCheck,
+  CreditCard,
+  History,
+  DollarSign,
+  Building2,
   Wrench,
   Shield,
   Clock,
@@ -15,249 +14,315 @@ import {
   CheckCircle,
   Star,
   Sparkles,
-  Award,
-  Target,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  Award,
+  Activity,
+  Gauge
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
 const UserHome = () => {
-  const quickActions = [
-    {
-      title: 'Find Workshops',
-      description: 'Explore nearby workshops',
-      icon: MapPin,
-      gradient: 'from-purple-500 via-purple-600 to-pink-600',
-      shadowColor: 'shadow-purple-500/50',
-      iconBg: 'bg-purple-500'
-    },
-    {
-      title: 'Track Service',
-      description: 'Monitor your service',
-      icon: PackageCheck,
-      gradient: 'from-green-500 via-emerald-600 to-teal-600',
-      shadowColor: 'shadow-green-500/50',
-      iconBg: 'bg-green-500'
-    },
-    {
-      title: 'Payments & Invoices',
-      description: 'Manage transactions',
-      icon: CreditCard,
-      gradient: 'from-orange-500 via-amber-600 to-yellow-600',
-      shadowColor: 'shadow-orange-500/50',
-      iconBg: 'bg-orange-500'
-    },
-    {
-      title: 'Service History',
-      description: 'View past services',
-      icon: History,
-      gradient: 'from-pink-500 via-rose-600 to-red-600',
-      shadowColor: 'shadow-pink-500/50',
-      iconBg: 'bg-pink-500'
-    }
-  ];
+  const [mounted, setMounted] = useState(false);
+  const user = useSelector((state) => state.auth.user);
+  const navigate = useNavigate();
 
-  const journeyStats = [
-    {
-      icon: CheckCircle,
-      value: '24',
-      label: 'Requests Completed',
-      gradient: 'from-green-400 to-emerald-600',
-      iconColor: 'text-green-600',
-      bgGradient: 'from-green-50 to-emerald-50'
-    },
-    {
-      icon: DollarSign,
-      value: '₹12,450',
-      label: 'Total Savings',
-      gradient: 'from-blue-400 to-blue-600',
-      iconColor: 'text-blue-600',
-      bgGradient: 'from-blue-50 to-indigo-50'
-    },
-    {
-      icon: Building2,
-      value: '8',
-      label: 'Workshops Visited',
-      gradient: 'from-purple-400 to-purple-600',
-      iconColor: 'text-purple-600',
-      bgGradient: 'from-purple-50 to-pink-50'
-    },
-    {
-      icon: Wrench,
-      value: '32',
-      label: 'Services Taken',
-      gradient: 'from-orange-400 to-orange-600',
-      iconColor: 'text-orange-600',
-      bgGradient: 'from-orange-50 to-amber-50'
-    }
-  ];
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const features = [
     {
       icon: Shield,
-      title: 'Verified Workshops & Mechanics',
-      description: 'All service providers undergo thorough verification and background checks for your safety.',
-      gradient: 'from-blue-50 to-indigo-50',
-      iconColor: 'text-blue-600',
-      iconBg: 'bg-blue-100'
+      title: 'Verified Workshops',
+      description: 'Every service provider undergoes thorough background checks for your safety.',
+      color: 'text-blue-600',
+      bg: 'bg-blue-50',
+      border: 'border-blue-100',
     },
     {
       icon: DollarSign,
       title: 'Transparent Pricing',
-      description: 'Know exactly what you pay upfront with no hidden charges or surprise fees.',
-      gradient: 'from-green-50 to-emerald-50',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-green-100'
+      description: 'Know your exact cost upfront — no hidden charges, no surprises.',
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-100',
     },
     {
       icon: Clock,
-      title: 'Fast Service & Scheduling',
-      description: 'Book appointments instantly with real-time availability and quick turnaround times.',
-      gradient: 'from-orange-50 to-amber-50',
-      iconColor: 'text-orange-600',
-      iconBg: 'bg-orange-100'
+      title: 'Fast Scheduling',
+      description: 'Book instantly with real-time availability and quick turnaround.',
+      color: 'text-orange-600',
+      bg: 'bg-orange-50',
+      border: 'border-orange-100',
     },
     {
       icon: PackageCheck,
-      title: 'Real-Time Tracking Updates',
-      description: 'Monitor your service status from booking to completion with live notifications.',
-      gradient: 'from-purple-50 to-pink-50',
-      iconColor: 'text-purple-600',
-      iconBg: 'bg-purple-100'
+      title: 'Real-Time Tracking',
+      description: 'Live status updates from booking to delivery, every step.',
+      color: 'text-violet-600',
+      bg: 'bg-violet-50',
+      border: 'border-violet-100',
     },
     {
       icon: CreditCard,
       title: 'Secure Payments',
-      description: 'Multiple payment options with encrypted transactions ensuring complete security.',
-      gradient: 'from-red-50 to-rose-50',
-      iconColor: 'text-red-600',
-      iconBg: 'bg-red-100'
+      description: 'Multiple encrypted payment methods for complete peace of mind.',
+      color: 'text-rose-600',
+      bg: 'bg-rose-50',
+      border: 'border-rose-100',
     },
     {
       icon: Star,
-      title: 'Smooth User Experience',
-      description: 'Intuitive platform designed for effortless navigation and hassle-free service booking.',
-      gradient: 'from-yellow-50 to-amber-50',
-      iconColor: 'text-yellow-600',
-      iconBg: 'bg-yellow-100'
-    }
+      title: 'Smooth Experience',
+      description: 'Effortless navigation and service booking built around you.',
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      border: 'border-amber-100',
+    },
   ];
 
-  const user = useSelector((state) => state.auth.user);
-  const navigate = useNavigate()
-
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Animated Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-40 right-10 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-20 left-1/3 w-96 h-96 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      <div className="relative z-10">
-        {/* Welcome Banner with Glassmorphism */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600"></div>
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHptMjAgMjBjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHpNMTYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00em0wLTIwYzAtMi4yMS0xLjc5LTQtNC00cy00IDEuNzktNCA0IDEuNzkgNCA0IDQgNC0xLjc5IDQtNHoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-10"></div>
-          
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-5 py-2 rounded-full text-white mb-6 border border-white/30 shadow-lg">
-                <Sparkles className="w-5 h-5 animate-pulse" />
-                <span className="text-sm font-semibold tracking-wide">Welcome Back</span>
-              </div>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 drop-shadow-2xl">
-                Hello, <span className="bg-gradient-to-r from-yellow-200 via-pink-200 to-purple-200 bg-clip-text text-transparent">{user.full_name}</span>!
-              </h1>
-              <p className="text-xl md:text-2xl text-blue-50 max-w-3xl mx-auto mb-12 leading-relaxed">
-                Your journey to hassle-free vehicle maintenance starts here
-              </p>
-
-              {/* Primary CTA - Request Service */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-2xl mx-auto">
-                <button onClick={() => navigate("/user/request")} className="group relative px-10 py-5 bg-white text-blue-700 font-bold rounded-2xl shadow-2xl hover:shadow-white/50 transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-3 overflow-hidden w-full sm:w-auto">
-                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-400 opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-                  <FileText className="w-6 h-6 group-hover:rotate-12 transition-transform duration-300" />
-                  <span className="text-lg">Request Service Now</span>
-                  <ArrowRight className="w-5 h-5 transform group-hover:translate-x-2 transition-transform duration-300" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Enhanced Wave Divider */}
-          <div className="absolute bottom-0 left-0 right-0">
-            <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-24">
-              <path d="M0,64L48,69.3C96,75,192,85,288,80C384,75,480,53,576,48C672,43,768,53,864,58.7C960,64,1056,64,1152,58.7C1248,53,1344,43,1392,37.3L1440,32L1440,120L1392,120C1344,120,1248,120,1152,120C1056,120,960,120,864,120C768,120,672,120,576,120C480,120,384,120,288,120C192,120,96,120,48,120L0,120Z" fill="rgb(248, 250, 252)" fillOpacity="0.9"/>
-              <path d="M0,96L48,90.7C96,85,192,75,288,80C384,85,480,107,576,112C672,117,768,107,864,101.3C960,96,1056,96,1152,101.3C1248,107,1344,117,1392,122.7L1440,128L1440,120L1392,120C1344,120,1248,120,1152,120C1056,120,960,120,864,120C768,120,672,120,576,120C480,120,384,120,288,120C192,120,96,120,48,120L0,120Z" fill="rgb(248, 250, 252)"/>
-            </svg>
-          </div>
-        </section>
-
-        
-
-        {/* Why MotoReach Section */}
-        <section className="py-16 md:py-24">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-2 rounded-full text-white mb-4 shadow-xl">
-                <CheckCircle className="w-5 h-5" />
-                <span className="text-sm font-bold tracking-wide">Why Choose Us</span>
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-4">
-                Why MotoReach?
-              </h2>
-              <p className="text-gray-600 text-lg max-w-3xl mx-auto">
-                Experience automotive services that prioritize quality, transparency, and your peace of mind
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <div
-                    key={index}
-                    className="group relative bg-white rounded-3xl p-8 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-3 overflow-hidden border border-gray-100"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
-                    
-                    <div className="relative z-10">
-                      <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl ${feature.iconBg} mb-6 transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 shadow-lg`}>
-                        <Icon className={`w-10 h-10 ${feature.iconColor}`} />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4 group-hover:text-gray-900 transition-colors duration-300">
-                        {feature.title}
-                      </h3>
-                      <p className="text-gray-600 leading-relaxed group-hover:text-gray-700 transition-colors duration-300">
-                        {feature.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      </div>
-
+    <div className="min-h-screen bg-[#f8f9fc] font-sans">
       <style>{`
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-body { font-family: 'Geist', 'Inter', sans-serif; }
+
+        .hero-gradient {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
         }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
+
+        .hero-noise::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+          opacity: 0.4;
+          pointer-events: none;
+        }
+
+        .glow-dot {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+
+        .card-hover {
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.09);
+        }
+
+        .stat-card {
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .stat-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+        }
+
+        .action-btn {
+          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .action-btn:hover {
+          transform: translateY(-2px) scale(1.02);
+        }
+        .action-btn:active {
+          transform: scale(0.98);
+        }
+
+        .cta-btn {
+          background: white;
+          color: #1e1b4b;
+          transition: all 0.25s ease;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .cta-btn:hover {
+          background: #f5f3ff;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.2);
+          transform: translateY(-2px);
+        }
+
+        .badge-pill {
+          background: rgba(255,255,255,0.12);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up {
+          animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        .delay-400 { animation-delay: 400ms; }
+
+        .section-label {
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-size: 0.7rem;
+        }
+
+        .grid-lines {
+          background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+
+        .feature-card {
+          transition: all 0.3s ease;
+          border: 1px solid #f1f5f9;
+        }
+        .feature-card:hover {
+          border-color: #e0e7ff;
+          box-shadow: 0 8px 30px rgba(99,102,241,0.08);
+          transform: translateY(-3px);
         }
       `}</style>
+
+      {/* ── HERO ── */}
+      <section className="hero-gradient hero-noise relative overflow-hidden">
+        {/* Glow blobs */}
+        <div className="glow-dot w-96 h-96 bg-indigo-500 opacity-20 top-[-80px] left-[-60px]" />
+        <div className="glow-dot w-72 h-72 bg-violet-400 opacity-15 top-20 right-10" />
+        <div className="glow-dot w-80 h-80 bg-blue-400 opacity-10 bottom-0 left-1/3" />
+
+        {/* Floating decorative circle */}
+        <div className="absolute right-10 top-16 w-48 h-48 md:w-64 md:h-64 rounded-full border border-white/5 hidden md:block" style={{ animation: 'float 6s ease-in-out infinite' }}>
+          <div className="absolute inset-4 rounded-full border border-white/5" />
+          <div className="absolute inset-8 rounded-full border border-white/5" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Gauge className="w-12 h-12 text-white/20" />
+          </div>
+        </div>
+
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 lg:py-28">
+          {/* Badge */}
+          <div className={`inline-flex items-center gap-2 badge-pill px-4 py-1.5 rounded-full text-white/90 mb-7 opacity-0 ${mounted ? 'animate-fade-up' : ''}`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="section-label text-white/80">Platform Active</span>
+          </div>
+
+          {/* Headline */}
+          <h1 className={`font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.05] mb-5 opacity-0 ${mounted ? 'animate-fade-up delay-100' : ''}`}>
+            Welcome back,{' '}
+            <span className="relative">
+              <span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-indigo-200 bg-clip-text text-transparent">
+                {user?.full_name?.split(' ')[0] || 'User'}
+              </span>
+              <svg className="absolute -bottom-1 left-0 w-full" height="6" viewBox="0 0 200 6" fill="none">
+                <path d="M0 5 Q50 1 100 5 Q150 9 200 5" stroke="url(#ul)" strokeWidth="2" strokeLinecap="round" fill="none" />
+                <defs>
+                  <linearGradient id="ul" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+                    <stop stopColor="#a78bfa" />
+                    <stop offset="1" stopColor="#818cf8" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </span>
+          </h1>
+
+          <p className={`font-body text-white/60 text-lg md:text-xl max-w-xl mb-10 leading-relaxed opacity-0 ${mounted ? 'animate-fade-up delay-200' : ''}`}>
+            Your vehicle deserves the best care. Book, track, and manage every service — all in one place.
+          </p>
+
+          {/* CTA */}
+          <div className={`flex flex-col sm:flex-row gap-3 opacity-0 ${mounted ? 'animate-fade-up delay-300' : ''}`}>
+            <button
+              onClick={() => navigate('/user/request')}
+              className="cta-btn font-display font-bold text-base px-8 py-4 rounded-2xl flex items-center justify-center gap-3 group"
+            >
+              <FileText className="w-5 h-5 text-indigo-600 group-hover:rotate-6 transition-transform" />
+              Request a Service
+              <ArrowRight className="w-4 h-4 text-indigo-600 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+
+        </div>
+
+        {/* Bottom curve */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-[#f8f9fc]" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+      </section>
+
+
+
+      {/* ── WHY MOTORREACH ── */}
+      <section className="grid-lines max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        {/* Header */}
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <span className="section-label text-indigo-500 mb-2 block">Why choose us</span>
+            <h2 className="font-display font-bold text-3xl md:text-4xl text-gray-900 leading-tight">
+              Built for trust,<br className="hidden sm:block" /> built for you.
+            </h2>
+          </div>
+          <p className="font-body text-gray-500 text-sm max-w-xs leading-relaxed">
+            Every feature is designed to give you confidence, clarity, and control over your vehicle's care.
+          </p>
+        </div>
+
+        {/* Feature grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map((f, i) => {
+            const Icon = f.icon;
+            return (
+              <div key={i} className={`feature-card bg-white rounded-2xl p-6 group cursor-default`}>
+                <div className={`w-11 h-11 rounded-2xl ${f.bg} border ${f.border} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-5 h-5 ${f.color}`} />
+                </div>
+                <h3 className="font-display font-bold text-gray-900 text-base mb-2">{f.title}</h3>
+                <p className="font-body text-gray-500 text-sm leading-relaxed">{f.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── BOTTOM CTA BANNER ── */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="relative bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-700 rounded-3xl p-8 md:p-12 overflow-hidden">
+          <div className="glow-dot w-64 h-64 bg-white opacity-5 -top-16 -right-10" />
+          <div className="glow-dot w-48 h-48 bg-violet-300 opacity-10 bottom-0 left-10" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-5 h-5 text-yellow-300" />
+                <span className="section-label text-white/70">Ready when you are</span>
+              </div>
+              <h3 className="font-display font-bold text-white text-2xl md:text-3xl leading-snug">
+                Your vehicle is waiting.<br />
+                <span className="text-violet-200">Let's get it sorted.</span>
+              </h3>
+            </div>
+            <button
+              onClick={() => navigate('/user/request')}
+              className="flex-shrink-0 bg-white font-display font-bold text-indigo-700 px-8 py-4 rounded-2xl flex items-center gap-3 hover:bg-indigo-50 transition-all hover:-translate-y-1 shadow-xl hover:shadow-2xl group"
+            >
+              <FileText className="w-5 h-5 group-hover:rotate-6 transition-transform" />
+              Book a Service
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
