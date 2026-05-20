@@ -476,10 +476,10 @@ const css = `
     --r-xl: 22px;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+
 
   .rl-page {
-    min-height: 100vh;
+    min-height: calc(100vh - 64px);
     background: var(--bg);
     font-family: 'DM Sans', sans-serif;
     color: var(--text-1);
@@ -670,7 +670,7 @@ const css = `
 
   /* ── LOADING ── */
   .rl-loading {
-    min-height: 100vh; display: flex; flex-direction: column;
+    min-height: calc(100vh - 64px); display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 16px; background: var(--bg);
   }
   .rl-spinner-wrap { position: relative; width: 46px; height: 46px; }

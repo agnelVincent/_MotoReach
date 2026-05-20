@@ -370,10 +370,10 @@ const css = `
     --r-xl: 22px;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+
 
   .mm-page {
-    min-height: 100vh;
+    min-height: calc(100vh - 64px);
     background: var(--bg);
     font-family: 'DM Sans', sans-serif;
     color: var(--text-1);
