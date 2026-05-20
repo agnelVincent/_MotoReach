@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Menu, X, Car, User, LogOut, Settings } from 'lucide-react';
+import { Bell, Menu, X, Wrench, User, LogOut, Settings, MessageSquare, ArrowRight } from 'lucide-react';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLogout } from '../../hooks/useLogout';
@@ -49,18 +49,15 @@ const UserNavbar = () => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const notificationRef = useRef(null);
 
-  // Close profile menu on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target))
         setIsProfileMenuOpen(false);
-      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Close notification panel on outside click
   useEffect(() => {
     const handler = (e) => {
       const outsideDesktop = notificationRef.current && !notificationRef.current.contains(e.target);
@@ -71,79 +68,86 @@ const UserNavbar = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = isMobileMenuOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isMobileMenuOpen]);
 
-  // ── Notification dropdown (shared between desktop & mobile) ──────────────
+  // ── Notification Dropdown ────────────────────────────────────────────────
   const NotificationDropdown = () => (
-    <div
-      className="
-        absolute right-0 mt-2 bg-white rounded-xl shadow-xl
-        ring-1 ring-black ring-opacity-5 py-2 z-50
-        w-[calc(100vw-32px)] max-w-xs
-        sm:w-72 sm:max-w-none
-      "
-    >
-      <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-        Messages
-      </p>
-      <div className="max-h-60 overflow-y-auto divide-y divide-gray-50">
+    <div className="absolute right-0 mt-3 bg-white rounded-2xl shadow-xl border border-[#f1f5f9] z-50 w-[calc(100vw-32px)] max-w-xs sm:w-80 overflow-hidden" style={{ fontFamily: 'Geist, Inter, sans-serif' }}>
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-[#f1f5f9] flex items-center justify-between">
+        <p style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700 }} className="text-gray-900 text-sm">Notifications</p>
+        {notifications.length > 0 && (
+          <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+            {notifications.length} new
+          </span>
+        )}
+      </div>
+
+      {/* Messages */}
+      <div className="px-4 pt-3 pb-1">
+        <p className="text-[0.65rem] font-semibold text-indigo-400 uppercase tracking-widest" style={{ fontFamily: 'Syne, sans-serif' }}>Messages</p>
+      </div>
+      <div className="max-h-64 overflow-y-auto pb-2">
         {notifications.length > 0 ? (
           notifications.map((n) => (
             <button
               key={n.service_request_id}
-              onClick={() => {
-                navigate(`/user/service-flow/${n.service_request_id}`);
-                setIsNotificationOpen(false);
-              }}
-              className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors flex flex-col gap-0.5"
+              onClick={() => { navigate(`/user/service-flow/${n.service_request_id}`); setIsNotificationOpen(false); }}
+              className="w-full text-left px-4 py-3 hover:bg-indigo-50 active:bg-indigo-100 transition-colors flex items-start gap-3 group"
             >
-              <span className="text-sm font-medium text-gray-800 leading-snug">
-                {n.unread_count} new message{n.unread_count > 1 ? 's' : ''} from{' '}
-                {n.counterpart_name || 'workshop'}
-              </span>
-              <span className="text-xs text-gray-400">
-                Request #{n.service_request_id}
-              </span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-indigo-200 transition-colors">
+                <MessageSquare className="w-4 h-4 text-indigo-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 leading-snug truncate">
+                  {n.unread_count} new message{n.unread_count > 1 ? 's' : ''} from {n.counterpart_name || 'workshop'}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">Request #{n.service_request_id}</p>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 mt-1 group-hover:text-indigo-400 transition-colors" />
             </button>
           ))
         ) : (
-          <p className="px-4 py-3 text-sm text-gray-500">No new messages</p>
+          <div className="px-4 py-6 text-center">
+            <Bell className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+            <p className="text-sm text-gray-400">No new messages</p>
+          </div>
         )}
       </div>
     </div>
   );
 
-  // ── Profile dropdown ──────────────────────────────────────────────────────
+  // ── Profile Dropdown ─────────────────────────────────────────────────────
   const ProfileMenu = () => (
     <div className="relative" ref={profileMenuRef}>
       <button
         onClick={toggleProfileMenu}
-        className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300 min-w-[40px] min-h-[40px] flex items-center justify-center"
+        className="relative w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center hover:shadow-lg hover:shadow-indigo-200 transition-all duration-200"
         aria-expanded={isProfileMenuOpen}
         aria-label="User Profile Menu"
       >
-        <User className="w-5 h-5" />
+        <User className="w-4 h-4 text-white" />
       </button>
 
       {isProfileMenuOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 z-50 animate-fade-in-down">
+        <div className="absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-xl border border-[#f1f5f9] overflow-hidden z-50" style={{ animation: 'fadeInDown 0.18s ease forwards' }}>
           <div className="py-1">
             <button
               onClick={() => { navigate('/user/profile'); setIsProfileMenuOpen(false); }}
-              className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-100 hover:text-blue-600 transition-colors"
+              className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors gap-3"
             >
-              <Settings className="w-4 h-4 mr-3 flex-shrink-0" />
+              <Settings className="w-4 h-4 flex-shrink-0" />
               Profile Page
             </button>
+            <div className="mx-3 my-1 h-px bg-[#f1f5f9]" />
             <button
               onClick={logout}
-              className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors gap-3"
             >
-              <LogOut className="w-4 h-4 mr-3 flex-shrink-0" />
+              <LogOut className="w-4 h-4 flex-shrink-0" />
               Logout
             </button>
           </div>
@@ -152,18 +156,20 @@ const UserNavbar = () => {
     </div>
   );
 
-  // ── Auth buttons (desktop) ────────────────────────────────────────────────
+  // ── Auth Buttons ─────────────────────────────────────────────────────────
   const AuthButtons = () => (
     <>
       <button
         onClick={() => navigate('/login')}
-        className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 whitespace-nowrap"
+        className="px-4 py-2 text-sm font-semibold text-gray-600 border border-[#e2e8f0] rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 whitespace-nowrap"
+        style={{ fontFamily: 'Syne, sans-serif' }}
       >
-        Login
+        Sign In
       </button>
       <button
         onClick={() => navigate('/register')}
-        className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-300 whitespace-nowrap"
+        className="px-4 py-2 text-sm font-semibold text-white rounded-xl whitespace-nowrap transition-all duration-200 hover:opacity-90 hover:-translate-y-px hover:shadow-lg active:scale-[0.98]"
+        style={{ fontFamily: 'Syne, sans-serif', background: 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)', boxShadow: '0 4px 12px rgba(79,70,229,0.3)' }}
       >
         Register
       </button>
@@ -172,8 +178,9 @@ const UserNavbar = () => {
 
   return (
     <>
-      {/* ── Inject mobile-menu slide animation ─────────────────────────── */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+
         @keyframes slideDown {
           from { opacity: 0; transform: translateY(-8px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -187,128 +194,130 @@ const UserNavbar = () => {
         .animate-fade-in-down { animation: fadeInDown 0.18s ease forwards; }
       `}</style>
 
-      <nav className="bg-white shadow-md sticky top-0 z-50">
+      <nav className="bg-white/95 backdrop-blur-md border-b border-[#f1f5f9] sticky top-0 z-50" style={{ boxShadow: '0 1px 12px rgba(30,27,75,0.06)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
 
-            {/* ── Logo ── */}
-            <button
-              onClick={() => handleNavClick('/')}
-              className="flex items-center space-x-2 group flex-shrink-0"
-            >
-              <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-lg group-hover:from-blue-700 group-hover:to-blue-800 transition-all duration-300">
-                <Car className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            {/* Logo */}
+            <button onClick={() => handleNavClick('/')} className="flex items-center gap-2.5 group flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover:shadow-lg group-hover:shadow-indigo-200 transition-all duration-200" style={{ background: 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)' }}>
+                <Wrench className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-gray-800 group-hover:text-blue-600 transition-colors duration-300">
+              <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200" style={{ fontFamily: 'Syne, sans-serif' }}>
                 MotoReach
               </span>
             </button>
 
-            {/* ── Desktop Nav Links ── */}
-            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+            {/* Desktop Nav Links */}
+            <div className="hidden md:flex items-center gap-1">
               {navLinks.map((link) => (
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`text-sm font-medium transition-all duration-300 relative whitespace-nowrap ${
+                  className={`relative px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 whitespace-nowrap ${
                     isActive(link.path)
-                      ? 'text-blue-600'
-                      : 'text-gray-700 hover:text-blue-600'
+                      ? 'text-indigo-600 bg-indigo-50'
+                      : 'text-gray-600 hover:text-indigo-600 hover:bg-gray-50'
                   }`}
+                  style={{ fontFamily: 'Syne, sans-serif' }}
                 >
                   {link.name}
                   {isActive(link.path) && (
-                    <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 rounded-full" />
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-indigo-600" />
                   )}
                 </button>
               ))}
             </div>
 
-            {/* ── Desktop Right side: Bell + Profile/Auth ── */}
-            <div className="hidden md:flex items-center space-x-3">
+            {/* Desktop Right: Bell + Profile/Auth */}
+            <div className="hidden md:flex items-center gap-2">
               {isAuthenticated && (
                 <div className="relative" ref={notificationRef}>
                   <button
                     onClick={() => setIsNotificationOpen((v) => !v)}
-                    className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    className="relative w-9 h-9 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200"
                     aria-label="Notifications"
                   >
-                    <Bell className="w-5 h-5" />
+                    <Bell className="w-4.5 h-4.5" style={{ width: '1.1rem', height: '1.1rem' }} />
                     {hasUnread && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                      <span className="absolute -top-0.5 -right-0.5 flex">
+                        <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white" />
+                      </span>
                     )}
                   </button>
                   {isNotificationOpen && <NotificationDropdown />}
                 </div>
               )}
-
               {isAuthenticated ? <ProfileMenu /> : <AuthButtons />}
             </div>
 
-            {/* ── Mobile Right side: Bell + Hamburger ── */}
-            <div className="md:hidden flex items-center space-x-1">
+            {/* Mobile Right: Bell + Hamburger */}
+            <div className="md:hidden flex items-center gap-1">
               {isAuthenticated && (
                 <div className="relative" ref={mobileNotificationRef}>
                   <button
                     onClick={() => setIsNotificationOpen((v) => !v)}
-                    className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-300 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                    className="relative w-9 h-9 flex items-center justify-center text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200"
                     aria-label="Notifications"
                   >
-                    <Bell className="w-5 h-5" />
+                    <Bell className="w-4.5 h-4.5" style={{ width: '1.1rem', height: '1.1rem' }} />
                     {hasUnread && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+                      <span className="absolute -top-0.5 -right-0.5 flex">
+                        <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white" />
+                      </span>
                     )}
                   </button>
                   {isNotificationOpen && <NotificationDropdown />}
                 </div>
               )}
-
               <button
                 onClick={toggleMobileMenu}
-                className="p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300 min-w-[40px] min-h-[40px] flex items-center justify-center"
+                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200"
                 aria-label="Toggle Mobile Menu"
                 aria-expanded={isMobileMenuOpen}
               >
-                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* ── Mobile Menu Panel ── */}
+        {/* Mobile Menu Panel */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 shadow-lg mobile-menu-enter">
+          <div className="md:hidden border-t border-[#f1f5f9] mobile-menu-enter" style={{ background: 'rgba(255,255,255,0.98)', backdropFilter: 'blur(12px)' }}>
             <div className="px-4 py-4 space-y-1 max-h-[calc(100vh-64px)] overflow-y-auto">
-
-              {/* Nav Links */}
               {navLinks.map((link) => (
                 <button
                   key={link.path}
                   onClick={() => handleNavClick(link.path)}
-                  className={`w-full text-left px-4 py-3 text-base font-medium rounded-xl transition-all duration-200 ${
+                  className={`w-full text-left px-4 py-3 text-sm font-semibold rounded-2xl transition-all duration-200 ${
                     isActive(link.path)
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-blue-600 active:bg-gray-100'
+                      ? 'bg-indigo-50 text-indigo-600'
+                      : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600'
                   }`}
+                  style={{ fontFamily: 'Syne, sans-serif' }}
                 >
                   {link.name}
                 </button>
               ))}
 
-              {/* Divider */}
-              <div className="pt-3 mt-2 border-t border-gray-100 space-y-2">
+              <div className="pt-3 mt-2 border-t border-[#f1f5f9] space-y-2">
                 {isAuthenticated ? (
                   <>
                     <button
                       onClick={() => handleNavClick('/user/profile')}
-                      className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100 transition-all"
+                      className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 border border-[#f1f5f9] rounded-2xl hover:bg-gray-50 hover:border-gray-200 transition-all"
+                      style={{ fontFamily: 'Syne, sans-serif' }}
                     >
-                      <User className="w-4 h-4 flex-shrink-0" />
+                      <User className="w-4 h-4 flex-shrink-0 text-indigo-500" />
                       Profile Page
                     </button>
                     <button
                       onClick={logout}
-                      className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm font-medium text-white bg-red-500 rounded-xl hover:bg-red-600 active:bg-red-700 shadow-sm transition-all"
+                      className="w-full text-left flex items-center gap-3 px-4 py-3 text-sm font-semibold text-white rounded-2xl transition-all"
+                      style={{ fontFamily: 'Syne, sans-serif', background: 'linear-gradient(135deg,#ef4444 0%,#dc2626 100%)' }}
                     >
                       <LogOut className="w-4 h-4 flex-shrink-0" />
                       Logout
@@ -318,13 +327,15 @@ const UserNavbar = () => {
                   <div className="flex flex-col gap-2">
                     <button
                       onClick={() => handleNavClick('/login')}
-                      className="w-full py-3 text-sm font-medium text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 transition-all"
+                      className="w-full py-3 text-sm font-semibold text-gray-700 border border-[#e2e8f0] rounded-2xl hover:bg-gray-50 transition-all"
+                      style={{ fontFamily: 'Syne, sans-serif' }}
                     >
-                      Login
+                      Sign In
                     </button>
                     <button
                       onClick={() => handleNavClick('/register')}
-                      className="w-full py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 shadow-md transition-all"
+                      className="w-full py-3 text-sm font-semibold text-white rounded-2xl transition-all"
+                      style={{ fontFamily: 'Syne, sans-serif', background: 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)' }}
                     >
                       Register
                     </button>
