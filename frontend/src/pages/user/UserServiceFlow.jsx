@@ -31,7 +31,23 @@ const UserServiceFlow = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  // Track hero height for accurate content area calculation
+  const heroRef = useRef(null);
+  const [heroHeight, setHeroHeight] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!heroRef.current) return;
+    const observer = new ResizeObserver(() => {
+      setHeroHeight(heroRef.current?.offsetHeight ?? 0);
+    });
+    observer.observe(heroRef.current);
+    setHeroHeight(heroRef.current.offsetHeight);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (requestId) {
@@ -242,8 +258,12 @@ const UserServiceFlow = () => {
     ? (estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0])
     : null;
 
+  // Content area height = 100dvh minus hero height minus body padding (top 20px + bottom 20px = 40px)
+  const CONTENT_PADDING = 40;
+  const contentHeight = heroHeight > 0 ? `calc(100dvh - ${heroHeight}px - ${CONTENT_PADDING}px)` : '70vh';
+
   return (
-    <div className="min-h-screen bg-[#f8f9fc] font-sans">
+    <div className="min-h-screen bg-[#f8f9fc] font-sans flex flex-col">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
 
@@ -288,12 +308,10 @@ const UserServiceFlow = () => {
           font-size: 0.68rem;
         }
 
-        /* Status strip inside hero */
         .status-node-done   { background: linear-gradient(135deg,#10b981,#059669); }
         .status-node-active { background: linear-gradient(135deg,#a78bfa,#818cf8); box-shadow: 0 0 0 3px rgba(167,139,250,0.35); }
         .status-node-idle   { background: rgba(255,255,255,0.18); }
 
-        /* Cards */
         .sf-card {
           background: white;
           border-radius: 1rem;
@@ -302,52 +320,109 @@ const UserServiceFlow = () => {
         }
         .sf-card:hover { box-shadow: 0 6px 24px rgba(99,102,241,0.07); }
 
-        /* Sidebar tabs */
         .tab-btn { transition: all 0.18s ease; }
 
-        /* Action buttons */
         .action-btn { transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
         .action-btn:hover { transform: translateY(-2px) scale(1.02); }
         .action-btn:active { transform: scale(0.98); }
 
-        /* OTP */
         .otp-box { transition: border-color 0.2s, box-shadow 0.2s, background 0.2s; }
         .otp-box:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); background: white; outline: none; }
 
-        /* Stars */
         .star-btn { transition: transform 0.15s ease; }
         .star-btn:hover { transform: scale(1.2); }
 
-        /* 2-col layout fills viewport height */
+        /* ── KEY FIX: 2-col layout that fills exactly the remaining viewport height ── */
+        .flow-layout {
+          display: flex;
+          flex-direction: column;
+          flex: 1 1 0;
+          min-height: 0;
+        }
+
         .flow-grid {
           display: grid;
           grid-template-columns: 1fr 360px;
           gap: 1.25rem;
-          align-items: start;
+          align-items: stretch; /* both cols same height */
+          flex: 1 1 0;
+          min-height: 0;
         }
-        @media (max-width: 1024px) {
-          .flow-grid { grid-template-columns: 1fr; }
+
+        /* Left column: chat stretches to fill, no fixed viewport math */
+        .chat-col {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          min-width: 0;
+        }
+
+        /* The chat card itself fills the column */
+        .chat-col > * {
+          flex: 1 1 0;
+          min-height: 0;
+        }
+
+        /* Right sidebar: scroll within its own column, never overflow */
+        .sidebar-col {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          min-width: 0;
+          gap: 0.75rem;
         }
 
         .sidebar-scroll {
-          max-height: calc(100vh - 200px);
+          flex: 1 1 0;
+          min-height: 0;
           overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: #e2e8f0 transparent;
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
         }
-        .chat-height {
-          height: calc(100vh - 200px);
-          min-height: 480px;
+
+        /* Actions pinned to bottom of sidebar */
+        .sidebar-actions {
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 1024px) {
+          .flow-grid {
+            grid-template-columns: 1fr;
+            /* On tablet/mobile don't force a fixed height — let content flow */
+            align-items: start;
+            flex: none;
+          }
+          .chat-col {
+            /* Give chat a sensible fixed height on mobile instead of flex-fill */
+            height: 500px;
+            flex: none;
+          }
+          .sidebar-col {
+            flex: none;
+          }
+          .sidebar-scroll {
+            flex: none;
+            max-height: 600px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .chat-col {
+            height: 420px;
+          }
         }
       `}</style>
 
-      {/* ── COMPACT HERO + STATUS STRIP ── */}
-      <section className="hero-gradient hero-noise relative overflow-hidden">
+      {/* ── HERO + STATUS STRIP ── */}
+      <section ref={heroRef} className="hero-gradient hero-noise relative overflow-hidden flex-shrink-0">
         <div className="glow-dot w-80 h-80 bg-indigo-500 opacity-20 top-[-60px] left-[-40px]" />
         <div className="glow-dot w-56 h-56 bg-violet-400 opacity-15 bottom-0 right-10" />
 
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-0">
-          {/* Top row: badge + title + meta */}
+          {/* Top row */}
           <div className={`flex flex-wrap items-center justify-between gap-3 mb-4 opacity-0 ${mounted ? 'animate-fade-up' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="inline-flex items-center gap-2 badge-pill px-3 py-1 rounded-full">
@@ -373,13 +448,11 @@ const UserServiceFlow = () => {
             </div>
           </div>
 
-          {/* Status strip — embedded at hero bottom */}
+          {/* Status strip */}
           <div className={`opacity-0 ${mounted ? 'animate-fade-up delay-100' : ''}`}>
             <div className="overflow-x-auto pb-0">
               <div className="min-w-[580px] md:min-w-0 relative flex items-start justify-between py-3">
-                {/* Track bg */}
                 <div className="absolute top-[22px] left-0 w-full h-0.5 bg-white/10 rounded-full" />
-                {/* Track fill */}
                 <div
                   className="absolute top-[22px] left-0 h-0.5 rounded-full transition-all duration-700"
                   style={{
@@ -406,7 +479,8 @@ const UserServiceFlow = () => {
             </div>
           </div>
         </div>
-        {/* Step counter bar */}
+
+        {/* Step counter */}
         <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-2 flex items-center justify-end">
           <span className="section-label text-white/40 text-[0.6rem]">
             Step {getCurrentStatusIndex() + 1} of {statusFlow.length}
@@ -414,15 +488,18 @@ const UserServiceFlow = () => {
         </div>
       </section>
 
-      {/* ── MAIN 2-COLUMN LAYOUT ── */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+      {/* ── MAIN CONTENT: fills remaining viewport height ── */}
+      <div
+        className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 flow-layout"
+        style={{ height: contentHeight }}
+      >
         <div className="flow-grid">
 
           {/* ── LEFT: Chat or Rating ── */}
-          <div className="chat-height flex flex-col">
+          <div className="chat-col">
             {isVerified ? (
-              /* Rating panel replaces chat when verified */
-              <div className="sf-card flex-1 overflow-y-auto p-6">
+              /* Rating panel */
+              <div className="sf-card overflow-y-auto p-6">
                 <div className="text-center mb-5">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 mb-3">
                     <CheckCircle className="w-6 h-6 text-emerald-600" />
@@ -511,7 +588,7 @@ const UserServiceFlow = () => {
                 )}
               </div>
             ) : (
-              /* Normal chat */
+              /* Chat — must fill its container height */
               <Chat
                 key={requestId}
                 serviceRequestId={requestId}
@@ -522,15 +599,18 @@ const UserServiceFlow = () => {
                 gradientFrom="from-indigo-600"
                 gradientTo="to-violet-600"
                 disabledMessage="Chat will be available once a workshop accepts your request."
+                // Pass className so Chat itself can fill height; 
+                // also ensure Chat's own container uses h-full internally
+                className="h-full"
               />
             )}
           </div>
 
-          {/* ── RIGHT: Compact Sidebar ── */}
-          <div className="flex flex-col gap-3">
+          {/* ── RIGHT: Sidebar ── */}
+          <div className="sidebar-col">
 
-            {/* Tab switcher */}
-            <div className="sf-card p-1.5">
+            {/* Tab switcher — never scrolls, always visible */}
+            <div className="sf-card p-1.5 flex-shrink-0">
               <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
                 {['info', 'estimate'].map(t => (
                   <button
@@ -544,13 +624,12 @@ const UserServiceFlow = () => {
               </div>
             </div>
 
-            {/* Tab content */}
-            <div className="sidebar-scroll space-y-3">
+            {/* Scrollable tab content */}
+            <div className="sidebar-scroll">
 
               {/* ── INFO TAB ── */}
               {sidebarTab === 'info' && (
                 <>
-                  {/* Workshop details */}
                   {connection ? (
                     <div className="sf-card p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -595,7 +674,6 @@ const UserServiceFlow = () => {
                     </div>
                   )}
 
-                  {/* Service Personnel */}
                   {currentRequest?.execution && (
                     <div className="sf-card p-4">
                       <div className="flex items-center gap-2 mb-3">
@@ -666,7 +744,6 @@ const UserServiceFlow = () => {
 
                   {activeEstimate ? (
                     <div className="space-y-3">
-                      {/* Status badge */}
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                         activeEstimate.status === 'APPROVED' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
                         activeEstimate.status === 'SENT' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' :
@@ -677,7 +754,6 @@ const UserServiceFlow = () => {
                         {activeEstimate.status}
                       </span>
 
-                      {/* Line items */}
                       {activeEstimate.line_items?.length > 0 && (
                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-2">
                           <p className="section-label text-gray-400 text-[0.62rem] mb-1">Items</p>
@@ -693,7 +769,6 @@ const UserServiceFlow = () => {
                         </div>
                       )}
 
-                      {/* Totals */}
                       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-1.5">
                         <div className="flex justify-between font-body text-xs">
                           <span className="text-gray-500">Subtotal</span>
@@ -717,7 +792,6 @@ const UserServiceFlow = () => {
                         </div>
                       </div>
 
-                      {/* Notes */}
                       {activeEstimate.notes && (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                           <p className="section-label text-amber-700 text-[0.62rem] mb-1">Workshop Notes</p>
@@ -725,7 +799,6 @@ const UserServiceFlow = () => {
                         </div>
                       )}
 
-                      {/* Approve / Reject */}
                       {activeEstimate.status === 'SENT' && (
                         <div className="flex gap-2 pt-1">
                           <button
@@ -744,7 +817,6 @@ const UserServiceFlow = () => {
                         </div>
                       )}
 
-                      {/* Pay escrow */}
                       {activeEstimate.status === 'APPROVED' && currentRequest?.execution && !currentRequest.execution.escrow_paid && (
                         <div>
                           <button
@@ -772,11 +844,10 @@ const UserServiceFlow = () => {
               )}
             </div>
 
-            {/* ── ACTIONS SECTION ── */}
-            <div className="sf-card p-4 space-y-3">
+            {/* ── ACTIONS: pinned to bottom, never scrolls out of view ── */}
+            <div className="sidebar-actions sf-card p-4 space-y-3">
               <span className="section-label text-gray-400 text-[0.62rem] block">Actions</span>
 
-              {/* OTP Verification */}
               {showOtp && (
                 <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 space-y-2">
                   <div className="flex items-center gap-2 mb-1">
@@ -815,7 +886,6 @@ const UserServiceFlow = () => {
                 </div>
               )}
 
-              {/* Cancel Connection */}
               {showCancelButton && (
                 <button
                   onClick={handleCancelConnection}
@@ -825,7 +895,6 @@ const UserServiceFlow = () => {
                 </button>
               )}
 
-              {/* Report */}
               <button
                 onClick={() => setShowComplaintModal(true)}
                 className="action-btn w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
