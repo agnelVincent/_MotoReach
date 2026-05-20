@@ -456,18 +456,9 @@ const WorkshopServiceFlow = () => {
             </div>
           </div>
 
-          {/* ── Full-width: Estimate Manager (needs space to show its table) ── */}
+          {/* ── Full-width: Estimate Manager ── */}
           {activeConnection && activeConnection.status === 'ACCEPTED' ? (
-            <div className="ws-card overflow-hidden mt-6">
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="font-display font-bold text-white text-sm">Estimate Manager</h3>
-                  <p className="text-white/50 text-[0.62rem] font-body">Create and send itemised cost breakdowns to the customer</p>
-                </div>
-              </div>
+            <div className="mt-6">
               <EstimateManager
                 connectionId={activeConnection.id}
                 requestId={requestId}

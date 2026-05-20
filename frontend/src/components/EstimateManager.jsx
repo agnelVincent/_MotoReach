@@ -189,7 +189,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-4xl mx-auto overflow-hidden transition-all duration-300">
+    <div className="bg-white rounded-2xl shadow-xl border border-slate-100 w-full overflow-hidden transition-all duration-300">
       
       {/* Header Panel */}
       <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
@@ -471,19 +471,19 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Itemized Summary</h4>
               <div className="border border-slate-100 rounded-xl overflow-hidden divide-y divide-slate-100">
                 {activeEstimate.line_items.map((item, index) => (
-                  <div key={index} className="p-4 bg-slate-50/40 flex justify-between items-center gap-4 text-sm">
+                  <div key={index} className="p-4 bg-slate-50/40 flex flex-wrap sm:flex-nowrap justify-between items-start sm:items-center gap-2 sm:gap-4 text-sm">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-[10px] font-black tracking-wider uppercase px-1.5 py-0.5 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
                           {item.item_type}
                         </span>
-                        <p className="font-semibold text-slate-800 truncate">{item.description}</p>
+                        <p className="font-semibold text-slate-800 break-words">{item.description}</p>
                       </div>
                       <p className="text-xs text-slate-500">
                         {item.quantity} units × ₹{parseFloat(item.unit_price).toFixed(2)}
                       </p>
                     </div>
-                    <div className="font-bold text-slate-900 whitespace-nowrap">
+                    <div className="font-bold text-slate-900 whitespace-nowrap text-right">
                       ₹{parseFloat(item.total).toFixed(2)}
                     </div>
                   </div>
@@ -492,7 +492,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
             </div>
 
             {/* Total Invoicing Breakdown Block */}
-            <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-2xl p-5 ml-auto w-full sm:max-w-sm space-y-2.5 shadow-lg">
+            <div className="bg-slate-900 text-slate-300 border border-slate-800 rounded-2xl p-5 ml-auto w-full sm:max-w-xs space-y-2.5 shadow-lg">
               <div className="flex justify-between text-sm text-slate-400">
                 <span>Subtotal</span>
                 <span className="font-semibold text-white">₹{parseFloat(activeEstimate.subtotal).toFixed(2)}</span>
