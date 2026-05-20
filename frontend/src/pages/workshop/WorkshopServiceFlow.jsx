@@ -138,7 +138,14 @@ const WorkshopServiceFlow = () => {
   const showCancelBtn = activeConnection && !['SERVICE_AMOUNT_PAID', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'].includes(currentStatus);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] font-sans">
+    /*
+     * Root: full viewport height, flex column.
+     * Hero takes its natural height.
+     * Main area below fills the remaining space via flex-1 + min-h-0,
+     * so the two-column grid can stretch to exactly the available height
+     * without ever pushing content under a footer.
+     */
+    <div className="h-screen flex flex-col bg-[#f8f9fc] font-sans overflow-hidden">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
         .font-display { font-family: 'Syne', sans-serif; }
@@ -159,13 +166,11 @@ const WorkshopServiceFlow = () => {
         .delay-100 { animation-delay: 80ms; }
         .delay-200 { animation-delay: 160ms; }
 
-        /* Status strip nodes */
         .step-done   { background: #10b981; }
         .step-active { background: linear-gradient(135deg,#a78bfa,#818cf8); box-shadow: 0 0 0 3px rgba(167,139,250,0.35); }
         .step-idle   { background: rgba(255,255,255,0.18); }
 
-        .ws-card { background: white; border-radius: 1rem; border: 1px solid #f1f5f9; transition: box-shadow 0.25s ease; }
-        .ws-card:hover { box-shadow: 0 6px 24px rgba(99,102,241,0.07); }
+        .ws-card { background: white; border-radius: 1rem; border: 1px solid #f1f5f9; }
 
         .action-btn { transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1); }
         .action-btn:hover { transform: translateY(-2px) scale(1.02); }
@@ -173,21 +178,71 @@ const WorkshopServiceFlow = () => {
 
         .tab-btn { transition: all 0.18s ease; }
 
-        .flow-grid { display: grid; grid-template-columns: 1fr 360px; gap: 1.25rem; align-items: start; }
-        @media (max-width: 1024px) { .flow-grid { grid-template-columns: 1fr; } }
-
-        .sidebar-scroll { max-height: calc(100vh - 200px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent; }
-        .chat-height { height: calc(100vh - 200px); min-height: 480px; }
-
         .personnel-card { border: 1px solid #f1f5f9; border-radius: 0.75rem; transition: border-color 0.2s, box-shadow 0.2s; }
         .personnel-card:hover { border-color: #e0e7ff; box-shadow: 0 4px 12px rgba(99,102,241,0.07); }
 
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.93); } to { opacity: 1; transform: scale(1); } }
         .modal-enter { animation: zoomIn 0.22s cubic-bezier(0.16,1,0.3,1) forwards; }
+
+        /* ── Layout: the two-column grid ── */
+        /*
+         * The grid lives inside a flex-1 container with min-h-0, so it can
+         * grow to fill the space without overflow leaking to the page.
+         * Chat column: flex column, fills height, Chat component fills it.
+         * Sidebar column: independent overflow-y scroll – never pushes chat.
+         * On ≤1024 px we stack: chat first (fixed tall), sidebar below (auto).
+         */
+        .flow-grid {
+          display: grid;
+          grid-template-columns: 1fr 360px;
+          gap: 1.25rem;
+          height: 100%;
+          min-height: 0;
+        }
+        @media (max-width: 1024px) {
+          .flow-grid {
+            grid-template-columns: 1fr;
+            height: auto;
+            overflow-y: auto;
+          }
+        }
+
+        /* Chat column stretches to fill its grid cell */
+        .chat-col {
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+          height: 100%;
+        }
+        /* On mobile give the chat a sensible fixed height */
+        @media (max-width: 1024px) {
+          .chat-col { height: 520px; flex-shrink: 0; }
+        }
+        @media (max-width: 640px) {
+          .chat-col { height: 420px; }
+        }
+
+        /* Chat fills its column entirely */
+        .chat-col > * { flex: 1; min-height: 0; }
+
+        /* Sidebar: independent scroll so it never competes with chat */
+        .sidebar-col {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          overflow-y: auto;
+          min-height: 0;
+          padding-bottom: 1rem;
+          scrollbar-width: thin;
+          scrollbar-color: #e2e8f0 transparent;
+        }
+        @media (max-width: 1024px) {
+          .sidebar-col { overflow-y: visible; }
+        }
       `}</style>
 
-      {/* ── COMPACT HERO + STATUS STRIP ── */}
-      <div className="ws-hero ws-hero-noise relative overflow-hidden">
+      {/* ── HERO + STATUS STRIP (flex-shrink-0 so it never collapses) ── */}
+      <div className="ws-hero ws-hero-noise relative overflow-hidden flex-shrink-0">
         <div className="glow-dot w-80 h-80 bg-indigo-500 opacity-20 -top-20 -left-10" />
         <div className="glow-dot w-56 h-56 bg-violet-400 opacity-15 top-10 right-16" />
 
@@ -248,45 +303,50 @@ const WorkshopServiceFlow = () => {
         </div>
       </div>
 
-      {/* ── MAIN 2-COLUMN LAYOUT ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <div className="flow-grid">
+      {/* ── MAIN AREA: fills all space below hero ── */}
+      {/*
+       * flex-1 + min-h-0 are the critical pair:
+       *   flex-1   → expands to fill remaining viewport height after the hero
+       *   min-h-0  → overrides flex's default min-height:auto so the child
+       *              grid can be smaller than its content and scroll internally
+       * overflow-hidden on this wrapper prevents double scroll bars.
+       */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 h-full">
+          <div className="flow-grid">
 
-          {/* ── LEFT: Chat ── */}
-          <div className="chat-height">
-            <Chat
-              key={requestId}
-              serviceRequestId={requestId}
-              canChat={!!activeConnection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
-              headerTitle={currentRequest?.user_name ? `Chat with ${currentRequest.user_name}` : 'In-App Chat'}
-              headerSubtitle="Communication Channel"
-              headerIcon={User}
-              gradientFrom="from-indigo-600"
-              gradientTo="to-violet-600"
-              disabledMessage="Chat will be available when this service has an accepted, active connection."
-            />
-          </div>
-
-          {/* ── RIGHT: Sidebar ── */}
-          <div className="flex flex-col gap-3">
-
-            {/* Tab switcher */}
-            <div className="ws-card p-1.5">
-              <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                {['team', 'estimate'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setSidebarTab(t)}
-                    className={`tab-btn flex-1 py-1.5 text-xs font-display font-bold rounded-lg capitalize ${sidebarTab === t ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-                  >
-                    {t === 'team' ? 'Team' : 'Estimate'}
-                  </button>
-                ))}
-              </div>
+            {/* ── LEFT: Chat ── */}
+            <div className="chat-col">
+              <Chat
+                key={requestId}
+                serviceRequestId={requestId}
+                canChat={!!activeConnection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
+                headerTitle={currentRequest?.user_name ? `Chat with ${currentRequest.user_name}` : 'In-App Chat'}
+                headerSubtitle="Communication Channel"
+                headerIcon={User}
+                gradientFrom="from-indigo-600"
+                gradientTo="to-violet-600"
+                disabledMessage="Chat will be available when this service has an accepted, active connection."
+              />
             </div>
 
-            {/* Tab content */}
-            <div className="sidebar-scroll space-y-3">
+            {/* ── RIGHT: Sidebar ── */}
+            <div className="sidebar-col">
+
+              {/* Tab switcher */}
+              <div className="ws-card p-1.5 flex-shrink-0">
+                <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+                  {['team', 'estimate'].map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setSidebarTab(t)}
+                      className={`tab-btn flex-1 py-1.5 text-xs font-display font-bold rounded-lg capitalize ${sidebarTab === t ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                      {t === 'team' ? 'Team' : 'Estimate'}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* ── TEAM TAB ── */}
               {sidebarTab === 'team' && (
@@ -309,7 +369,6 @@ const WorkshopServiceFlow = () => {
                   </div>
 
                   <div className="space-y-2">
-                    {/* Lead Technician */}
                     {leadTechnician && (
                       <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-violet-50 rounded-xl p-3 border border-indigo-100">
                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
@@ -323,7 +382,6 @@ const WorkshopServiceFlow = () => {
                       </div>
                     )}
 
-                    {/* Assigned Mechanics */}
                     {assignedMechanics.map(mechanic => (
                       <div key={mechanic.id} className="personnel-card bg-white p-3 relative group flex items-center gap-2">
                         <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0">
@@ -374,94 +432,90 @@ const WorkshopServiceFlow = () => {
                   )}
                 </div>
               )}
-            </div>
 
-            {/* ── ACTIONS SECTION ── */}
-            <div className="ws-card p-4 space-y-2.5">
-              <span className="section-label text-gray-400 text-[0.62rem] block">Actions</span>
+              {/* ── ACTIONS SECTION ── */}
+              <div className="ws-card p-4 space-y-2.5 flex-shrink-0">
+                <span className="section-label text-gray-400 text-[0.62rem] block">Actions</span>
 
-              {/* Start / End Service */}
-              {showServiceActions && (
-                <>
-                  {currentStatus === 'SERVICE_AMOUNT_PAID' && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          await dispatch(startService(requestId)).unwrap();
-                          toast.success('Service started successfully!');
-                        } catch (e) { toast.error(e || 'Failed to start service'); }
-                      }}
-                      disabled={loading}
-                      className="action-btn w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
-                    >
-                      <Wrench className="w-3.5 h-3.5" /> Start Service
-                    </button>
-                  )}
-                  {currentStatus === 'IN_PROGRESS' && (
-                    <button
-                      onClick={() => {
-                        toast((t) => (
-                          <div className="flex flex-col gap-3">
-                            <div className="font-medium text-gray-900">Service completely finished?</div>
-                            <div className="flex gap-2">
-                              <button onClick={() => toast.dismiss(t.id)} className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
-                              <button onClick={async () => {
-                                toast.dismiss(t.id);
-                                try {
-                                  await dispatch(endService(requestId)).unwrap();
-                                  dispatch(fetchServiceRequestDetails(requestId));
-                                  toast.success('Service marked as completed!');
-                                } catch (e) { toast.error(e || 'Failed to finish service'); }
-                              }} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
+                {showServiceActions && (
+                  <>
+                    {currentStatus === 'SERVICE_AMOUNT_PAID' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await dispatch(startService(requestId)).unwrap();
+                            toast.success('Service started successfully!');
+                          } catch (e) { toast.error(e || 'Failed to start service'); }
+                        }}
+                        disabled={loading}
+                        className="action-btn w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
+                      >
+                        <Wrench className="w-3.5 h-3.5" /> Start Service
+                      </button>
+                    )}
+                    {currentStatus === 'IN_PROGRESS' && (
+                      <button
+                        onClick={() => {
+                          toast((t) => (
+                            <div className="flex flex-col gap-3">
+                              <div className="font-medium text-gray-900">Service completely finished?</div>
+                              <div className="flex gap-2">
+                                <button onClick={() => toast.dismiss(t.id)} className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50">Cancel</button>
+                                <button onClick={async () => {
+                                  toast.dismiss(t.id);
+                                  try {
+                                    await dispatch(endService(requestId)).unwrap();
+                                    dispatch(fetchServiceRequestDetails(requestId));
+                                    toast.success('Service marked as completed!');
+                                  } catch (e) { toast.error(e || 'Failed to finish service'); }
+                                }} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
+                              </div>
                             </div>
-                          </div>
-                        ), { position: 'top-center' });
-                      }}
-                      disabled={loading}
-                      className="action-btn w-full py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" /> Mark as Completed
-                    </button>
-                  )}
-                </>
-              )}
+                          ), { position: 'top-center' });
+                        }}
+                        disabled={loading}
+                        className="action-btn w-full py-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Mark as Completed
+                      </button>
+                    )}
+                  </>
+                )}
 
-              {/* Send OTP */}
-              {showOtp && (
+                {showOtp && (
+                  <button
+                    onClick={handleGenerateOtp}
+                    className="action-btn w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Send OTP to Customer
+                  </button>
+                )}
+
+                {showCancelBtn && (
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm('Cancel this connection?')) return;
+                      try {
+                        await dispatch(cancelRequestWorkshop(activeConnection.id)).unwrap();
+                        toast.success('Connection cancelled');
+                        if (requestId) dispatch(fetchServiceRequestDetails(requestId));
+                      } catch (e) { toast.error(e?.error || 'Failed to cancel'); }
+                    }}
+                    className="action-btn w-full py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center justify-center gap-2 font-display font-bold text-xs hover:bg-red-100"
+                  >
+                    <Ban className="w-3.5 h-3.5" /> Cancel Connection
+                  </button>
+                )}
+
                 <button
-                  onClick={handleGenerateOtp}
-                  className="action-btn w-full py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm"
+                  onClick={() => setShowComplaintModal(true)}
+                  className="action-btn w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl flex items-center justify-center gap-2 font-display font-bold text-xs shadow-sm"
                 >
-                  <Send className="w-3.5 h-3.5" /> Send OTP to Customer
+                  <AlertCircle className="w-3.5 h-3.5" /> Report a Problem
                 </button>
-              )}
+              </div>
 
-              {/* Cancel Connection */}
-              {showCancelBtn && (
-                <button
-                  onClick={async () => {
-                    if (!window.confirm('Cancel this connection?')) return;
-                    try {
-                      await dispatch(cancelRequestWorkshop(activeConnection.id)).unwrap();
-                      toast.success('Connection cancelled');
-                      if (requestId) dispatch(fetchServiceRequestDetails(requestId));
-                    } catch (e) { toast.error(e?.error || 'Failed to cancel'); }
-                  }}
-                  className="action-btn w-full py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center justify-center gap-2 font-display font-bold text-xs hover:bg-red-100"
-                >
-                  <Ban className="w-3.5 h-3.5" /> Cancel Connection
-                </button>
-              )}
-
-              {/* Report */}
-              <button
-                onClick={() => setShowComplaintModal(true)}
-                className="action-btn w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl flex items-center justify-center gap-2 font-display font-bold text-xs shadow-sm"
-              >
-                <AlertCircle className="w-3.5 h-3.5" /> Report a Problem
-              </button>
             </div>
-
           </div>
         </div>
       </div>
