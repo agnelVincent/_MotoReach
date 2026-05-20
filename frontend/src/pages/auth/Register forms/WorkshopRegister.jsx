@@ -155,12 +155,12 @@ const WorkshopRegister = () => {
     return (
         <form className="space-y-5" onSubmit={handleSubmit}>
             {displayError && (
-                <div className="mb-6 p-4 rounded-lg flex flex-col gap-2 bg-red-50 text-red-800 border border-red-200">
-                    <div className="flex items-center gap-2 font-semibold">
-                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <div className="mb-6 p-4 rounded-2xl flex flex-col gap-2 bg-red-50 border border-red-100">
+                    <div className="flex items-center gap-2 font-semibold text-red-700" style={{fontFamily:'Syne,sans-serif'}}>
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         Registration Failed
                     </div>
-                    <p className="text-sm">{displayError}</p>
+                    <p className="text-sm text-red-600">{displayError}</p>
                 </div>
             )}
 
@@ -372,19 +372,20 @@ const WorkshopRegister = () => {
             <button
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${loading
-                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg hover:scale-[1.02]'
-                    }`}
+                style={loading ? {} : {
+                    background: 'linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%)',
+                    boxShadow: '0 4px 16px rgba(79,70,229,0.35)'
+                }}
+                className={`w-full py-3.5 rounded-2xl font-bold text-white transition-all duration-200 flex items-center justify-center gap-2 ${
+                    loading ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'hover:opacity-90 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98]'
+                }`}
             >
                 {loading ? (
-                    <span className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Registering...
-                    </span>
-                ) : (
-                    'Create Account'
-                )}
+                    <>
+                        <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        <span>Registering…</span>
+                    </>
+                ) : 'Create Account'}
             </button>
         </form>
     );
