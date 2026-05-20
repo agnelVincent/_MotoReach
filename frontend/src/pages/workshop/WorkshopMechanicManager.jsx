@@ -381,8 +381,8 @@ const css = `
 
   /* ── PAGE HEADER ── */
   .mm-header {
-    background: linear-gradient(145deg, #0B0F2A 0%, #1a1652 45%, #2d2fa3 80%, #1b3a6e 100%);
-    padding: 40px 28px 48px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+    padding: 72px 32px 110px;
     position: relative;
     overflow: hidden;
   }
@@ -414,12 +414,13 @@ const css = `
 
   /* ── CONTAINER ── */
   .mm-container {
-    max-width: 1200px; margin: 0 auto;
-    padding: 32px 28px 64px;
+    max-width: 1200px; margin: -36px auto 0;
+    padding: 0 28px 64px;
+    position: relative; z-index: 10;
   }
   @media (max-width: 640px) {
-    .mm-header   { padding: 32px 18px 44px; }
-    .mm-container { padding: 24px 16px 56px; }
+    .mm-header   { padding: 52px 20px 80px; }
+    .mm-container { padding: 0 16px 56px; margin-top: -24px; }
   }
 
   /* ── STATS ── */

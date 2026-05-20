@@ -441,8 +441,8 @@ const css = `
 
   /* ── HEADER ── */
   .wp-header {
-    background: linear-gradient(145deg, #0B0F2A 0%, #1a1652 45%, #2d2fa3 80%, #1b3a6e 100%);
-    padding: 46px 28px 52px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+    padding: 72px 32px 110px;
     position: relative; overflow: hidden;
   }
   .wp-header-grid {
@@ -475,13 +475,14 @@ const css = `
 
   /* ── CONTAINER ── */
   .wp-container {
-    max-width: 860px; margin: 0 auto;
-    padding: 32px 28px 72px;
+    max-width: 860px; margin: -36px auto 0;
+    padding: 0 28px 72px;
     display: flex; flex-direction: column; gap: 20px;
+    position: relative; z-index: 10;
   }
   @media (max-width: 640px) {
-    .wp-header    { padding: 36px 18px 46px; }
-    .wp-container { padding: 22px 16px 56px; }
+    .wp-header    { padding: 52px 20px 80px; }
+    .wp-container { padding: 0 16px 56px; margin-top: -24px; }
   }
 
   /* ── CARD ── */
