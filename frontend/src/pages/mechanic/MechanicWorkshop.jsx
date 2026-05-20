@@ -26,25 +26,33 @@ const MechanicWorkshop = () => {
         }
     }, [successMessage, error, dispatch]);
 
+    // Loading state
     if (fetchLoading && !currentWorkshop) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
+                <style>{`
+                    @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&display=swap');
+                    .font-body { font-family: 'Geist', 'Inter', sans-serif; }
+                `}</style>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin" />
+                    <p className="font-body text-gray-500 font-medium">Loading workshop info…</p>
+                </div>
             </div>
         );
     }
 
-    // If workshop exists and status is ACCEPTED -> show details
+    // ACCEPTED → workshop details
     if (currentWorkshop && currentWorkshop.joining_status === 'ACCEPTED') {
         return <MechanicWorkshopDetails workshop={currentWorkshop} />;
     }
 
-    // If workshop exists and status is PENDING -> show pending request UI
+    // PENDING → pending request view
     if (currentWorkshop && currentWorkshop.joining_status === 'PENDING') {
         return <MechanicPendingRequest workshop={currentWorkshop} />;
     }
 
-    // Otherwise (null, REJECTED) -> show find workshop
+    // null / REJECTED → find workshop
     return <MechanicFindWorkshop />;
 };
 
