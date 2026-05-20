@@ -31,7 +31,6 @@ const WorkshopServiceFlow = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState('team');
 
   useEffect(() => {
     setMounted(true);
@@ -145,7 +144,7 @@ const WorkshopServiceFlow = () => {
      * so the two-column grid can stretch to exactly the available height
      * without ever pushing content under a footer.
      */
-    <div className="h-screen flex flex-col bg-[#f8f9fc] font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#f8f9fc] font-sans">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
         .font-display { font-family: 'Syne', sans-serif; }
@@ -192,52 +191,32 @@ const WorkshopServiceFlow = () => {
          * Sidebar column: independent overflow-y scroll – never pushes chat.
          * On ≤1024 px we stack: chat first (fixed tall), sidebar below (auto).
          */
+        /* Responsive 2-column layout; page scrolls naturally */
         .flow-grid {
           display: grid;
-          grid-template-columns: 1fr 360px;
-          gap: 1.25rem;
-          height: 100%;
-          min-height: 0;
+          grid-template-columns: 1fr 380px;
+          gap: 1.5rem;
+          align-items: start;
         }
         @media (max-width: 1024px) {
-          .flow-grid {
-            grid-template-columns: 1fr;
-            height: auto;
-            overflow-y: auto;
-          }
+          .flow-grid { grid-template-columns: 1fr; }
         }
 
-        /* Chat column stretches to fill its grid cell */
+        /* Chat column: fixed tall height for comfortable usability */
         .chat-col {
           display: flex;
           flex-direction: column;
-          min-height: 0;
-          height: 100%;
+          height: 640px;
         }
-        /* On mobile give the chat a sensible fixed height */
-        @media (max-width: 1024px) {
-          .chat-col { height: 520px; flex-shrink: 0; }
-        }
-        @media (max-width: 640px) {
-          .chat-col { height: 420px; }
-        }
-
-        /* Chat fills its column entirely */
+        @media (max-width: 1024px) { .chat-col { height: 520px; } }
+        @media (max-width: 640px)  { .chat-col { height: 420px; } }
         .chat-col > * { flex: 1; min-height: 0; }
 
-        /* Sidebar: independent scroll so it never competes with chat */
+        /* Sidebar: natural height, stacks cards, page scrolls */
         .sidebar-col {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
-          overflow-y: auto;
-          min-height: 0;
-          padding-bottom: 1rem;
-          scrollbar-width: thin;
-          scrollbar-color: #e2e8f0 transparent;
-        }
-        @media (max-width: 1024px) {
-          .sidebar-col { overflow-y: visible; }
         }
       `}</style>
 
@@ -303,16 +282,9 @@ const WorkshopServiceFlow = () => {
         </div>
       </div>
 
-      {/* ── MAIN AREA: fills all space below hero ── */}
-      {/*
-       * flex-1 + min-h-0 are the critical pair:
-       *   flex-1   → expands to fill remaining viewport height after the hero
-       *   min-h-0  → overrides flex's default min-height:auto so the child
-       *              grid can be smaller than its content and scroll internally
-       * overflow-hidden on this wrapper prevents double scroll bars.
-       */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 h-full">
+      {/* ── MAIN CONTENT ── */}
+      <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flow-grid">
 
             {/* ── LEFT: Chat ── */}
@@ -333,108 +305,74 @@ const WorkshopServiceFlow = () => {
             {/* ── RIGHT: Sidebar ── */}
             <div className="sidebar-col">
 
-              {/* Tab switcher */}
-              <div className="ws-card p-1.5 flex-shrink-0">
-                <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-                  {['team', 'estimate'].map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setSidebarTab(t)}
-                      className={`tab-btn flex-1 py-1.5 text-xs font-display font-bold rounded-lg capitalize ${sidebarTab === t ? 'bg-white shadow text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}
-                    >
-                      {t === 'team' ? 'Team' : 'Estimate'}
-                    </button>
-                  ))}
+              {/* Team Management – always visible, no tab required */}
+              <div className="ws-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="section-label text-indigo-500 block text-[0.62rem]">Assigned Team</span>
+                    <h3 className="font-display font-bold text-gray-900 text-sm">Service Personnel</h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAssignModal(true);
+                      if (!workshopMechanics.length) dispatch(fetchWorkshopMechanics());
+                    }}
+                    className="action-btn w-8 h-8 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-100"
+                    title="Add Mechanic"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </div>
 
-              {/* ── TEAM TAB ── */}
-              {sidebarTab === 'team' && (
-                <div className="ws-card p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <span className="section-label text-indigo-500 block text-[0.62rem]">Assigned Team</span>
-                      <h3 className="font-display font-bold text-gray-900 text-sm">Service Personnel</h3>
+                <div className="space-y-2">
+                  {leadTechnician && (
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-violet-50 rounded-xl p-3 border border-indigo-100">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                        {leadTechnician.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-bold text-gray-900 text-xs truncate">{leadTechnician.name}</p>
+                        <p className="section-label text-indigo-500 text-[0.58rem]">Workshop Admin · Lead</p>
+                        <p className="font-body text-gray-400 text-[10px] truncate">{leadTechnician.email}</p>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setShowAssignModal(true);
-                        if (!workshopMechanics.length) dispatch(fetchWorkshopMechanics());
-                      }}
-                      className="action-btn w-8 h-8 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-100"
-                      title="Add Mechanic"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  )}
 
-                  <div className="space-y-2">
-                    {leadTechnician && (
-                      <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-violet-50 rounded-xl p-3 border border-indigo-100">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                          {leadTechnician.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display font-bold text-gray-900 text-xs truncate">{leadTechnician.name}</p>
-                          <p className="section-label text-indigo-500 text-[0.58rem]">Workshop Admin · Lead</p>
-                          <p className="font-body text-gray-400 text-[10px] truncate">{leadTechnician.email}</p>
+                  {assignedMechanics.map(mechanic => (
+                    <div key={mechanic.id} className="personnel-card bg-white p-3 relative group flex items-center gap-2">
+                      <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0">
+                        {mechanic.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-bold text-gray-900 text-xs truncate">{mechanic.name}</p>
+                        <p className="section-label text-blue-500 text-[0.58rem]">Mechanic</p>
+                        <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                          <Phone className="w-2.5 h-2.5" />
+                          <span>{mechanic.contact_number || 'N/A'}</span>
                         </div>
                       </div>
-                    )}
+                      <button
+                        onClick={() => handleRemoveMechanic(mechanic.id)}
+                        className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
 
-                    {assignedMechanics.map(mechanic => (
-                      <div key={mechanic.id} className="personnel-card bg-white p-3 relative group flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-sm flex-shrink-0">
-                          {mechanic.name.charAt(0)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-display font-bold text-gray-900 text-xs truncate">{mechanic.name}</p>
-                          <p className="section-label text-blue-500 text-[0.58rem]">Mechanic</p>
-                          <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                            <Phone className="w-2.5 h-2.5" />
-                            <span>{mechanic.contact_number || 'N/A'}</span>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveMechanic(mechanic.id)}
-                          className="w-6 h-6 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          title="Remove"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-
-                    {assignedMechanics.length === 0 && !leadTechnician && (
-                      <div className="text-center py-5 border-2 border-dashed border-slate-200 rounded-xl">
-                        <UserPlus className="w-6 h-6 mx-auto mb-1 text-slate-300" />
-                        <p className="font-body text-xs text-gray-400">No personnel assigned yet</p>
-                        <p className="font-body text-[10px] text-gray-300 mt-0.5">Click + to assign a mechanic</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── ESTIMATE TAB ── */}
-              {sidebarTab === 'estimate' && (
-                <div className="ws-card overflow-hidden">
-                  {activeConnection && activeConnection.status === 'ACCEPTED' ? (
-                    <EstimateManager
-                      connectionId={activeConnection.id}
-                      requestId={requestId}
-                    />
-                  ) : (
-                    <div className="p-4 text-center py-10">
-                      <DollarSign className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                      <p className="font-body text-xs text-gray-400">Estimate management available once connected</p>
+                  {assignedMechanics.length === 0 && !leadTechnician && (
+                    <div className="text-center py-5 border-2 border-dashed border-slate-200 rounded-xl">
+                      <UserPlus className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                      <p className="font-body text-xs text-gray-400">No personnel assigned yet</p>
+                      <p className="font-body text-[10px] text-gray-300 mt-0.5">Click + to assign a mechanic</p>
                     </div>
                   )}
                 </div>
-              )}
+              </div>
 
-              {/* ── ACTIONS SECTION ── */}
-              <div className="ws-card p-4 space-y-2.5 flex-shrink-0">
+              {/* Actions – always visible */}
+              <div className="ws-card p-4 space-y-2.5">
                 <span className="section-label text-gray-400 text-[0.62rem] block">Actions</span>
 
                 {showServiceActions && (
@@ -517,6 +455,34 @@ const WorkshopServiceFlow = () => {
 
             </div>
           </div>
+
+          {/* ── Full-width: Estimate Manager (needs space to show its table) ── */}
+          {activeConnection && activeConnection.status === 'ACCEPTED' ? (
+            <div className="ws-card overflow-hidden mt-6">
+              <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-3.5 flex items-center gap-3">
+                <div className="w-9 h-9 bg-emerald-500/20 rounded-xl flex items-center justify-center border border-emerald-500/30">
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-white text-sm">Estimate Manager</h3>
+                  <p className="text-white/50 text-[0.62rem] font-body">Create and send itemised cost breakdowns to the customer</p>
+                </div>
+              </div>
+              <EstimateManager
+                connectionId={activeConnection.id}
+                requestId={requestId}
+              />
+            </div>
+          ) : (
+            <div className="ws-card p-5 mt-6 flex items-center gap-4 border-2 border-dashed border-slate-200">
+              <DollarSign className="w-7 h-7 text-slate-300 flex-shrink-0" />
+              <div>
+                <p className="font-display font-bold text-sm text-gray-500">Estimate Management</p>
+                <p className="font-body text-xs text-gray-400 mt-0.5">Available once the service connection is accepted</p>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 

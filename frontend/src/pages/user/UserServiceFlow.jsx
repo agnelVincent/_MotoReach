@@ -31,22 +31,8 @@ const UserServiceFlow = () => {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
-  // Track hero height for accurate content area calculation
-  const heroRef = useRef(null);
-  const [heroHeight, setHeroHeight] = useState(0);
-
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!heroRef.current) return;
-    const observer = new ResizeObserver(() => {
-      setHeroHeight(heroRef.current?.offsetHeight ?? 0);
-    });
-    observer.observe(heroRef.current);
-    setHeroHeight(heroRef.current.offsetHeight);
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -258,9 +244,7 @@ const UserServiceFlow = () => {
     ? (estimates.find(e => e.status === 'SENT' || e.status === 'APPROVED') || estimates[0])
     : null;
 
-  // Content area height = 100dvh minus hero height minus body padding (top 20px + bottom 20px = 40px)
-  const CONTENT_PADDING = 40;
-  const contentHeight = heroHeight > 0 ? `calc(100dvh - ${heroHeight}px - ${CONTENT_PADDING}px)` : '70vh';
+
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans flex flex-col">
@@ -332,92 +316,37 @@ const UserServiceFlow = () => {
         .star-btn { transition: transform 0.15s ease; }
         .star-btn:hover { transform: scale(1.2); }
 
-        /* ── KEY FIX: 2-col layout that fills exactly the remaining viewport height ── */
-        .flow-layout {
-          display: flex;
-          flex-direction: column;
-          flex: 1 1 0;
-          min-height: 0;
-        }
-
+        /* ── Responsive 2-column layout (page scrolls naturally) ── */
         .flow-grid {
           display: grid;
-          grid-template-columns: 1fr 360px;
-          gap: 1.25rem;
-          align-items: stretch; /* both cols same height */
-          flex: 1 1 0;
-          min-height: 0;
+          grid-template-columns: 1fr 380px;
+          gap: 1.5rem;
+          align-items: start;
+        }
+        @media (max-width: 1024px) {
+          .flow-grid { grid-template-columns: 1fr; }
         }
 
-        /* Left column: chat stretches to fill, no fixed viewport math */
+        /* Chat column – fixed tall height so it is always comfortably usable */
         .chat-col {
+          height: 640px;
           display: flex;
           flex-direction: column;
-          min-height: 0;
-          min-width: 0;
         }
+        .chat-col > * { flex: 1; min-height: 0; }
+        @media (max-width: 1024px) { .chat-col { height: 500px; } }
+        @media (max-width: 640px)  { .chat-col { height: 420px; } }
 
-        /* The chat card itself fills the column */
-        .chat-col > * {
-          flex: 1 1 0;
-          min-height: 0;
-        }
-
-        /* Right sidebar: scroll within its own column, never overflow */
+        /* Sidebar – natural height; cards stack and page scrolls */
         .sidebar-col {
           display: flex;
           flex-direction: column;
-          min-height: 0;
-          min-width: 0;
           gap: 0.75rem;
-        }
-
-        .sidebar-scroll {
-          flex: 1 1 0;
-          min-height: 0;
-          overflow-y: auto;
-          scrollbar-width: thin;
-          scrollbar-color: #e2e8f0 transparent;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-
-        /* Actions pinned to bottom of sidebar */
-        .sidebar-actions {
-          flex-shrink: 0;
-        }
-
-        @media (max-width: 1024px) {
-          .flow-grid {
-            grid-template-columns: 1fr;
-            /* On tablet/mobile don't force a fixed height — let content flow */
-            align-items: start;
-            flex: none;
-          }
-          .chat-col {
-            /* Give chat a sensible fixed height on mobile instead of flex-fill */
-            height: 500px;
-            flex: none;
-          }
-          .sidebar-col {
-            flex: none;
-          }
-          .sidebar-scroll {
-            flex: none;
-            max-height: 600px;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .chat-col {
-            height: 420px;
-          }
         }
       `}</style>
 
       {/* ── HERO + STATUS STRIP ── */}
-      <section ref={heroRef} className="hero-gradient hero-noise relative overflow-hidden flex-shrink-0">
+      <section className="hero-gradient hero-noise relative overflow-hidden">
         <div className="glow-dot w-80 h-80 bg-indigo-500 opacity-20 top-[-60px] left-[-40px]" />
         <div className="glow-dot w-56 h-56 bg-violet-400 opacity-15 bottom-0 right-10" />
 
@@ -488,11 +417,8 @@ const UserServiceFlow = () => {
         </div>
       </section>
 
-      {/* ── MAIN CONTENT: fills remaining viewport height ── */}
-      <div
-        className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 flow-layout"
-        style={{ height: contentHeight }}
-      >
+      {/* ── MAIN CONTENT ── */}
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="flow-grid">
 
           {/* ── LEFT: Chat or Rating ── */}
@@ -625,7 +551,7 @@ const UserServiceFlow = () => {
             </div>
 
             {/* Scrollable tab content */}
-            <div className="sidebar-scroll">
+            <div className="flex flex-col gap-3">
 
               {/* ── INFO TAB ── */}
               {sidebarTab === 'info' && (
@@ -845,7 +771,7 @@ const UserServiceFlow = () => {
             </div>
 
             {/* ── ACTIONS: pinned to bottom, never scrolls out of view ── */}
-            <div className="sidebar-actions sf-card p-4 space-y-3">
+            <div className="sf-card p-4 space-y-3">
               <span className="section-label text-gray-400 text-[0.62rem] block">Actions</span>
 
               {showOtp && (

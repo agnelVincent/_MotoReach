@@ -134,23 +134,16 @@ const MechanicServiceFlow = () => {
           pointer-events: none;
         }
 
-        /* Body grows to fill remaining viewport */
-        .sf-body {
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          min-height: 0; /* allow flex children to shrink below natural content size */
-        }
+
+        /* Body is a simple flex-1 wrapper; page scrolls naturally */
+        .sf-body { flex: 1; }
+
 
         .sf-body-inner {
-          flex: 1 1 auto;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
           max-width: 1152px;
           width: 100%;
           margin: 0 auto;
-          padding: 1.25rem 1rem 1.5rem;
+          padding: 1.5rem 1rem 2rem;
           box-sizing: border-box;
         }
         @media (min-width: 640px)  { .sf-body-inner { padding-left: 1.5rem; padding-right: 1.5rem; } }
@@ -163,17 +156,14 @@ const MechanicServiceFlow = () => {
              stretch to the same height via align-items: stretch
         ───────────────────────────────────────── */
         .sf-grid {
-          flex: 1 1 auto;
           display: grid;
           grid-template-columns: 1fr;
-          gap: 1.25rem;
-          min-height: 0;
-          align-items: start; /* mobile: each stacks naturally */
+          gap: 1.5rem;
+          align-items: start;
         }
         @media (min-width: 1024px) {
           .sf-grid {
-            grid-template-columns: 1fr 360px;
-            align-items: stretch; /* desktop: both columns same height */
+            grid-template-columns: 1fr 380px;
           }
         }
 
@@ -183,24 +173,15 @@ const MechanicServiceFlow = () => {
            Desktop: fills the full grid-row height so
                     Chat can use height: 100% inside
         ───────────────────────────────────────── */
+        /* Chat column: fixed tall height for comfortable usability */
         .sf-chat-col {
           display: flex;
           flex-direction: column;
-          min-height: 480px;
-          height: 540px; /* sensible mobile default */
+          height: 520px;
         }
-        @media (min-width: 1024px) {
-          .sf-chat-col {
-            height: auto;          /* let grid control the height */
-            min-height: 500px;
-          }
-        }
-        /* Chat component should fill its column fully */
-        .sf-chat-col > * {
-          flex: 1 1 auto;
-          min-height: 0;
-          /* If Chat uses height: 100%, it will fill this space */
-        }
+        @media (min-width: 1024px) { .sf-chat-col { height: 640px; } }
+        @media (max-width: 640px)  { .sf-chat-col { height: 420px; } }
+        .sf-chat-col > * { flex: 1; min-height: 0; }
 
         /* ─────────────────────────────────────────
            SIDEBAR COLUMN
@@ -208,24 +189,11 @@ const MechanicServiceFlow = () => {
            Desktop: sticky, scrolls independently
                     so it never pushes/overlaps the chat
         ───────────────────────────────────────── */
+        /* Sidebar: natural height, stacks cards, page scrolls */
         .sf-sidebar-col {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
-          min-height: 0;
-        }
-        @media (min-width: 1024px) {
-          .sf-sidebar-col {
-            position: sticky;
-            top: 1.25rem;
-            /* cap sidebar height to viewport; scroll within */
-            max-height: calc(100vh - 180px);
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #e2e8f0 transparent;
-            /* padding so content doesn't clip against scrollbar */
-            padding-right: 2px;
-          }
         }
 
         /* Decorative blobs in hero */
