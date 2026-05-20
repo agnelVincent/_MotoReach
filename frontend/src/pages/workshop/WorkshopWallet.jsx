@@ -9,13 +9,15 @@ import {
     ArrowDownLeft,
     Calendar,
     Clock,
-    ArrowUpRight as ArrowUpRightIcon
+    ChevronRight,
+    Activity,
+    Banknote
 } from 'lucide-react';
 
 const WorkshopWallet = () => {
     const dispatch = useDispatch();
 
-    const { balance, recentTransactions, allTransactions, totalTransactions, currentPage, hasMore, loading, transactionsLoading } = useSelector((state) => state.wallet);
+    const { balance, recentTransactions, allTransactions, currentPage, hasMore, loading, transactionsLoading } = useSelector((state) => state.wallet);
 
     const [viewAllTransactions, setViewAllTransactions] = useState(false);
 
@@ -29,180 +31,263 @@ const WorkshopWallet = () => {
         }
     }, [dispatch, viewAllTransactions, currentPage]);
 
-    const getTransactionIcon = (type) => {
-        return type === 'CREDIT' ? (
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <ArrowDownLeft className="w-5 h-5 text-green-600" />
-            </div>
-        ) : (
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <ArrowUpRight className="w-5 h-5 text-red-600" />
-            </div>
-        );
-    };
+    const getTransactionIcon = (type) => type === 'CREDIT' ? (
+        <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <ArrowDownLeft className="w-5 h-5 text-emerald-600" />
+        </div>
+    ) : (
+        <div className="w-10 h-10 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <ArrowUpRight className="w-5 h-5 text-rose-500" />
+        </div>
+    );
 
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         });
     };
 
     const displayTransactions = viewAllTransactions ? allTransactions : recentTransactions;
 
-    // Calculate totals from all transactions (not just recent)
-    const totalCredits = allTransactions.length > 0 
-        ? allTransactions.filter(t => t.transaction_type === 'CREDIT').reduce((sum, t) => sum + parseFloat(t.amount), 0)
-        : recentTransactions.filter(t => t.transaction_type === 'CREDIT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
-    
-    const totalDebits = allTransactions.length > 0
-        ? allTransactions.filter(t => t.transaction_type === 'DEBIT').reduce((sum, t) => sum + parseFloat(t.amount), 0)
-        : recentTransactions.filter(t => t.transaction_type === 'DEBIT').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const totalCredits = (allTransactions.length > 0 ? allTransactions : recentTransactions)
+        .filter(t => t.transaction_type === 'CREDIT')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+    const totalDebits = (allTransactions.length > 0 ? allTransactions : recentTransactions)
+        .filter(t => t.transaction_type === 'DEBIT')
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
     if (loading && !balance) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-                    <p className="text-slate-500 font-medium">Loading wallet...</p>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center animate-pulse">
+                    <WalletIcon className="w-6 h-6 text-indigo-600" />
                 </div>
+                <span className="ml-3 font-body text-gray-400 text-sm">Loading wallet…</span>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Workshop Wallet</h1>
-                    <p className="text-gray-600">View your earnings and transaction history</p>
-                </div>
+        <div className="min-h-screen bg-[#f8f9fc] font-sans">
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+                .font-display { font-family: 'Syne', sans-serif; }
+                .font-body   { font-family: 'Geist', 'Inter', sans-serif; }
 
-                {/* Balance Card */}
-                <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-3xl shadow-2xl p-8 mb-8 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+                .wallet-hero {
+                    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+                }
+                .hero-noise::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+                    opacity: 0.4;
+                    pointer-events: none;
+                }
+                .glow-dot {
+                    position: absolute;
+                    border-radius: 50%;
+                    filter: blur(80px);
+                    pointer-events: none;
+                }
+                .badge-pill {
+                    background: rgba(255,255,255,0.12);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255,255,255,0.2);
+                }
+                .section-label {
+                    font-family: 'Syne', sans-serif;
+                    font-weight: 600;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    font-size: 0.7rem;
+                }
+                .stat-card {
+                    transition: transform 0.2s ease, box-shadow 0.2s ease;
+                }
+                .stat-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+                }
+                .card {
+                    background: white;
+                    border-radius: 1.5rem;
+                    border: 1px solid #f1f5f9;
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+                }
+                .tx-row {
+                    border: 1px solid #f1f5f9;
+                    border-radius: 1rem;
+                    transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+                }
+                .tx-row:hover {
+                    background: #fafbff;
+                    border-color: #e0e7ff;
+                    transform: translateX(2px);
+                }
+                .grid-lines {
+                    background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+                    background-size: 40px 40px;
+                }
+            `}</style>
 
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-8">
-                            <div className="flex items-center gap-3">
-                                <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                                    <WalletIcon className="w-7 h-7 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-blue-100 text-sm font-medium">Available Balance</p>
-                                    <h2 className="text-5xl font-bold text-white">₹{parseFloat(balance || 0).toFixed(2)}</h2>
-                                </div>
-                            </div>
+            {/* ── HERO ── */}
+            <section className="wallet-hero hero-noise relative overflow-hidden">
+                <div className="glow-dot w-96 h-96 bg-indigo-500 opacity-20 top-[-80px] left-[-60px]" />
+                <div className="glow-dot w-72 h-72 bg-violet-400 opacity-15 top-10 right-10" />
+
+                <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-28 md:pt-16 md:pb-32">
+                    <div className="inline-flex items-center gap-2 badge-pill px-4 py-1.5 rounded-full text-white/80 mb-6">
+                        <Banknote className="w-3.5 h-3.5" />
+                        <span className="section-label text-white/70">Earnings Wallet</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                        <div>
+                            <p className="font-body text-white/40 text-sm mb-1">Available Balance</p>
+                            <h1 className="font-display font-bold text-5xl sm:text-6xl text-white leading-none">
+                                ₹<span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-indigo-200 bg-clip-text text-transparent">
+                                    {parseFloat(balance || 0).toFixed(2)}
+                                </span>
+                            </h1>
+                            <p className="font-body text-white/30 text-xs mt-2">Earnings from completed services</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <TrendingUp className="w-5 h-5 text-green-300" />
-                                    <p className="text-blue-100 text-sm">Total Credits</p>
-                                </div>
-                                <p className="text-2xl font-bold text-white">
-                                    ₹{totalCredits.toFixed(2)}
-                                </p>
-                            </div>
-
-                            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <TrendingDown className="w-5 h-5 text-red-300" />
-                                    <p className="text-blue-100 text-sm">Total Debits</p>
-                                </div>
-                                <p className="text-2xl font-bold text-white">
-                                    ₹{totalDebits.toFixed(2)}
-                                </p>
-                            </div>
+                        <div className="badge-pill px-4 py-2 rounded-xl flex items-center gap-2 self-start sm:self-auto">
+                            <Activity className="w-4 h-4 text-emerald-400" />
+                            <span className="font-display font-semibold text-white/70 text-sm">Auto-credited</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Transactions Section */}
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-2xl font-bold text-gray-800">
-                            {viewAllTransactions ? 'All Transactions' : 'Recent Transactions'}
-                        </h3>
+                <div className="absolute bottom-0 left-0 right-0 h-14 bg-[#f8f9fc]" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+            </section>
+
+            {/* ── STAT CARDS ── */}
+            <section className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center mb-3">
+                            <WalletIcon className="w-4 h-4 text-indigo-600" />
+                        </div>
+                        <div className="font-display font-bold text-2xl text-indigo-600">₹{parseFloat(balance || 0).toFixed(2)}</div>
+                        <div className="font-body text-gray-700 font-medium text-sm mt-0.5">Balance</div>
+                        <div className="font-body text-gray-400 text-xs">Current wallet</div>
+                    </div>
+
+                    <div className="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
+                            <TrendingUp className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="font-display font-bold text-2xl text-emerald-600">₹{totalCredits.toFixed(2)}</div>
+                        <div className="font-body text-gray-700 font-medium text-sm mt-0.5">Total Credits</div>
+                        <div className="font-body text-gray-400 text-xs">Money received</div>
+                    </div>
+
+                    <div className="stat-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+                        <div className="w-9 h-9 bg-rose-50 rounded-xl flex items-center justify-center mb-3">
+                            <TrendingDown className="w-4 h-4 text-rose-500" />
+                        </div>
+                        <div className="font-display font-bold text-2xl text-rose-500">₹{totalDebits.toFixed(2)}</div>
+                        <div className="font-body text-gray-700 font-medium text-sm mt-0.5">Total Debits</div>
+                        <div className="font-body text-gray-400 text-xs">Money deducted</div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── TRANSACTIONS ── */}
+            <section className="grid-lines max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+                <div className="card overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-gray-50">
+                        <div>
+                            <span className="section-label text-indigo-500 block mb-0.5">
+                                {viewAllTransactions ? 'All Records' : 'Recent Activity'}
+                            </span>
+                            <h2 className="font-display font-bold text-gray-900 text-xl">
+                                {viewAllTransactions ? 'All Transactions' : 'Recent Transactions'}
+                            </h2>
+                        </div>
                         {!viewAllTransactions && recentTransactions.length > 0 && (
                             <button
                                 onClick={() => setViewAllTransactions(true)}
-                                className="text-blue-600 hover:text-blue-700 font-semibold text-sm flex items-center gap-1"
+                                className="font-display font-semibold text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
                             >
-                                View All
-                                <ArrowUpRightIcon className="w-4 h-4" />
+                                View All <ChevronRight className="w-4 h-4" />
                             </button>
                         )}
                         {viewAllTransactions && (
                             <button
                                 onClick={() => setViewAllTransactions(false)}
-                                className="text-gray-600 hover:text-gray-700 font-semibold text-sm"
+                                className="font-display font-semibold text-sm text-gray-500 hover:text-gray-700 transition-colors"
                             >
                                 Show Less
                             </button>
                         )}
                     </div>
 
-                    {transactionsLoading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
-                        </div>
-                    ) : displayTransactions.length > 0 ? (
-                        <div className="space-y-3">
-                            {displayTransactions.map((transaction) => (
-                                <div
-                                    key={transaction.id}
-                                    className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all border border-gray-100"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        {getTransactionIcon(transaction.transaction_type)}
-                                        <div>
-                                            <p className="font-semibold text-gray-800">{transaction.description}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <Calendar className="w-3 h-3 text-gray-400" />
-                                                <p className="text-sm text-gray-500">{formatDate(transaction.created_at)}</p>
+                    {/* Body */}
+                    <div className="p-4 md:p-6">
+                        {transactionsLoading ? (
+                            <div className="flex items-center justify-center py-16 gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center animate-pulse">
+                                    <Activity className="w-4 h-4 text-indigo-500" />
+                                </div>
+                                <span className="font-body text-gray-400 text-sm">Loading transactions…</span>
+                            </div>
+                        ) : displayTransactions.length > 0 ? (
+                            <div className="space-y-2">
+                                {displayTransactions.map((transaction) => (
+                                    <div key={transaction.id} className="tx-row flex items-center justify-between p-3.5 bg-white">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            {getTransactionIcon(transaction.transaction_type)}
+                                            <div className="min-w-0">
+                                                <p className="font-display font-semibold text-gray-800 text-sm truncate">{transaction.description}</p>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <Calendar className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                                                    <p className="font-body text-xs text-gray-400">{formatDate(transaction.created_at)}</p>
+                                                </div>
                                             </div>
                                         </div>
+                                        <div className="text-right flex-shrink-0 ml-3">
+                                            <p className={`font-display font-bold text-base ${transaction.transaction_type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                                {transaction.transaction_type === 'CREDIT' ? '+' : '−'}₹{parseFloat(transaction.amount).toFixed(2)}
+                                            </p>
+                                            <span className={`font-body text-[10px] px-2 py-0.5 rounded-full ${transaction.transaction_type === 'CREDIT' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
+                                                {transaction.transaction_type}
+                                            </span>
+                                        </div>
                                     </div>
-
-                                    <div className="text-right">
-                                        <p className={`text-xl font-bold ${transaction.transaction_type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                            {transaction.transaction_type === 'CREDIT' ? '+' : '-'}₹{parseFloat(transaction.amount).toFixed(2)}
-                                        </p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Clock className="w-10 h-10 text-gray-400" />
+                                ))}
                             </div>
-                            <p className="text-gray-500 text-lg font-semibold mb-2">No transactions yet</p>
-                            <p className="text-gray-400">Your earnings from completed services will appear here</p>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="text-center py-16">
+                                <div className="w-16 h-16 wallet-hero rounded-3xl flex items-center justify-center mx-auto mb-4 opacity-80">
+                                    <Clock className="w-8 h-8 text-white" />
+                                </div>
+                                <p className="font-display font-bold text-gray-800 text-lg mb-1">No transactions yet</p>
+                                <p className="font-body text-gray-400 text-sm">Your earnings from completed services will appear here</p>
+                            </div>
+                        )}
 
-                    {viewAllTransactions && hasMore && (
-                        <div className="mt-6 text-center">
-                            <button
-                                onClick={() => dispatch(fetchWalletTransactions({ page: currentPage + 1, pageSize: 20 }))}
-                                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all"
-                            >
-                                Load More
-                            </button>
-                        </div>
-                    )}
+                        {viewAllTransactions && hasMore && (
+                            <div className="mt-5 text-center">
+                                <button
+                                    onClick={() => dispatch(fetchWalletTransactions({ page: currentPage + 1, pageSize: 20 }))}
+                                    className="font-display font-semibold px-6 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors text-sm"
+                                >
+                                    Load More
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </section>
         </div>
     );
 };
