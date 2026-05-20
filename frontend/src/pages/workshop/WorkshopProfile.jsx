@@ -1,560 +1,738 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  Camera,
-  Building2,
-  FileText,
-  MapPin,
-  Lock,
-  Edit2,
-  Save,
-  X,
-  CheckCircle,
-  Shield,
-  AlertTriangle,
-  RotateCw, 
+import {
+  User, Mail, Phone, Camera, Building2, FileText,
+  MapPin, Lock, Edit2, Save, X, CheckCircle,
+  Shield, AlertTriangle, RotateCw, Eye, EyeOff
 } from 'lucide-react';
-
-import { 
-  getProfile, 
-  updateProfile, 
-  changePassword, 
-  clearStatus 
-} from '../../redux/slices/ProfileSlice'; 
-
-import ProfileInput from '../../components/ProfileInput'; 
+import {
+  getProfile, updateProfile, changePassword, clearStatus
+} from '../../redux/slices/ProfileSlice';
+import ProfileInput from '../../components/ProfileInput';
 
 const WorkshopProfile = () => {
-  const dispatch = useDispatch();
-  
-  const { 
-    profile, 
-    loading, 
-    error, 
-    success 
-  } = useSelector((state) => state.profile);
+  const dispatch = useDispatch();
+  const { profile, loading, error, success } = useSelector(s => s.profile);
 
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  
-  const [editedOwnerData, setEditedOwnerData] = useState({
-    fullName: '',
-    contactNumber: '',
-    profilePicture: null, 
-  });
-  
-  const [profilePictureFile, setProfilePictureFile] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [mounted, setMounted] = useState(false);
 
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [editedOwnerData, setEditedOwnerData] = useState({ fullName: '', contactNumber: '', profilePicture: null });
+  const [profilePictureFile, setProfilePictureFile] = useState(null);
 
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  
-  useEffect(() => {
-    dispatch(getProfile());
-  }, [dispatch]);
-  
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
-  useEffect(() => {
-    if (profile) {
-      setEditedOwnerData({
-        fullName: profile.full_name || '',
-        contactNumber: profile.role_details.contact_number || '',
-        profilePicture: profile.profile_picture || null,
-      });
-    }
-  }, [profile]);
+  useEffect(() => { setMounted(true); dispatch(getProfile()); }, [dispatch]);
 
-  useEffect(() => {
-    if (success) {
-      showNotification(success, 'success');
-    }
-    if (error) {
-      const errorMsg = typeof error === 'string' ? error : error.detail || 'An unknown error occurred.';
-      showNotification(errorMsg, 'error');
-    }
-    
-    const timer = setTimeout(() => {
-      dispatch(clearStatus());
-    }, 50); 
-    
-    return () => clearTimeout(timer);
-  }, [success, error, dispatch]);
-  
+  useEffect(() => {
+    if (profile) {
+      setEditedOwnerData({
+        fullName: profile.full_name || '',
+        contactNumber: profile.role_details?.contact_number || '',
+        profilePicture: profile.profile_picture || null,
+      });
+    }
+  }, [profile]);
 
-  const showNotification = (message, type) => {
-    if (type === 'success') {
-      setSuccessMessage(message);
-      setErrorMessage('');
-    } else {
-      setErrorMessage(message);
-      setSuccessMessage('');
-    }
+  useEffect(() => {
+    if (success) notify(success, 'success');
+    if (error) notify(typeof error === 'string' ? error : error.detail || 'An unknown error occurred.', 'error');
+    const t = setTimeout(() => dispatch(clearStatus()), 50);
+    return () => clearTimeout(t);
+  }, [success, error, dispatch]);
 
-    setTimeout(() => {
-      setSuccessMessage('');
-      setErrorMessage('');
-    }, 3000);
-  };
+  const notify = (msg, type) => {
+    if (type === 'success') { setSuccessMessage(msg); setErrorMessage(''); }
+    else { setErrorMessage(msg); setSuccessMessage(''); }
+    setTimeout(() => { setSuccessMessage(''); setErrorMessage(''); }, 3500);
+  };
 
-  const handleEditToggle = () => {
-    if (isEditMode) {
-      if (profile) {
-        setEditedOwnerData({
-          fullName: profile.full_name || '',
-          contactNumber: profile.role_details.contact_number || '',
-          profilePicture: profile.profile_picture || null,
-        });
-        setProfilePictureFile(null);
-      }
-    }
-    setIsEditMode(!isEditMode);
-  };
+  const handleEditToggle = () => {
+    if (isEditMode && profile) {
+      setEditedOwnerData({
+        fullName: profile.full_name || '',
+        contactNumber: profile.role_details?.contact_number || '',
+        profilePicture: profile.profile_picture || null,
+      });
+      setProfilePictureFile(null);
+    }
+    setIsEditMode(v => !v);
+  };
 
-  const handleOwnerInputChange = (field, value) => {
-    setEditedOwnerData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-  
-  const handleProfilePictureFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setProfilePictureFile(file);
-      // Create a temporary URL for preview
-      setEditedOwnerData(prev => ({
-        ...prev,
-        profilePicture: URL.createObjectURL(file) 
-      }));
-    }
-  };
+  const handleProfilePicChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfilePictureFile(file);
+      setEditedOwnerData(prev => ({ ...prev, profilePicture: URL.createObjectURL(file) }));
+    }
+  };
 
-  const handleSaveProfile = () => {
-    if (loading || !profile) return;
-    
-    const formData = new FormData();
-    
-    // Append fields only if they have changed or are required
-    if (editedOwnerData.fullName !== profile.full_name) {
-      formData.append('full_name', editedOwnerData.fullName);
-    }
-    if (editedOwnerData.contactNumber !== profile.role_details.contact_number) {
-      formData.append('contact_number', editedOwnerData.contactNumber);
-    }
+  const handleSaveProfile = () => {
+    if (loading || !profile) return;
+    const fd = new FormData();
+    if (editedOwnerData.fullName !== profile.full_name) fd.append('full_name', editedOwnerData.fullName);
+    if (editedOwnerData.contactNumber !== profile.role_details?.contact_number) fd.append('contact_number', editedOwnerData.contactNumber);
+    if (profilePictureFile) fd.append('profile_picture', profilePictureFile);
+    dispatch(updateProfile(fd)).unwrap().then(() => { setIsEditMode(false); setProfilePictureFile(null); }).catch(() => {});
+  };
 
-    if (profilePictureFile) {
-        formData.append('profile_picture', profilePictureFile);
-    } 
+  const handlePasswordUpdate = () => {
+    if (!isPasswordFormValid) return;
+    dispatch(changePassword({ old_password: passwordData.currentPassword, new_password: passwordData.newPassword }))
+      .unwrap()
+      .then(() => setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }))
+      .catch(err => {
+        const msg = err.old_password?.[0] || err.new_password?.[0] || err.non_field_errors?.[0] || 'Password update failed.';
+        notify(msg, 'error');
+      });
+  };
 
-  
-    dispatch(updateProfile(formData))
-      .unwrap()
-      .then(() => {
-        // Only turn off edit mode if update was successful
-        setIsEditMode(false);
-        setProfilePictureFile(null); // Clear file input
-      })
-      .catch((err) => {
-        console.error('Profile update failed:', err);
-      });
-  };
+  const passwordMatchError = passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword ? 'Passwords do not match' : '';
+  const isPasswordFormValid = passwordData.currentPassword && passwordData.newPassword && passwordData.confirmPassword && !passwordMatchError;
 
-  const handlePasswordChange = (field, value) => {
-    setPasswordData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const d = {
+    fullName: profile?.full_name || 'N/A',
+    email: profile?.email || 'N/A',
+    contactNumber: profile?.role_details?.contact_number || 'N/A',
+    profilePicture: profile?.profile_picture || null,
+    workshopName: profile?.role_details?.workshop_name || 'N/A',
+    licenseNumber: profile?.role_details?.license_number || 'N/A',
+    addressLine: profile?.role_details?.address_line || 'N/A',
+    locality: profile?.role_details?.locality || 'N/A',
+    city: profile?.role_details?.city || 'N/A',
+    state: profile?.role_details?.state || 'N/A',
+    pincode: profile?.role_details?.pincode || 'N/A',
+    workshopType: profile?.role_details?.type || 'N/A',
+    verificationStatus: profile?.role_details?.verification_status || 'Unverified',
+  };
 
-  const handlePasswordUpdate = () => {
-    if (!isPasswordFormValid) return;
-    
-    const { currentPassword, newPassword } = passwordData;
+  const verifiedStatus = d.verificationStatus?.toUpperCase() === 'VERIFIED';
 
-    dispatch(changePassword({ 
-      old_password: currentPassword, 
-      new_password: newPassword 
-    }))
-      .unwrap()
-      .then(() => {
-        // Clear password fields on success
-        setPasswordData({
-          currentPassword: '',
-          newPassword: '',
-          confirmPassword: ''
-        });
-      })
-      .catch((err) => {
-        // Custom password error handling
-        const errorMsg = err.old_password?.[0] || err.new_password?.[0] || err.non_field_errors?.[0] || "Password update failed.";
-        if (errorMsg) {
-          showNotification(errorMsg, 'error');
-        }
-      });
-  };
+  /* ── Loading screen ── */
+  if (loading && !profile) return (
+    <>
+      <style>{css}</style>
+      <div className="wp-loading">
+        <div className="wp-spinner-wrap"><div className="wp-track" /><div className="wp-head" /></div>
+        <p className="wp-loading-text">Loading profile…</p>
+      </div>
+    </>
+  );
 
-  // --- Derived State and Validation ---
+  /* ── Error screen ── */
+  if (!profile && error) return (
+    <>
+      <style>{css}</style>
+      <div className="wp-error-screen">
+        <div className="wp-error-icon"><AlertTriangle size={26} color="#EF4444" /></div>
+        <h2 className="wp-error-title">Couldn't Load Profile</h2>
+        <p className="wp-error-sub">{typeof error === 'string' ? error : error.detail || 'Failed to load profile data.'}</p>
+        <button className="wp-btn-primary" onClick={() => dispatch(getProfile())}>Try Again</button>
+      </div>
+    </>
+  );
 
-  const passwordMatchError = 
-    passwordData.confirmPassword && 
-    passwordData.newPassword !== passwordData.confirmPassword 
-      ? 'Passwords do not match' 
-      : '';
+  return (
+    <>
+      <style>{css}</style>
+      <div className="wp-page">
 
-  const isPasswordFormValid = 
-    passwordData.currentPassword && 
-    passwordData.newPassword && 
-    passwordData.confirmPassword &&
-    !passwordMatchError;
+        {/* ── TOAST ── */}
+        {(successMessage || errorMessage) && (
+          <div className={`wp-toast wp-toast-enter ${successMessage ? 'wp-toast-success' : 'wp-toast-error'}`}>
+            {successMessage ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+            <span>{successMessage || errorMessage}</span>
+          </div>
+        )}
 
+        {/* ── HEADER ── */}
+        <header className="wp-header">
+          <div className="wp-header-orb wp-orb-1" />
+          <div className="wp-header-orb wp-orb-2" />
+          <div className="wp-header-grid" />
+          <div className="wp-header-inner">
+            <div className={`${mounted ? 'wp-fade-up' : 'wp-invisible'}`}>
+              <h1 className="wp-title">Workshop Profile</h1>
+              <p className="wp-subtitle">Manage your account settings and view workshop details</p>
+            </div>
+          </div>
+          <div className="wp-curve" />
+        </header>
 
+        {/* ── MAIN ── */}
+        <div className="wp-container">
 
-  const displayData = {
-    fullName: profile?.full_name || 'N/A',
-    email: profile?.email || 'N/A',
-    contactNumber: profile?.role_details?.contact_number || 'N/A',
-    profilePicture: profile?.profile_picture || null,
-    
+          {/* ══ SECTION 1: Owner Details ══ */}
+          <div className={`wp-card ${mounted ? 'wp-fade-up' : 'wp-invisible'}`} style={{ animationDelay: '60ms' }}>
+            <div className="wp-card-header">
+              <div className="wp-section-title-row">
+                <div className="wp-section-icon" style={{ background: 'linear-gradient(135deg,#6366F1,#4338CA)' }}>
+                  <User size={18} color="#fff" />
+                </div>
+                <div>
+                  <h2 className="wp-section-title">Owner Details</h2>
+                  <p className="wp-section-sub">Manage your personal information</p>
+                </div>
+              </div>
 
-    workshopName: profile?.role_details?.workshop_name || 'N/A',
-    licenseNumber: profile?.role_details?.license_number || 'N/A',
-    addressLine: profile?.role_details?.address_line || 'N/A',
-    locality: profile?.role_details?.locality || 'N/A',
-    city: profile?.role_details?.city || 'N/A',
-    state: profile?.role_details?.state || 'N/A',
-    pincode: profile?.role_details?.pincode || 'N/A',
-    workshopType: profile?.role_details?.type || 'N/A',
-    verificationStatus: profile?.role_details?.verification_status || 'Unverified',
-  };
-  
-  if (loading && !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <RotateCw className="w-10 h-10 text-indigo-600 animate-spin" />
-        <span className="ml-3 text-lg font-medium text-gray-700">Loading Workshop Profile...</span>
-      </div>
-    );
-  }
+              <div className="wp-edit-actions">
+                {!isEditMode ? (
+                  <button className="wp-btn-edit" onClick={handleEditToggle} disabled={loading}>
+                    <Edit2 size={14} />
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <>
+                    <button className="wp-btn-save" onClick={handleSaveProfile} disabled={loading}>
+                      {loading ? <RotateCw size={14} className="spin" /> : <Save size={14} />}
+                      <span>{loading ? 'Saving…' : 'Save Changes'}</span>
+                    </button>
+                    <button className="wp-btn-cancel-edit" onClick={handleEditToggle} disabled={loading}>
+                      <X size={14} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
 
-  // Show error if initial fetch failed
-  if (!profile && error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-        <AlertTriangle className="w-12 h-12 text-red-600 mb-4" />
-        <h2 className="text-xl font-bold text-gray-800">Error Loading Profile</h2>
-        <p className="text-gray-600 mt-2 text-center">{typeof error === 'string' ? error : error.detail || 'Failed to load profile data.'}</p>
-        <button
-          onClick={() => dispatch(getProfile())}
-          className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
+            {/* Avatar + name block */}
+            <div className="wp-avatar-block">
+              <div className="wp-avatar-wrap">
+                <div className="wp-avatar">
+                  {(editedOwnerData.profilePicture || d.profilePicture) ? (
+                    <img src={editedOwnerData.profilePicture || d.profilePicture} alt="Profile" className="wp-avatar-img" />
+                  ) : (
+                    <User size={34} color="#fff" />
+                  )}
+                </div>
+                {isEditMode && (
+                  <label htmlFor="picInput" className="wp-avatar-overlay">
+                    <Camera size={18} color="#fff" />
+                    <input id="picInput" type="file" accept="image/*" className="wp-hidden" onChange={handleProfilePicChange} />
+                  </label>
+                )}
+              </div>
+              <div className="wp-avatar-info">
+                <p className="wp-display-name">{d.fullName}</p>
+                <p className="wp-display-email">{d.email}</p>
+                <span className={`wp-verify-badge ${verifiedStatus ? 'wp-verify-ok' : 'wp-verify-no'}`}>
+                  {verifiedStatus ? <CheckCircle size={11} /> : <Shield size={11} />}
+                  {d.verificationStatus}
+                </span>
+              </div>
+            </div>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50">
-      
-      {/* Success/Error Message Notification */}
-      {(successMessage || errorMessage) && (
-        <div className="fixed top-20 right-4 z-50 animate-fadeIn">
-          <div className={`px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3 ${
-            successMessage ? 'bg-green-500' : 'bg-red-500'
-          } text-white`}>
-            {successMessage ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-            <span className="font-medium">{successMessage || errorMessage}</span>
-          </div>
-        </div>
-      )}
+            {/* Editable fields */}
+            <div className="wp-fields-grid">
+              <div className="wp-field-group">
+                <label className="wp-field-label">Full Name</label>
+                <div className={`wp-field-wrap ${isEditMode ? 'wp-field-wrap--active' : ''}`}>
+                  <User size={14} color="#9CA3AF" className="wp-field-icon" />
+                  {isEditMode
+                    ? <input className="wp-field-input" type="text" value={editedOwnerData.fullName} onChange={e => setEditedOwnerData(p => ({ ...p, fullName: e.target.value }))} />
+                    : <span className="wp-field-value">{d.fullName}</span>}
+                </div>
+              </div>
 
-      <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              Workshop Profile
-            </h1>
-            <p className="text-gray-600">
-              Manage your owner account settings and view workshop details
-            </p>
-          </div>
+              <div className="wp-field-group">
+                <label className="wp-field-label">Contact Number</label>
+                <div className={`wp-field-wrap ${isEditMode ? 'wp-field-wrap--active' : ''}`}>
+                  <Phone size={14} color="#9CA3AF" className="wp-field-icon" />
+                  {isEditMode
+                    ? <input className="wp-field-input" type="tel" value={editedOwnerData.contactNumber} onChange={e => setEditedOwnerData(p => ({ ...p, contactNumber: e.target.value }))} />
+                    : <span className="wp-field-value">{d.contactNumber}</span>}
+                </div>
+              </div>
 
-          {/* Section 1: Owner Details (Editable) */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 relative overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-10"></div>
+              <div className="wp-field-group wp-col-span-2">
+                <label className="wp-field-label">Email <span className="wp-readonly-tag">Read-only</span></label>
+                <div className="wp-field-wrap">
+                  <Mail size={14} color="#9CA3AF" className="wp-field-icon" />
+                  <span className="wp-field-value">{d.email}</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <div className="relative">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                    <User className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Owner Details</h2>
-                    <p className="text-sm text-gray-600">Manage your personal information</p>
-                  </div>
-                </div>
+          {/* ══ SECTION 2: Workshop Details ══ */}
+          <div className={`wp-card ${mounted ? 'wp-fade-up' : 'wp-invisible'}`} style={{ animationDelay: '130ms' }}>
+            <div className="wp-card-header wp-card-header--nb">
+              <div className="wp-section-title-row">
+                <div className="wp-section-icon" style={{ background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)' }}>
+                  <Building2 size={18} color="#fff" />
+                </div>
+                <div>
+                  <h2 className="wp-section-title">Workshop Details</h2>
+                  <p className="wp-section-sub">Your registered workshop information</p>
+                </div>
+              </div>
+            </div>
 
-                {!isEditMode ? (
-                  <button
-                    onClick={handleEditToggle}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg disabled:bg-gray-400"
-                    disabled={loading}
-                  >
-                    {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
-                    <span className="hidden sm:inline">{loading ? 'Loading...' : 'Edit'}</span>
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSaveProfile}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md hover:shadow-lg disabled:bg-gray-400"
-                      disabled={loading}
-                    >
-                      {loading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save'}</span>
-                    </button>
-                    <button
-                      onClick={handleEditToggle}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                      disabled={loading}
-                    >
-                      <X className="w-4 h-4" />
-                      <span className="hidden sm:inline">Cancel</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+            <div className="wp-fields-grid">
+              {[
+                { label: 'Workshop Name', value: d.workshopName,    Icon: Building2 },
+                { label: 'License Number', value: d.licenseNumber,   Icon: FileText  },
+                { label: 'Workshop Type',  value: d.workshopType,    Icon: Building2 },
+                { label: 'City',           value: d.city,            Icon: MapPin    },
+                { label: 'State',          value: d.state,           Icon: MapPin    },
+                { label: 'Pincode',        value: d.pincode,         Icon: MapPin    },
+              ].map(({ label, value, Icon }) => (
+                <div className="wp-field-group" key={label}>
+                  <label className="wp-field-label">{label}</label>
+                  <div className="wp-field-wrap">
+                    <Icon size={14} color="#9CA3AF" className="wp-field-icon" />
+                    <span className="wp-field-value">{value}</span>
+                  </div>
+                </div>
+              ))}
 
-              {/* Profile Picture Section */}
-              <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-                <div className="relative group">
-                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-xl overflow-hidden">
-                    {(editedOwnerData.profilePicture || displayData.profilePicture) ? (
-                      <img 
-                        src={editedOwnerData.profilePicture || displayData.profilePicture} 
-                        alt="Profile" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-16 h-16 text-white" />
-                    )}
-                  </div>
-                  
-                  {isEditMode && (
-                    <label htmlFor="profilePictureInput" className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer">
-                      <Camera className="w-8 h-8 text-white" />
-                      <input 
-                          id="profilePictureInput" 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={handleProfilePictureFileChange}
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
+              <div className="wp-field-group wp-col-span-2">
+                <label className="wp-field-label">Address Line</label>
+                <div className="wp-field-wrap">
+                  <MapPin size={14} color="#9CA3AF" className="wp-field-icon" />
+                  <span className="wp-field-value">{d.addressLine}</span>
+                </div>
+              </div>
 
-              {/* Owner Info Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ProfileInput
-                  label="Full Name"
-                  value={isEditMode ? editedOwnerData.fullName : displayData.fullName}
-                  Icon={User}
-                  isEditMode={isEditMode}
-                  type="text"
-                  onChange={(e) => handleOwnerInputChange('fullName', e.target.value)}
-                />
+              <div className="wp-field-group">
+                <label className="wp-field-label">Locality</label>
+                <div className="wp-field-wrap">
+                  <MapPin size={14} color="#9CA3AF" className="wp-field-icon" />
+                  <span className="wp-field-value">{d.locality}</span>
+                </div>
+              </div>
 
-                <ProfileInput
-                  label="Contact Number"
-                  value={isEditMode ? editedOwnerData.contactNumber : displayData.contactNumber}
-                  Icon={Phone}
-                  isEditMode={isEditMode}
-                  type="tel"
-                  onChange={(e) => handleOwnerInputChange('contactNumber', e.target.value)}
-                />
+              <div className="wp-field-group">
+                <label className="wp-field-label">Verification Status</label>
+                <div className="wp-field-wrap">
+                  <Shield size={14} color="#9CA3AF" className="wp-field-icon" />
+                  <span className={`wp-verify-inline ${verifiedStatus ? 'wp-verify-inline--ok' : 'wp-verify-inline--no'}`}>
+                    {verifiedStatus ? <CheckCircle size={12} /> : <Shield size={12} />}
+                    {d.verificationStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                <div className="md:col-span-2">
-                  <ProfileInput
-                    label="Email (Read-only)"
-                    value={displayData.email}
-                    Icon={Mail}
-                    isEditMode={false}
-                    type="email"
-                    onChange={() => {}}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* ══ SECTION 3: Change Password ══ */}
+          <div className={`wp-card ${mounted ? 'wp-fade-up' : 'wp-invisible'}`} style={{ animationDelay: '200ms' }}>
+            <div className="wp-card-header wp-card-header--nb">
+              <div className="wp-section-title-row">
+                <div className="wp-section-icon" style={{ background: 'linear-gradient(135deg,#EF4444,#DC2626)' }}>
+                  <Lock size={18} color="#fff" />
+                </div>
+                <div>
+                  <h2 className="wp-section-title">Change Password</h2>
+                  <p className="wp-section-sub">Keep your account secure with a strong password</p>
+                </div>
+              </div>
+            </div>
 
-          {/* Section 2: Workshop Details (Read-only) */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Workshop Details</h2>
-                <p className="text-sm text-gray-600">Your registered workshop information</p>
-              </div>
-            </div>
+            <div className="wp-pw-grid">
+              {/* Current password */}
+              {[
+                { key: 'currentPassword', label: 'Current Password', show: showCurrentPw, toggle: () => setShowCurrentPw(v => !v) },
+                { key: 'newPassword',     label: 'New Password',     show: showNewPw,     toggle: () => setShowNewPw(v => !v) },
+                { key: 'confirmPassword', label: 'Confirm New Password', show: showConfirmPw, toggle: () => setShowConfirmPw(v => !v), error: passwordMatchError },
+              ].map(({ key, label, show, toggle, error: fieldErr }) => (
+                <div className="wp-field-group" key={key}>
+                  <label className="wp-field-label">{label}</label>
+                  <div className={`wp-field-wrap wp-field-wrap--active ${fieldErr ? 'wp-field-wrap--error' : ''}`}>
+                    <Lock size={14} color="#9CA3AF" className="wp-field-icon" />
+                    <input
+                      className="wp-field-input"
+                      type={show ? 'text' : 'password'}
+                      value={passwordData[key]}
+                      onChange={e => setPasswordData(p => ({ ...p, [key]: e.target.value }))}
+                      placeholder="••••••••"
+                    />
+                    <button type="button" className="wp-pw-toggle" onClick={toggle}>
+                      {show ? <EyeOff size={14} color="#9CA3AF" /> : <Eye size={14} color="#9CA3AF" />}
+                    </button>
+                  </div>
+                  {fieldErr && <p className="wp-field-error">{fieldErr}</p>}
+                </div>
+              ))}
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ProfileInput
-                label="Workshop Name"
-                value={displayData.workshopName}
-                Icon={Building2}
-                isEditMode={false}
-              />
+            {/* Password requirements */}
+            <div className="wp-pw-reqs">
+              <p className="wp-pw-reqs-title">Requirements</p>
+              <div className="wp-pw-reqs-grid">
+                {['At least 8 characters', 'One uppercase letter', 'One number', 'One special character'].map(r => (
+                  <span key={r} className="wp-pw-req-item">
+                    <span className="wp-pw-req-dot" />
+                    {r}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-              <ProfileInput
-                label="License Number"
-                value={displayData.licenseNumber}
-                Icon={FileText}
-                isEditMode={false}
-              />
+            <button
+              className={`wp-btn-update-pw ${isPasswordFormValid && !loading ? 'wp-btn-update-pw--active' : 'wp-btn-update-pw--disabled'}`}
+              onClick={handlePasswordUpdate}
+              disabled={!isPasswordFormValid || loading}
+            >
+              {loading
+                ? <><RotateCw size={15} className="spin" /> Updating…</>
+                : <><Lock size={15} /> Update Password</>}
+            </button>
+          </div>
 
-              <div className="md:col-span-2">
-                <ProfileInput
-                  label="Address Line"
-                  value={displayData.addressLine}
-                  Icon={MapPin}
-                  isEditMode={false}
-                />
-              </div>
-
-              <ProfileInput
-                label="Locality"
-                value={displayData.locality}
-                Icon={MapPin}
-                isEditMode={false}
-              />
-
-              <ProfileInput
-                label="City"
-                value={displayData.city}
-                Icon={MapPin}
-                isEditMode={false}
-              />
-
-              <ProfileInput
-                label="State"
-                value={displayData.state}
-                Icon={MapPin}
-                isEditMode={false}
-              />
-
-              <ProfileInput
-                label="Pincode"
-                value={displayData.pincode}
-                Icon={MapPin}
-                isEditMode={false}
-              />
-
-              <ProfileInput
-                label="Workshop Type"
-                value={displayData.workshopType}
-                Icon={Building2}
-                isEditMode={false}
-              />
-
-              <ProfileInput
-                label="Verification Status"
-                value={displayData.verificationStatus}
-                Icon={Shield}
-                isEditMode={false}
-              />
-            </div>
-          </div>
-
-          {/* Section 3: Change Password */}
-          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
-                <Lock className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">Change Password</h2>
-                <p className="text-sm text-gray-600">Update your password to keep your account secure</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <ProfileInput
-                label="Current Password"
-                value={passwordData.currentPassword}
-                Icon={Lock}
-                isEditMode={false}
-                isPassword={true}
-                showPassword={showCurrentPassword}
-                onTogglePassword={() => setShowCurrentPassword(!showCurrentPassword)}
-                onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-              />
-
-              <ProfileInput
-                label="New Password"
-                value={passwordData.newPassword}
-                Icon={Lock}
-                isEditMode={false}
-                isPassword={true}
-                showPassword={showNewPassword}
-                onTogglePassword={() => setShowNewPassword(!showNewPassword)}
-                onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-              />
-
-              <ProfileInput
-                label="Confirm New Password"
-                value={passwordData.confirmPassword}
-                Icon={Lock}
-                isEditMode={false}
-                isPassword={true}
-                showPassword={showConfirmPassword}
-                onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
-                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                passwordMatchError={passwordMatchError}
-              />
-
-              <button
-                onClick={handlePasswordUpdate}
-                disabled={!isPasswordFormValid || loading}
-                className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform flex items-center justify-center gap-2 ${
-                  isPasswordFormValid && !loading
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg hover:scale-[1.02]'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                {loading ? <RotateCw className="w-5 h-5 animate-spin" /> : null}
-                Update Password
-              </button>
-
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800 font-medium mb-2">Password requirements:</p>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• At least 8 characters long</li>
-                  <li>• Contains at least one uppercase letter</li>
-                  <li>• Contains at least one number</li>
-                  <li>• Contains at least one special character</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+        </div>
+      </div>
+    </>
+  );
 };
+
+/* ─── CSS ─────────────────────────────────────────────────────────────────── */
+const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --indigo: #6366F1;
+    --indigo-dark: #4338CA;
+    --indigo-mid: #4F46E5;
+    --indigo-light: #EEF2FF;
+    --surface: #ffffff;
+    --bg: #F4F5FA;
+    --border: #EAECF2;
+    --border-mid: #E0E3EE;
+    --text-1: #0F1120;
+    --text-2: #4B5163;
+    --text-3: #9CA3AF;
+    --green: #059669;
+    --green-bg: #ECFDF5;
+    --red: #EF4444;
+    --red-bg: #FEF2F2;
+    --shadow-card: 0 2px 12px rgba(15,17,32,0.06), 0 0 0 1px var(--border);
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  .wp-page {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-1);
+  }
+
+  /* ── TOAST ── */
+  .wp-toast {
+    position: fixed; top: 22px; right: 22px; z-index: 100;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; border-radius: var(--r-md);
+    font-family: 'Syne', sans-serif; font-size: 13.5px; font-weight: 700;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+    border: 1.5px solid;
+  }
+  .wp-toast-success { background: var(--green-bg); color: #065F46; border-color: #A7F3D0; }
+  .wp-toast-error   { background: var(--red-bg); color: #991B1B; border-color: #FECACA; }
+  .wp-toast-enter   { animation: wp-slideIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+
+  /* ── HEADER ── */
+  .wp-header {
+    background: linear-gradient(145deg, #0B0F2A 0%, #1a1652 45%, #2d2fa3 80%, #1b3a6e 100%);
+    padding: 46px 28px 52px;
+    position: relative; overflow: hidden;
+  }
+  .wp-header-grid {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .wp-header-orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(72px); pointer-events: none;
+  }
+  .wp-orb-1 { width: 340px; height: 340px; background: #6366F1; opacity: 0.2; top: -100px; left: -70px; }
+  .wp-orb-2 { width: 220px; height: 220px; background: #818CF8; opacity: 0.13; top: 20px; right: 60px; }
+
+  .wp-curve {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 52px; background: var(--bg);
+    clip-path: ellipse(58% 100% at 50% 100%); z-index: 4;
+  }
+  .wp-header-inner { position: relative; z-index: 5; max-width: 860px; margin: 0 auto; }
+  .wp-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 4.5vw, 3rem);
+    font-weight: 800; color: #fff;
+    letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 8px;
+  }
+  .wp-subtitle { font-size: 14px; color: rgba(255,255,255,0.5); }
+
+  /* ── CONTAINER ── */
+  .wp-container {
+    max-width: 860px; margin: 0 auto;
+    padding: 32px 28px 72px;
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  @media (max-width: 640px) {
+    .wp-header    { padding: 36px 18px 46px; }
+    .wp-container { padding: 22px 16px 56px; }
+  }
+
+  /* ── CARD ── */
+  .wp-card {
+    background: var(--surface);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+
+  .wp-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1.5px solid var(--border);
+    flex-wrap: wrap; gap: 12px;
+  }
+  .wp-card-header--nb { border-bottom: none; padding-bottom: 0; }
+
+  .wp-section-title-row { display: flex; align-items: center; gap: 13px; }
+  .wp-section-icon {
+    width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wp-section-title {
+    font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800;
+    color: var(--text-1); margin-bottom: 2px;
+  }
+  .wp-section-sub { font-size: 12.5px; color: var(--text-3); }
+
+  /* Edit actions */
+  .wp-edit-actions { display: flex; align-items: center; gap: 8px; }
+  .wp-btn-edit {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px;
+    background: var(--indigo-light); color: var(--indigo-mid);
+    border: 1.5px solid #c7d2fe; border-radius: var(--r-md);
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  .wp-btn-edit:hover { background: #e0e7ff; border-color: #a5b4fc; }
+  .wp-btn-edit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .wp-btn-save {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg,#10B981,#059669);
+    color: #fff; border: none; border-radius: var(--r-md);
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: filter 0.15s;
+  }
+  .wp-btn-save:hover { filter: brightness(1.08); }
+  .wp-btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .wp-btn-cancel-edit {
+    padding: 8px 10px;
+    background: var(--bg); color: var(--text-2);
+    border: 1.5px solid var(--border-mid); border-radius: var(--r-md);
+    cursor: pointer; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.12s;
+  }
+  .wp-btn-cancel-edit:hover { background: #e5e7eb; }
+
+  /* ── AVATAR BLOCK ── */
+  .wp-avatar-block {
+    display: flex; align-items: center; gap: 20px;
+    padding: 20px 24px;
+    border-bottom: 1.5px solid var(--border);
+  }
+  .wp-avatar-wrap { position: relative; flex-shrink: 0; }
+  .wp-avatar {
+    width: 80px; height: 80px; border-radius: 22px;
+    background: linear-gradient(135deg,#6366F1,#4338CA);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.25);
+  }
+  .wp-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+  .wp-avatar-overlay {
+    position: absolute; inset: 0; border-radius: 22px;
+    background: rgba(0,0,0,0.48);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: opacity 0.18s;
+  }
+  .wp-avatar-wrap:hover .wp-avatar-overlay { opacity: 1; }
+  .wp-hidden { display: none; }
+
+  .wp-display-name  { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 800; color: var(--text-1); margin-bottom: 3px; }
+  .wp-display-email { font-size: 13px; color: var(--text-3); margin-bottom: 8px; }
+
+  .wp-verify-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px; border: 1.5px solid;
+  }
+  .wp-verify-ok { background: var(--green-bg); color: #065F46; border-color: #A7F3D0; }
+  .wp-verify-no { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+
+  /* ── FIELDS GRID ── */
+  .wp-fields-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px 20px;
+    padding: 20px 24px;
+  }
+  @media (max-width: 560px) { .wp-fields-grid { grid-template-columns: 1fr; } }
+
+  .wp-col-span-2 { grid-column: span 2; }
+  @media (max-width: 560px) { .wp-col-span-2 { grid-column: span 1; } }
+
+  .wp-field-group { display: flex; flex-direction: column; gap: 5px; }
+  .wp-field-label {
+    font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
+    color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .wp-readonly-tag {
+    font-size: 10px; font-weight: 600; text-transform: none; letter-spacing: 0;
+    background: var(--bg); color: var(--text-3);
+    border: 1px solid var(--border); padding: 1px 7px; border-radius: 5px;
+  }
+
+  .wp-field-wrap {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 13px;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: var(--r-md);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .wp-field-wrap--active {
+    background: var(--surface); border-color: var(--border-mid);
+  }
+  .wp-field-wrap--active:focus-within {
+    border-color: var(--indigo); box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+  }
+  .wp-field-wrap--error { border-color: var(--red) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+
+  .wp-field-icon { flex-shrink: 0; }
+  .wp-field-value { font-size: 13.5px; color: var(--text-1); font-weight: 500; }
+  .wp-field-input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-size: 13.5px; color: var(--text-1); font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+  }
+  .wp-field-input::placeholder { color: var(--text-3); }
+  .wp-field-error { font-size: 12px; color: var(--red); font-weight: 500; }
+
+  .wp-verify-inline {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 13px; font-weight: 600;
+  }
+  .wp-verify-inline--ok { color: var(--green); }
+  .wp-verify-inline--no { color: #C2410C; }
+
+  /* ── PASSWORD SECTION ── */
+  .wp-pw-grid {
+    display: flex; flex-direction: column; gap: 14px;
+    padding: 20px 24px 0;
+  }
+  .wp-pw-toggle {
+    background: none; border: none; cursor: pointer; padding: 2px;
+    display: flex; align-items: center; flex-shrink: 0;
+  }
+
+  .wp-pw-reqs {
+    margin: 16px 24px;
+    background: var(--indigo-light);
+    border: 1.5px solid #c7d2fe;
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+  }
+  .wp-pw-reqs-title {
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700;
+    color: var(--indigo-mid); margin-bottom: 10px;
+  }
+  .wp-pw-reqs-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  }
+  @media (max-width: 480px) { .wp-pw-reqs-grid { grid-template-columns: 1fr; } }
+  .wp-pw-req-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: #3730A3;
+  }
+  .wp-pw-req-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--indigo); flex-shrink: 0;
+  }
+
+  .wp-btn-update-pw {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: calc(100% - 48px); margin: 0 24px 24px;
+    padding: 12px;
+    border: none; border-radius: var(--r-md);
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 800;
+    cursor: pointer; transition: filter 0.15s, transform 0.1s;
+  }
+  .wp-btn-update-pw--active {
+    background: linear-gradient(135deg,#6366F1,#4338CA);
+    color: #fff;
+  }
+  .wp-btn-update-pw--active:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .wp-btn-update-pw--disabled {
+    background: var(--bg); color: var(--text-3);
+    border: 1.5px solid var(--border); cursor: not-allowed;
+  }
+
+  /* ── LOADING / ERROR SCREENS ── */
+  .wp-loading {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px; background: var(--bg);
+  }
+  .wp-spinner-wrap { position: relative; width: 46px; height: 46px; }
+  .wp-track { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #E0E7FF; }
+  .wp-head  { position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--indigo); animation: wp-spin 0.8s linear infinite; }
+  .wp-loading-text { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600; color: var(--text-3); }
+
+  .wp-error-screen {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    background: var(--bg); padding: 24px; text-align: center;
+  }
+  .wp-error-icon {
+    width: 64px; height: 64px; border-radius: 18px;
+    background: var(--red-bg); border: 1.5px solid #FECACA;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wp-error-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--text-1); }
+  .wp-error-sub   { font-size: 14px; color: var(--text-3); max-width: 320px; line-height: 1.5; }
+  .wp-btn-primary {
+    padding: 10px 22px;
+    background: linear-gradient(135deg,#6366F1,#4338CA);
+    color: #fff; border: none; border-radius: var(--r-md);
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+    transition: filter 0.15s;
+  }
+  .wp-btn-primary:hover { filter: brightness(1.1); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes wp-spin { to { transform: rotate(360deg); } }
+  @keyframes wp-fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes wp-slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .wp-invisible { opacity: 0; }
+  .wp-fade-up   { animation: wp-fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+  .spin         { animation: wp-spin 0.75s linear infinite; }
+`;
 
 export default WorkshopProfile;
