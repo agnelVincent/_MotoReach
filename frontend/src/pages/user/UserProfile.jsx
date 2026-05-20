@@ -14,7 +14,9 @@ import {
     CheckCircle,
     Loader2,
     AlertTriangle,
-    MapPin
+    ShieldCheck,
+    KeyRound,
+    BadgeCheck
 } from 'lucide-react';
 import { getProfile, updateProfile, changePassword, clearStatus } from '../../redux/slices/ProfileSlice';
 
@@ -26,14 +28,13 @@ const UserProfile = () => {
     const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [profileError, setProfileError] = useState(null); 
-    
-    // Ref to track the created URL object to prevent memory leaks
+    const [profileError, setProfileError] = useState(null);
+
     const objectUrlRef = useRef(null);
 
     const [editedData, setEditedData] = useState({
         fullName: '',
-        email: '', 
+        email: '',
         profilePicture: null,
         profilePictureFile: null,
     });
@@ -46,13 +47,7 @@ const UserProfile = () => {
 
     useEffect(() => {
         dispatch(getProfile());
-        
-        // Cleanup object URL on unmount
-        return () => {
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-            }
-        };
+        return () => { if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current); };
     }, [dispatch]);
 
     useEffect(() => {
@@ -66,115 +61,57 @@ const UserProfile = () => {
         }
     }, [profile]);
 
-    // Fixed timeout handling to prevent memory leaks / race conditions
     useEffect(() => {
-        if (success) {
-            dispatch(clearStatus()); 
-        }
-        
+        if (success) dispatch(clearStatus());
         let timer;
-        if (error) {
-            timer = setTimeout(() => {
-                dispatch(clearStatus());
-            }, 5000);
-        }
-        
+        if (error) timer = setTimeout(() => dispatch(clearStatus()), 5000);
         return () => clearTimeout(timer);
     }, [success, error, dispatch]);
 
     const handleEditToggle = () => {
         if (isEditMode) {
-            // Revoke temporary image URL if user cancels editing
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-                objectUrlRef.current = null;
-            }
-            
-            setEditedData({
-                fullName: profile?.full_name || '',
-                email: profile?.email || '',
-                profilePicture: profile?.profile_picture || null,
-                profilePictureFile: null,
-            });
+            if (objectUrlRef.current) { URL.revokeObjectURL(objectUrlRef.current); objectUrlRef.current = null; }
+            setEditedData({ fullName: profile?.full_name || '', email: profile?.email || '', profilePicture: profile?.profile_picture || null, profilePictureFile: null });
             setProfileError(null);
         }
         setIsEditMode(!isEditMode);
     };
 
     const validateProfileData = () => {
-        if (editedData.fullName.trim().length < 3) {
-            setProfileError('Full name must be at least 3 characters long.');
-            return false;
-        }
+        if (editedData.fullName.trim().length < 3) { setProfileError('Full name must be at least 3 characters long.'); return false; }
         setProfileError(null);
         return true;
     };
 
     const handleSaveProfile = () => {
         if (!validateProfileData()) return;
-
         const formData = new FormData();
         formData.append('full_name', editedData.fullName);
-        
-        if (editedData.profilePictureFile) {
-            formData.append('profile_picture', editedData.profilePictureFile);
-        }
-
-        dispatch(updateProfile(formData))
-            .unwrap()
-            .then(() => {
-                setIsEditMode(false);
-                objectUrlRef.current = null; // Successfully saved, forget ref
-            })
+        if (editedData.profilePictureFile) formData.append('profile_picture', editedData.profilePictureFile);
+        dispatch(updateProfile(formData)).unwrap()
+            .then(() => { setIsEditMode(false); objectUrlRef.current = null; })
             .catch(backendError => {
-                console.error("Profile Update Failed:", backendError);
                 if (typeof backendError === 'object' && backendError !== null) {
                     const errorKeys = Object.keys(backendError);
-                    if (errorKeys.length > 0) {
-                        setProfileError(`Update failed: ${backendError[errorKeys[0]][0]}`);
-                    } else {
-                        setProfileError("Profile update failed. Please try again.");
-                    }
-                } else {
-                    setProfileError(backendError);
-                }
+                    setProfileError(errorKeys.length > 0 ? `Update failed: ${backendError[errorKeys[0]][0]}` : 'Profile update failed. Please try again.');
+                } else setProfileError(backendError);
             });
     };
 
-    const handleInputChange = (field, value) => {
-        setEditedData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
+    const handleInputChange = (field, value) => setEditedData(prev => ({ ...prev, [field]: value }));
 
     const handleProfilePictureChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Clean up previous temporary preview URL if it exists
-            if (objectUrlRef.current) {
-                URL.revokeObjectURL(objectUrlRef.current);
-            }
-            
+            if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
             const newUrl = URL.createObjectURL(file);
             objectUrlRef.current = newUrl;
-
-            setEditedData(prev => ({
-                ...prev,
-                profilePictureFile: file,
-                profilePicture: newUrl 
-            }));
+            setEditedData(prev => ({ ...prev, profilePictureFile: file, profilePicture: newUrl }));
         }
     };
 
-    const handlePasswordChange = (field, value) => {
-        setPasswordData(prev => ({
-            ...prev,
-            [field]: value
-        }));
-    };
+    const handlePasswordChange = (field, value) => setPasswordData(prev => ({ ...prev, [field]: value }));
 
-    // Granular rules for user validation and contextual checklist tracking
     const passwordRules = {
         length: passwordData.newPassword.length >= 8,
         uppercase: /[A-Z]/.test(passwordData.newPassword),
@@ -184,283 +121,393 @@ const UserProfile = () => {
 
     const isPasswordValidNow = Object.values(passwordRules).every(Boolean);
     const passwordsMatch = passwordData.newPassword === passwordData.confirmPassword;
-
-    const isPasswordFormValid = 
-        passwordData.currentPassword.length > 0 && 
-        isPasswordValidNow && 
-        passwordData.confirmPassword.length > 0 &&
-        passwordsMatch;
+    const isPasswordFormValid = passwordData.currentPassword.length > 0 && isPasswordValidNow && passwordData.confirmPassword.length > 0 && passwordsMatch;
 
     const handlePasswordUpdate = () => {
         if (!isPasswordFormValid) return;
-
-        const data = {
-            old_password: passwordData.currentPassword,
-            new_password: passwordData.newPassword,
-            confirm_new_password: passwordData.confirmPassword,
-        };
-        
-        dispatch(changePassword(data))
-            .unwrap()
+        const data = { old_password: passwordData.currentPassword, new_password: passwordData.newPassword, confirm_new_password: passwordData.confirmPassword };
+        dispatch(changePassword(data)).unwrap()
             .then(() => {
-                setPasswordData({
-                    currentPassword: '',
-                    newPassword: '',
-                    confirmPassword: ''
-                });
-                setShowCurrentPassword(false);
-                setShowNewPassword(false);
-                setShowConfirmPassword(false);
+                setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setShowCurrentPassword(false); setShowNewPassword(false); setShowConfirmPassword(false);
             })
-            .catch(backendError => {
-                 console.error("Password Update Failed:", backendError);
-            });
+            .catch(err => console.error('Password Update Failed:', err));
     };
-    
+
     if (loading && !profile) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
-                <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                <span className="ml-3 text-lg text-gray-700">Loading Profile...</span>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center animate-pulse">
+                    <User className="w-6 h-6 text-indigo-600" />
+                </div>
+                <span className="ml-3 font-body text-gray-400 text-sm">Loading profile…</span>
             </div>
         );
     }
 
     if (!profile) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
-                <AlertTriangle className="w-10 h-10 text-red-600" />
-                <span className="ml-3 text-lg text-gray-700">Failed to load profile.</span>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
+                <div className="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6 text-rose-500" />
+                </div>
+                <span className="ml-3 font-body text-gray-500 text-sm">Failed to load profile.</span>
             </div>
         );
     }
-    
-    const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long' 
-    });
+
+    const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    const initials = profile.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-            
+        <div className="min-h-screen bg-[#f8f9fc] font-sans">
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+                .font-display { font-family: 'Syne', sans-serif; }
+                .font-body   { font-family: 'Geist', 'Inter', sans-serif; }
+
+                .profile-hero {
+                    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+                }
+                .hero-noise::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+                    opacity: 0.4;
+                    pointer-events: none;
+                }
+                .glow-dot {
+                    position: absolute;
+                    border-radius: 50%;
+                    filter: blur(80px);
+                    pointer-events: none;
+                }
+                .badge-pill {
+                    background: rgba(255,255,255,0.12);
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255,255,255,0.2);
+                }
+                .section-label {
+                    font-family: 'Syne', sans-serif;
+                    font-weight: 600;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    font-size: 0.7rem;
+                }
+                .card {
+                    background: white;
+                    border-radius: 1.5rem;
+                    border: 1px solid #f1f5f9;
+                    box-shadow: 0 2px 16px rgba(0,0,0,0.04);
+                }
+                .field-row {
+                    border: 1.5px solid #f1f5f9;
+                    border-radius: 1rem;
+                    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+                }
+                .field-row:focus-within {
+                    border-color: #a5b4fc;
+                    box-shadow: 0 0 0 3px rgba(165,180,252,0.15);
+                }
+                .avatar-ring {
+                    background: linear-gradient(135deg, #6366f1, #a78bfa, #818cf8);
+                    padding: 3px;
+                    border-radius: 9999px;
+                }
+                .avatar-inner {
+                    background: linear-gradient(135deg, #4338ca, #6366f1);
+                    border-radius: 9999px;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .save-btn {
+                    background: white;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+                }
+                .save-btn:hover {
+                    background: #f0fdf4;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+                    transform: translateY(-1px);
+                }
+                .cancel-btn {
+                    background: rgba(255,255,255,0.1);
+                    transition: all 0.2s ease;
+                    border: 1px solid rgba(255,255,255,0.15);
+                }
+                .cancel-btn:hover {
+                    background: rgba(255,255,255,0.18);
+                }
+                .edit-btn {
+                    background: white;
+                    transition: all 0.2s ease;
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+                }
+                .edit-btn:hover {
+                    background: #f5f3ff;
+                    transform: translateY(-1px);
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                }
+                .update-pw-btn {
+                    transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
+                }
+                .update-pw-btn:not(:disabled):hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 12px 28px rgba(99,102,241,0.35);
+                }
+                .rule-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.8rem;
+                    transition: color 0.2s ease;
+                }
+                .toast-enter {
+                    animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+                }
+                @keyframes toastIn {
+                    from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .grid-lines {
+                    background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+                    background-size: 40px 40px;
+                }
+            `}</style>
+
+            {/* ── TOASTS ── */}
             {success && (
-                <div className="fixed top-20 right-4 z-50 animate-fadeIn">
-                    <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3">
-                        <CheckCircle className="w-6 h-6" />
-                        <span className="font-medium">{success}</span>
+                <div className="fixed top-5 right-4 z-50 toast-enter">
+                    <div className="flex items-center gap-3 bg-white border border-emerald-100 text-emerald-700 px-5 py-3.5 rounded-2xl shadow-xl">
+                        <div className="w-7 h-7 bg-emerald-50 rounded-xl flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <span className="font-display font-semibold text-sm">{success}</span>
                     </div>
                 </div>
             )}
-            
             {error && (
-                <div className="fixed top-20 right-4 z-50 animate-fadeIn">
-                    <div className="bg-red-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center gap-3">
-                        <AlertTriangle className="w-6 h-6" />
-                        <span className="font-medium">Error: {error?.detail || (typeof error === 'object' ? JSON.stringify(error) : error)}</span>
+                <div className="fixed top-5 right-4 z-50 toast-enter">
+                    <div className="flex items-center gap-3 bg-white border border-rose-100 text-rose-600 px-5 py-3.5 rounded-2xl shadow-xl">
+                        <div className="w-7 h-7 bg-rose-50 rounded-xl flex items-center justify-center">
+                            <AlertTriangle className="w-4 h-4 text-rose-500" />
+                        </div>
+                        <span className="font-display font-semibold text-sm">{error?.detail || (typeof error === 'object' ? JSON.stringify(error) : error)}</span>
                     </div>
                 </div>
             )}
 
-            <div className="pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-4xl mx-auto">
-                    <div className="mb-8">
-                        <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-                            My Profile - {profile.full_name}
-                        </h1>
-                        <p className="text-gray-600">
-                            Manage your account settings and preferences
-                        </p>
+            {/* ── HERO ── */}
+            <section className="profile-hero hero-noise relative overflow-hidden">
+                <div className="glow-dot w-96 h-96 bg-indigo-500 opacity-20 top-[-80px] left-[-60px]" />
+                <div className="glow-dot w-72 h-72 bg-violet-400 opacity-15 top-10 right-10" />
+
+                <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-28 md:pt-16 md:pb-32">
+                    <div className="inline-flex items-center gap-2 badge-pill px-4 py-1.5 rounded-full text-white/80 mb-7">
+                        <BadgeCheck className="w-3.5 h-3.5" />
+                        <span className="section-label text-white/70">My Account</span>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-10"></div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                        {/* Name + since */}
+                        <div>
+                            <h1 className="font-display font-bold text-4xl sm:text-5xl text-white leading-tight">
+                                {profile.full_name.split(' ')[0]}{' '}
+                                <span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-indigo-200 bg-clip-text text-transparent">
+                                    {profile.full_name.split(' ').slice(1).join(' ')}
+                                </span>
+                            </h1>
+                            <p className="font-body text-white/40 text-sm mt-2 flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5" />
+                                Member since {memberSinceFormatted}
+                            </p>
+                        </div>
 
-                        <div className="relative">
-                            <div className="absolute top-0 right-0 z-10">
-                                {isEditMode ? (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleSaveProfile}
-                                            disabled={loading}
-                                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-300 shadow-md hover:shadow-lg disabled:bg-green-400"
-                                        >
-                                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                            <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save'}</span>
-                                        </button>
-                                        <button
-                                            onClick={handleEditToggle}
-                                            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                                        >
-                                            <X className="w-4 h-4" />
-                                            <span className="hidden sm:inline">Cancel</span>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleEditToggle}
-                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                        <span className="hidden sm:inline">Edit Profile</span>
+                        {/* Edit / Save / Cancel */}
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            {isEditMode ? (
+                                <>
+                                    <button onClick={handleSaveProfile} disabled={loading} className="save-btn font-display font-bold text-emerald-700 text-sm px-5 py-2.5 rounded-xl flex items-center gap-2">
+                                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                        <span>{loading ? 'Saving…' : 'Save'}</span>
                                     </button>
-                                )}
-                            </div>
+                                    <button onClick={handleEditToggle} className="cancel-btn font-display font-semibold text-white/80 text-sm px-5 py-2.5 rounded-xl flex items-center gap-2">
+                                        <X className="w-4 h-4" />
+                                        <span>Cancel</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <button onClick={handleEditToggle} className="edit-btn font-display font-bold text-indigo-700 text-sm px-5 py-2.5 rounded-xl flex items-center gap-2 group">
+                                    <Edit2 className="w-4 h-4 group-hover:rotate-6 transition-transform" />
+                                    Edit Profile
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
 
-                            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-8">
-                                {/* Profile Picture Container */}
-                                <div className="relative group">
-                                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl overflow-hidden">
-                                        {editedData.profilePicture ? (
-                                            <img
-                                                src={editedData.profilePicture}
-                                                alt="Profile"
-                                                className="w-full h-full rounded-full object-cover"
-                                            />
-                                        ) : (
-                                            <User className="w-16 h-16 text-white" />
-                                        )}
-                                    </div>
-                                    
-                                    {isEditMode && (
-                                        <>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                id="profile-picture-upload"
-                                                className="hidden"
-                                                onChange={handleProfilePictureChange}
-                                            />
-                                            <label 
-                                                htmlFor="profile-picture-upload"
-                                                className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                                            >
-                                                <Camera className="w-8 h-8 text-white" />
-                                            </label>
-                                        </>
+                {/* Curve */}
+                <div className="absolute bottom-0 left-0 right-0 h-14 bg-[#f8f9fc]" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+            </section>
+
+            {/* ── CONTENT ── */}
+            <div className="grid-lines max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 pb-16 space-y-4">
+
+                {/* Profile card */}
+                <div className="card p-6 md:p-8">
+                    <span className="section-label text-indigo-500 block mb-5">Profile Information</span>
+
+                    {/* Avatar + meta row */}
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
+                        {/* Avatar */}
+                        <div className="relative group flex-shrink-0">
+                            <div className="avatar-ring w-24 h-24 sm:w-28 sm:h-28">
+                                <div className="avatar-inner">
+                                    {editedData.profilePicture ? (
+                                        <img src={editedData.profilePicture} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                        <span className="font-display font-bold text-white text-2xl">{initials}</span>
                                     )}
                                 </div>
-
-                                <div className="flex-1 text-center md:text-left pt-6">
-                                    <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-                                        {profile.full_name}
-                                    </h2>
-                                    <p className="text-gray-600 mb-4">{profile.email}</p>
-                                    <div className="flex items-center justify-center md:justify-start gap-2 text-sm text-gray-500">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>Member since {memberSinceFormatted}</span>
-                                    </div>
-                                </div>
                             </div>
+                            {isEditMode && (
+                                <>
+                                    <input type="file" accept="image/*" id="profile-picture-upload" className="hidden" onChange={handleProfilePictureChange} />
+                                    <label htmlFor="profile-picture-upload" className="absolute inset-0 bg-black/50 backdrop-blur-sm rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer gap-1">
+                                        <Camera className="w-6 h-6 text-white" />
+                                        <span className="text-white text-[10px] font-display font-bold">Change</span>
+                                    </label>
+                                </>
+                            )}
+                        </div>
 
-                            {/* Profile Fields */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <ProfileInput
-                                    label="Full Name"
-                                    value={editedData.fullName}
-                                    Icon={User}
-                                    isEditMode={isEditMode}
-                                    onChange={(e) => handleInputChange('fullName', e.target.value)}
-                                    errorMessage={profileError}
-                                />
-                                <ProfileInput
-                                    label="Email Address (Read-only)"
-                                    value={profile.email}
-                                    Icon={Mail}
-                                    isEditMode={false}
-                                    type="email"
-                                />
+                        {/* Info */}
+                        <div className="text-center sm:text-left">
+                            <h2 className="font-display font-bold text-gray-900 text-xl sm:text-2xl">{profile.full_name}</h2>
+                            <p className="font-body text-gray-400 text-sm mt-0.5">{profile.email}</p>
+                            <div className="mt-3 flex items-center justify-center sm:justify-start gap-2">
+                                <span className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 text-xs font-display font-bold px-3 py-1 rounded-full">
+                                    <ShieldCheck className="w-3 h-3" />
+                                    Verified Account
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Change Password Card */}
-                    <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center">
-                                <Lock className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-gray-800">Change Password</h2>
-                                <p className="text-sm text-gray-600">Update your password to keep your account secure</p>
+                    {/* Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <ProfileInput
+                            label="Full Name"
+                            value={editedData.fullName}
+                            Icon={User}
+                            isEditMode={isEditMode}
+                            onChange={(e) => handleInputChange('fullName', e.target.value)}
+                            errorMessage={profileError}
+                        />
+                        <ProfileInput
+                            label="Email Address"
+                            value={profile.email}
+                            Icon={Mail}
+                            isEditMode={false}
+                            type="email"
+                        />
+                    </div>
+                </div>
+
+                {/* Password card */}
+                <div className="card p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 profile-hero rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <KeyRound className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <span className="section-label text-indigo-500 block">Security</span>
+                            <h2 className="font-display font-bold text-gray-900 text-lg leading-tight">Change Password</h2>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <ProfileInput
+                            label="Current Password"
+                            value={passwordData.currentPassword}
+                            Icon={Lock}
+                            isEditMode={true}
+                            isPassword={true}
+                            showPassword={showCurrentPassword}
+                            onTogglePassword={() => setShowCurrentPassword(!showCurrentPassword)}
+                            onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                            errorMessage={error && error.detail === 'Old password is incorrect.' ? 'Old password is incorrect.' : null}
+                        />
+                        <ProfileInput
+                            label="New Password"
+                            value={passwordData.newPassword}
+                            Icon={Lock}
+                            isEditMode={true}
+                            isPassword={true}
+                            showPassword={showNewPassword}
+                            onTogglePassword={() => setShowNewPassword(!showNewPassword)}
+                            onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                            errorMessage={passwordData.newPassword && !isPasswordValidNow ? 'New password does not meet all requirements.' : null}
+                        />
+                        <ProfileInput
+                            label="Confirm New Password"
+                            value={passwordData.confirmPassword}
+                            Icon={Lock}
+                            isEditMode={true}
+                            isPassword={true}
+                            showPassword={showConfirmPassword}
+                            onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
+                            onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                            passwordMatchError={(passwordData.confirmPassword.length > 0 || passwordData.newPassword.length > 0) && !passwordsMatch ? 'New passwords do not match' : null}
+                        />
+
+                        {/* Password rules */}
+                        <div className="bg-[#f8f9ff] border border-indigo-50 rounded-2xl p-4">
+                            <p className="section-label text-indigo-400 mb-3 block">Requirements</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {[
+                                    { rule: passwordRules.length, label: 'At least 8 characters' },
+                                    { rule: passwordRules.uppercase, label: 'One uppercase letter' },
+                                    { rule: passwordRules.number, label: 'One number' },
+                                    { rule: passwordRules.special, label: 'One special character' },
+                                ].map(({ rule, label }) => {
+                                    const active = passwordData.newPassword.length > 0;
+                                    return (
+                                        <div key={label} className="rule-item">
+                                            <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${active ? (rule ? 'bg-emerald-100' : 'bg-rose-100') : 'bg-gray-100'}`}>
+                                                {active && rule
+                                                    ? <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                                    : active
+                                                        ? <X className="w-3 h-3 text-rose-500" />
+                                                        : <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                                }
+                                            </div>
+                                            <span className={`font-body text-xs ${active ? (rule ? 'text-emerald-700' : 'text-rose-500') : 'text-gray-400'}`}>{label}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        <div className="space-y-5">
-                            <ProfileInput
-                                label="Current Password"
-                                value={passwordData.currentPassword}
-                                Icon={Lock}
-                                isEditMode={true} 
-                                isPassword={true}
-                                showPassword={showCurrentPassword}
-                                onTogglePassword={() => setShowCurrentPassword(!showCurrentPassword)}
-                                onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-                                errorMessage={error && error.detail === 'Old password is incorrect.' ? 'Old password is incorrect.' : null}
-                            />
-
-                            <ProfileInput
-                                label="New Password"
-                                value={passwordData.newPassword}
-                                Icon={Lock}
-                                isEditMode={true} 
-                                isPassword={true}
-                                showPassword={showNewPassword}
-                                onTogglePassword={() => setShowNewPassword(!showNewPassword)}
-                                onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-                                errorMessage={
-                                    passwordData.newPassword && !isPasswordValidNow 
-                                        ? 'New password does not meet all requirements.' 
-                                        : null
-                                }
-                            />
-
-                            <ProfileInput
-                                label="Confirm New Password"
-                                value={passwordData.confirmPassword}
-                                Icon={Lock}
-                                isEditMode={true} 
-                                isPassword={true}
-                                showPassword={showConfirmPassword}
-                                onTogglePassword={() => setShowConfirmPassword(!showConfirmPassword)}
-                                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                                passwordMatchError={
-                                    (passwordData.confirmPassword.length > 0 || passwordData.newPassword.length > 0) && !passwordsMatch
-                                        ? 'New passwords do not match' 
-                                        : null
-                                }
-                            />
-
-                            <button
-                                onClick={handlePasswordUpdate}
-                                disabled={!isPasswordFormValid || loading}
-                                className={`w-full py-3.5 font-semibold rounded-lg shadow-md transition-all duration-300 transform ${
-                                    isPasswordFormValid && !loading
-                                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg hover:scale-[1.02]'
-                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                            >
-                                {loading ? <Loader2 className="w-5 h-5 inline-block mr-2 animate-spin" /> : 'Update Password'}
-                            </button>
-
-                            {/* Dynamically Styled Password Requirements Checklist */}
-                            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                <p className="text-sm text-blue-800 font-medium mb-2">Password requirements:</p>
-                                <ul className="text-sm space-y-1">
-                                    <li className={passwordRules.length || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
-                                        • At least 8 characters long
-                                    </li>
-                                    <li className={passwordRules.uppercase || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
-                                        • Contains at least one uppercase letter
-                                    </li>
-                                    <li className={passwordRules.number || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
-                                        • Contains at least one number
-                                    </li>
-                                    <li className={passwordRules.special || passwordData.newPassword.length === 0 ? 'text-blue-700' : 'text-red-500'}>
-                                        • Contains at least one special character
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
+                        <button
+                            onClick={handlePasswordUpdate}
+                            disabled={!isPasswordFormValid || loading}
+                            className={`update-pw-btn w-full py-4 font-display font-bold text-base rounded-2xl shadow-md flex items-center justify-center gap-2 ${
+                                isPasswordFormValid && !loading
+                                    ? 'profile-hero text-white hover:opacity-95'
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                        >
+                            {loading
+                                ? <><Loader2 className="w-5 h-5 animate-spin" /> Updating…</>
+                                : <><ShieldCheck className="w-5 h-5" /> Update Password</>
+                            }
+                        </button>
                     </div>
                 </div>
             </div>
