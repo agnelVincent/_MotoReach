@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMechanicWallet } from '../../redux/slices/mechanicWalletSlice';
-
 import {
   Wallet,
   TrendingUp,
@@ -9,8 +8,6 @@ import {
   Wrench,
   ArrowDownLeft,
   Calendar,
-  Filter,
-  ChevronDown,
   BadgeCheck,
   Star,
   IndianRupee,
@@ -19,20 +16,15 @@ import {
   Users,
 } from 'lucide-react';
 
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
 
-const formatDate = (iso) => {
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-};
+const formatDate = (iso) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const formatTime = (iso) => {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-};
+const formatTime = (iso) =>
+  new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
 const FILTER_OPTIONS = [
   { label: 'All Transactions', value: 'ALL' },
@@ -45,89 +37,164 @@ const MechanicWallet = () => {
   const [activeFilter, setActiveFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showBalance, setShowBalance] = useState(true);
-  const dispatch = useDispatch()
+  const [mounted, setMounted] = useState(false);
+  const dispatch = useDispatch();
 
-  const { balance, totalEarned, thisMonth, totalBonuses, totalServices, earnings, loading, error } = useSelector((state) => state.mechanicWallet);
+  const { balance, totalEarned, thisMonth, totalBonuses, totalServices, earnings, loading, error } =
+    useSelector((state) => state.mechanicWallet);
 
   useEffect(() => {
-    dispatch(fetchMechanicWallet())
-  }, [dispatch])
+    setMounted(true);
+    dispatch(fetchMechanicWallet());
+  }, [dispatch]);
 
   const filtered = earnings.filter((e) => {
     const matchFilter = activeFilter === 'ALL' || e.earning_type === activeFilter;
     const matchSearch =
       search === '' ||
       e.description.toLowerCase().includes(search.toLowerCase()) ||
-      (e.service_execution?.service_request?.issue_category?.toLowerCase().includes(search.toLowerCase())) ||
-      (e.service_execution?.service_request?.vehicle_model?.toLowerCase().includes(search.toLowerCase())) ||
+      e.service_execution?.service_request?.issue_category?.toLowerCase().includes(search.toLowerCase()) ||
+      e.service_execution?.service_request?.vehicle_model?.toLowerCase().includes(search.toLowerCase()) ||
       String(e.service_execution?.service_request?.id).includes(search);
     return matchFilter && matchSearch;
   });
 
   const stats = [
-    {
-      label: 'Total Earned',
-      value: formatCurrency(totalEarned),
-      icon: TrendingUp,
-      gradient: 'from-blue-500 to-indigo-600',
-      bg: 'bg-blue-50',
-    },
-    {
-      label: 'This Month',
-      value: formatCurrency(thisMonth),
-      icon: Calendar,
-      gradient: 'from-green-500 to-emerald-600',
-      bg: 'bg-green-50',
-    },
-    {
-      label: 'Bonuses Received',
-      value: formatCurrency(totalBonuses),
-      icon: Gift,
-      gradient: 'from-purple-500 to-pink-600',
-      bg: 'bg-purple-50',
-    },
-    {
-      label: 'Services Done',
-      value: totalServices,
-      icon: Wrench,
-      gradient: 'from-orange-500 to-red-600',
-      bg: 'bg-orange-50',
-    },
+    { label: 'Total Earned',      value: formatCurrency(totalEarned),  icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-50',  border: 'border-indigo-100' },
+    { label: 'This Month',        value: formatCurrency(thisMonth),     icon: Calendar,   color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+    { label: 'Bonuses Received',  value: formatCurrency(totalBonuses),  icon: Gift,       color: 'text-violet-600',  bg: 'bg-violet-50',  border: 'border-violet-100' },
+    { label: 'Services Done',     value: totalServices,                  icon: Wrench,     color: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100' },
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-orange-50 pb-16">
-      <div className="pt-6 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
+  const serviceShare = totalEarned > 0 ? ((totalEarned - totalBonuses) / totalEarned * 100).toFixed(1) : 0;
+  const bonusShare   = totalEarned > 0 ? (totalBonuses / totalEarned * 100).toFixed(1) : 0;
 
-          {/* ── Page Header ── */}
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-1 flex items-center gap-3">
-              <Wallet className="w-8 h-8 text-orange-500" />
-              My Wallet
-            </h1>
-            <p className="text-gray-500 text-sm">Your earnings, service shares, and bonus history at a glance</p>
+  return (
+    <div className="min-h-screen bg-[#f8f9fc] font-sans">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist:wght@300;400;500;600&display=swap');
+
+        .font-display { font-family: 'Syne', sans-serif; }
+        .font-body   { font-family: 'Geist', 'Inter', sans-serif; }
+
+        .hero-gradient {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e3a5f 100%);
+        }
+        .hero-noise::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+          opacity: 0.4;
+          pointer-events: none;
+        }
+        .glow-dot {
+          position: absolute;
+          border-radius: 50%;
+          filter: blur(80px);
+          pointer-events: none;
+        }
+        .badge-pill {
+          background: rgba(255,255,255,0.12);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up { animation: fadeSlideUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+
+        .section-label {
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-size: 0.7rem;
+        }
+        .grid-lines {
+          background-image:
+            linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+        .feature-card {
+          transition: all 0.3s ease;
+          border: 1px solid #f1f5f9;
+        }
+        .feature-card:hover {
+          border-color: #e0e7ff;
+          box-shadow: 0 8px 30px rgba(99,102,241,0.08);
+          transform: translateY(-3px);
+        }
+
+        /* Balance hero */
+        .balance-hero {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+        }
+
+        /* Filter tabs */
+        .filter-active {
+          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          color: white;
+          box-shadow: 0 4px 14px rgba(99,102,241,0.35);
+        }
+        .filter-idle {
+          background: #f1f5f9;
+          color: #64748b;
+        }
+        .filter-idle:hover { background: #e0e7ff; color: #4f46e5; }
+
+        /* Transaction row */
+        .tx-row {
+          transition: background 0.15s ease;
+        }
+        .tx-row:hover { background: #f8f7ff; }
+      `}</style>
+
+      {/* ── HERO ── */}
+      <section className="hero-gradient hero-noise relative overflow-hidden">
+        <div className="glow-dot w-96 h-96 bg-indigo-500 opacity-20 top-[-80px] left-[-60px]" />
+        <div className="glow-dot w-64 h-64 bg-violet-400 opacity-15 top-10 right-0" />
+        <div className="glow-dot w-72 h-72 bg-blue-400 opacity-10 bottom-0 left-1/3" />
+
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+          {/* Badge */}
+          <div className={`inline-flex items-center gap-2 badge-pill px-4 py-1.5 rounded-full mb-5 opacity-0 ${mounted ? 'animate-fade-up' : ''}`}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="section-label text-white/80">Earnings Dashboard</span>
           </div>
 
-          {/* ── Balance Hero Card ── */}
-          <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 rounded-3xl p-8 shadow-2xl mb-8 overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+          <h1 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight mb-3 opacity-0 ${mounted ? 'animate-fade-up delay-100' : ''}`}>
+            My{' '}
+            <span className="bg-gradient-to-r from-violet-300 via-fuchsia-200 to-indigo-200 bg-clip-text text-transparent">
+              Wallet
+            </span>
+          </h1>
 
-            <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+          <p className={`font-body text-white/60 text-base max-w-md leading-relaxed opacity-0 ${mounted ? 'animate-fade-up delay-200' : ''}`}>
+            Your earnings, service shares, and bonus history at a glance.
+          </p>
+
+          {/* ── Inline Balance Card ── */}
+          <div className={`mt-8 bg-white/8 backdrop-blur-sm border border-white/10 rounded-2xl p-6 md:p-8 opacity-0 ${mounted ? 'animate-fade-up delay-300' : ''}`}>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+              {/* Balance */}
               <div>
-                <p className="text-orange-100 text-sm font-medium mb-2 flex items-center gap-2">
-                  <BadgeCheck className="w-4 h-4" />
-                  Available Balance
-                </p>
+                <div className="flex items-center gap-2 mb-2">
+                  <BadgeCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="section-label text-white/60">Available Balance</span>
+                </div>
                 <div className="flex items-center gap-3">
-                  <h2 className="text-5xl font-extrabold text-white tracking-tight">
+                  <span className="font-display font-bold text-4xl md:text-5xl text-white tracking-tight">
                     {showBalance ? formatCurrency(balance) : '₹ ••••••'}
-                  </h2>
+                  </span>
                   <button
                     onClick={() => setShowBalance(!showBalance)}
-                    className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                     title={showBalance ? 'Hide balance' : 'Show balance'}
                   >
                     <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,207 +206,214 @@ const MechanicWallet = () => {
                     </svg>
                   </button>
                 </div>
-                <p className="text-orange-200 text-xs mt-2">Withdrawals will be available in a future update</p>
+                <p className="font-body text-white/40 text-xs mt-2">Withdrawals will be available in a future update</p>
               </div>
 
+              {/* Quick stats */}
               <div className="flex gap-3">
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center border border-white/20">
-                  <p className="text-orange-100 text-xs mb-1">This Month</p>
-                  <p className="text-white font-bold text-lg">{formatCurrency(thisMonth)}</p>
+                <div className="badge-pill rounded-2xl px-5 py-4 text-center">
+                  <p className="section-label text-white/50 mb-1">This Month</p>
+                  <p className="font-display font-bold text-white text-lg">{formatCurrency(thisMonth)}</p>
                 </div>
-                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center border border-white/20">
-                  <p className="text-orange-100 text-xs mb-1 flex items-center gap-1"><Star className="w-3 h-3" /> Bonuses</p>
-                  <p className="text-white font-bold text-lg">{formatCurrency(totalBonuses)}</p>
+                <div className="badge-pill rounded-2xl px-5 py-4 text-center">
+                  <p className="section-label text-white/50 mb-1 flex items-center gap-1 justify-center">
+                    <Star className="w-3 h-3" /> Bonuses
+                  </p>
+                  <p className="font-display font-bold text-white text-lg">{formatCurrency(totalBonuses)}</p>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* ── Stats Grid ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-[#f8f9fc]" style={{ clipPath: 'ellipse(55% 100% at 50% 100%)' }} />
+      </section>
+
+      {/* ── MAIN CONTENT ── */}
+      <div className="grid-lines max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 space-y-6">
+
+        {/* ── STATS GRID ── */}
+        <div>
+          <span className="section-label text-indigo-500 mb-4 block">Overview</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {stats.map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className={`group relative bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden`}>
-                  <div className={`absolute inset-0 ${s.bg} opacity-40`} />
-                  <div className="relative z-10">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.gradient} flex items-center justify-center shadow-md mb-3 group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-5 h-5 text-white" />
-                    </div>
-                    <p className="text-xl font-extrabold text-gray-800">{s.value}</p>
-                    <p className="text-xs text-gray-500 font-medium mt-0.5">{s.label}</p>
+                <div key={i} className={`feature-card bg-white rounded-2xl p-5 group cursor-default`}>
+                  <div className={`w-11 h-11 rounded-2xl ${s.bg} border ${s.border} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                    <Icon className={`w-5 h-5 ${s.color}`} />
                   </div>
+                  <p className="font-display font-bold text-gray-900 text-xl">{s.value}</p>
+                  <p className="font-body text-gray-500 text-xs mt-0.5">{s.label}</p>
                 </div>
               );
             })}
           </div>
+        </div>
 
-          {/* ── Earning Breakdown Bar ── */}
-          <div className="bg-white rounded-2xl p-5 shadow-md mb-6">
-            <p className="text-sm font-semibold text-gray-600 mb-3">Earnings Breakdown</p>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500"
-                  style={{ width: `${((totalEarned - totalBonuses) /totalEarned * 100).toFixed(1)}%` }}
+        {/* ── EARNINGS BREAKDOWN BAR ── */}
+        <div className="feature-card bg-white rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div>
+              <span className="section-label text-indigo-500 mb-0.5 block">Composition</span>
+              <h3 className="font-display font-bold text-gray-900">Earnings Breakdown</h3>
+            </div>
+          </div>
+
+          {/* Bar */}
+          <div className="flex items-center gap-1.5 mb-3 h-3 rounded-full overflow-hidden bg-slate-100">
+            <div
+              className="h-full rounded-l-full bg-gradient-to-r from-indigo-400 to-indigo-600 transition-all duration-700"
+              style={{ width: `${serviceShare}%` }}
+            />
+            <div
+              className="h-full rounded-r-full bg-gradient-to-r from-violet-400 to-pink-500 transition-all duration-700"
+              style={{ width: `${bonusShare}%` }}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <span className="font-body text-xs text-gray-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block flex-shrink-0" />
+              Service Share — <span className="font-semibold text-gray-700">{formatCurrency(totalEarned - totalBonuses)}</span>
+            </span>
+            <span className="font-body text-xs text-gray-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-violet-400 inline-block flex-shrink-0" />
+              Bonuses — <span className="font-semibold text-gray-700">{formatCurrency(totalBonuses)}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* ── TRANSACTION HISTORY ── */}
+        <div className="feature-card bg-white rounded-2xl overflow-hidden">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+              <div>
+                <span className="section-label text-indigo-500 mb-0.5 block">Ledger</span>
+                <h2 className="font-display font-bold text-xl text-gray-900">Transaction History</h2>
+                <p className="font-body text-sm text-gray-400 mt-0.5">
+                  {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search service, vehicle…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="font-body pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 w-full sm:w-56 transition bg-slate-50 focus:bg-white"
                 />
               </div>
-              <div
-                className="h-3 rounded-full bg-gradient-to-r from-purple-400 to-pink-500 transition-all"
-                style={{ width: `${(totalBonuses / totalEarned * 100).toFixed(1)}%` }}
-              />
             </div>
-            <div className="flex items-center gap-6 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />
-                Service Share — {formatCurrency(totalEarned - totalBonuses)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block" />
-                Bonuses — {formatCurrency(totalBonuses)}
-              </span>
+
+            {/* Filter tabs */}
+            <div className="flex gap-2 flex-wrap">
+              {FILTER_OPTIONS.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setActiveFilter(f.value)}
+                  className={`px-4 py-1.5 rounded-full section-label transition-all duration-200 ${activeFilter === f.value ? 'filter-active' : 'filter-idle'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* ── Transaction History ── */}
-          <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Transaction History</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{filtered.length} transaction{filtered.length !== 1 ? 's' : ''}</p>
+          {/* Transaction list */}
+          <div className="divide-y divide-slate-50">
+            {filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-14 h-14 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center">
+                  <IndianRupee className="w-7 h-7 text-slate-300" />
                 </div>
-
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search service, vehicle..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 w-full sm:w-56 transition"
-                  />
-                </div>
+                <p className="font-display font-semibold text-gray-500">No transactions found</p>
+                <p className="font-body text-sm text-gray-400">Try adjusting your filter or search</p>
               </div>
+            ) : (
+              filtered.map((earning) => {
+                const isBonus = earning.earning_type === 'BONUS';
+                const sr = earning.service_execution?.service_request;
 
-              {/* Filter Tabs */}
-              <div className="flex gap-2 mt-4">
-                {FILTER_OPTIONS.map((f) => (
-                  <button
-                    key={f.value}
-                    onClick={() => setActiveFilter(f.value)}
-                    className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                      activeFilter === f.value
-                        ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-600 hover:bg-orange-50 hover:text-orange-600'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                return (
+                  <div key={earning.id} className="tx-row flex items-start gap-4 px-6 py-5">
+                    {/* Icon */}
+                    <div className={`flex-shrink-0 w-11 h-11 rounded-2xl flex items-center justify-center border ${
+                      isBonus
+                        ? 'bg-violet-50 border-violet-100'
+                        : 'bg-indigo-50 border-indigo-100'
+                    }`}>
+                      {isBonus
+                        ? <Gift className="w-5 h-5 text-violet-600" />
+                        : <Wrench className="w-5 h-5 text-indigo-600" />
+                      }
+                    </div>
 
-            {/* Transaction List */}
-            <div className="divide-y divide-gray-50">
-              {filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <IndianRupee className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">No transactions found</p>
-                  <p className="text-sm mt-1">Try adjusting your filter or search</p>
-                </div>
-              ) : (
-                filtered.map((earning) => {
-                  const isBonus = earning.earning_type === 'BONUS';
-                  const sr = earning.service_execution?.service_request;
-
-                  return (
-                    <div
-                      key={earning.id}
-                      className="group flex items-start gap-4 px-6 py-5 hover:bg-orange-50/40 transition-colors duration-150"
-                    >
-                      {/* Icon */}
-                      <div className={`flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center shadow-sm ${
-                        isBonus
-                          ? 'bg-gradient-to-br from-purple-500 to-pink-500'
-                          : 'bg-gradient-to-br from-green-500 to-emerald-600'
-                      }`}>
-                        {isBonus
-                          ? <Gift className="w-5 h-5 text-white" />
-                          : <Wrench className="w-5 h-5 text-white" />
-                        }
+                    {/* Details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className={`section-label px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                          isBonus
+                            ? 'bg-violet-50 border border-violet-200 text-violet-700'
+                            : 'bg-indigo-50 border border-indigo-200 text-indigo-700'
+                        }`}>
+                          {isBonus ? <Gift className="w-3 h-3" /> : <BadgeCheck className="w-3 h-3" />}
+                          {isBonus ? 'Bonus' : 'Service Share'}
+                        </span>
+                        {sr && (
+                          <span className="font-mono text-xs text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg">
+                            REQ #{sr.id}
+                          </span>
+                        )}
                       </div>
 
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          {/* Type badge */}
-                          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                            isBonus
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-green-100 text-green-700'
-                          }`}>
-                            {isBonus ? <Gift className="w-3 h-3" /> : <BadgeCheck className="w-3 h-3" />}
-                            {isBonus ? 'Bonus' : 'Service Share'}
+                      <p className="font-display font-semibold text-sm text-gray-900 truncate">
+                        {sr ? `${sr.issue_category} — ${sr.vehicle_model}` : 'Bonus Payment'}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 mt-1.5">
+                        <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {formatDate(earning.created_at)} · {formatTime(earning.created_at)}
+                        </span>
+                        {!isBonus && earning.service_execution?.mechanic_count && (
+                          <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {earning.service_execution.mechanic_count} mechanic{earning.service_execution.mechanic_count > 1 ? 's' : ''} — 20% pool split equally
                           </span>
-
-                          {/* Service ref */}
-                          {sr && (
-                            <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
-                              REQ #{sr.id}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Primary info */}
-                        <p className="text-sm font-semibold text-gray-800 truncate">
-                          {sr ? `${sr.issue_category} — ${sr.vehicle_model}` : 'Bonus Payment'}
-                        </p>
-
-                        {/* Secondary info */}
-                        <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {formatDate(earning.created_at)} · {formatTime(earning.created_at)}
+                        )}
+                        {isBonus && (
+                          <span className="font-body text-xs text-violet-500 italic truncate max-w-xs">
+                            {earning.description.replace('Bonus from workshop admin: ', '')}
                           </span>
-                          {!isBonus && earning.service_execution?.mechanic_count && (
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3" />
-                              {earning.service_execution.mechanic_count} mechanic{earning.service_execution.mechanic_count > 1 ? 's' : ''} — 20% pool split equally
-                            </span>
-                          )}
-                          {isBonus && (
-                            <span className="text-purple-500 italic truncate max-w-xs">
-                              {earning.description.replace('Bonus from workshop admin: ', '')}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Amount */}
-                      <div className="flex-shrink-0 text-right">
-                        <div className="flex items-center gap-1 text-lg font-extrabold text-green-600">
-                          <ArrowDownLeft className="w-4 h-4" />
-                          ₹{parseFloat(earning.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                        </div>
-                        <p className="text-xs text-gray-400 mt-0.5">Credited</p>
+                        )}
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
 
-            {/* Footer note */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center">
-                All amounts are credited automatically after service OTP verification or when a bonus is sent by your workshop admin.
-              </p>
-            </div>
+                    {/* Amount */}
+                    <div className="flex-shrink-0 text-right">
+                      <div className="flex items-center gap-1 font-display font-bold text-lg text-emerald-600">
+                        <ArrowDownLeft className="w-4 h-4" />
+                        ₹{parseFloat(earning.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+                      <p className="font-body text-xs text-gray-400 mt-0.5">Credited</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
+          {/* Footer */}
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100">
+            <p className="font-body text-xs text-gray-400 text-center">
+              All amounts are credited automatically after service OTP verification or when a bonus is sent by your workshop admin.
+            </p>
+          </div>
         </div>
       </div>
     </div>
