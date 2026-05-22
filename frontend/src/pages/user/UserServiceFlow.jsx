@@ -421,11 +421,29 @@ const UserServiceFlow = () => {
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="flow-grid">
 
-          {/* ── LEFT: Chat or Rating ── */}
-          <div className="chat-col">
-            {isVerified ? (
+          {/* ── LEFT: Chat and Rating ── */}
+          <div className="flex flex-col gap-6">
+            {/* Chat — must fill its container height */}
+            <div className="chat-col">
+              <Chat
+                key={requestId}
+                serviceRequestId={requestId}
+                canChat={!!connection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
+                headerTitle={connection ? connection.workshop_name : 'Finding Workshop...'}
+                headerSubtitle={connection ? 'Connected' : 'Pending'}
+                headerIcon={Wrench}
+                gradientFrom="from-indigo-600"
+                gradientTo="to-violet-600"
+                disabledMessage="Chat will be available once a workshop accepts your request."
+                // Pass className so Chat itself can fill height; 
+                // also ensure Chat's own container uses h-full internally
+                className="h-full"
+              />
+            </div>
+
+            {isVerified && (
               /* Rating panel */
-              <div className="sf-card overflow-y-auto p-6">
+              <div className="sf-card p-6">
                 <div className="text-center mb-5">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 mb-3">
                     <CheckCircle className="w-6 h-6 text-emerald-600" />
@@ -450,7 +468,7 @@ const UserServiceFlow = () => {
                         <p className="font-display font-bold text-gray-900">{connection?.workshop_name || 'Workshop'}</p>
                       </div>
                       <div className="flex gap-2 mb-3">
-                        {[1,2,3,4,5].map(star => (
+                        {[1, 2, 3, 4, 5].map(star => (
                           <button key={`ws-${star}`} onClick={() => setRatingState(prev => ({ ...prev, workshop_rating: { ...prev.workshop_rating, rating: star } }))} className="star-btn">
                             <Star className={`w-7 h-7 ${star <= ratingState.workshop_rating.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200 fill-slate-200'}`} />
                           </button>
@@ -478,7 +496,7 @@ const UserServiceFlow = () => {
                           </div>
                         </div>
                         <div className="flex gap-2 mb-3">
-                          {[1,2,3,4,5].map(star => {
+                          {[1, 2, 3, 4, 5].map(star => {
                             const cur = ratingState.mechanic_ratings[mechanic.id]?.rating || 0;
                             return (
                               <button key={`mech-${mechanic.id}-${star}`} onClick={() => setRatingState(prev => ({ ...prev, mechanic_ratings: { ...prev.mechanic_ratings, [mechanic.id]: { ...prev.mechanic_ratings[mechanic.id], rating: star } } }))} className="star-btn">
@@ -513,22 +531,6 @@ const UserServiceFlow = () => {
                   </div>
                 )}
               </div>
-            ) : (
-              /* Chat — must fill its container height */
-              <Chat
-                key={requestId}
-                serviceRequestId={requestId}
-                canChat={!!connection && !['EXPIRED', 'CANCELLED'].includes(currentStatus)}
-                headerTitle={connection ? connection.workshop_name : 'Finding Workshop...'}
-                headerSubtitle={connection ? 'Connected' : 'Pending'}
-                headerIcon={Wrench}
-                gradientFrom="from-indigo-600"
-                gradientTo="to-violet-600"
-                disabledMessage="Chat will be available once a workshop accepts your request."
-                // Pass className so Chat itself can fill height; 
-                // also ensure Chat's own container uses h-full internally
-                className="h-full"
-              />
             )}
           </div>
 
