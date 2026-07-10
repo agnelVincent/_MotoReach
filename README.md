@@ -1,16 +1,16 @@
-# MotoReach 🚗🔧
+# MotoReach 🏍️
 
 MotoReach is a comprehensive, real-time web platform designed to seamlessly connect vehicle owners with nearby professional workshops and independent mechanics. By streamlining service requests, real-time chat, estimates, escrow payments, and service tracking, MotoReach provides a transparent and frictionless experience for automotive repairs and roadside assistance.
 
 ---
 
-## 🌟 Key Features
+## 🔑 Key Features
 
 ### For Users
 - **Location-Based Discovery**: Automatically route service requests to verified nearby workshops.
 - **Service Flow & Tracking**: Real-time status updates on vehicle service execution.
 - **Integrated Payments**: Secure checkout with Stripe integration and in-platform wallet mechanisms (top-ups and escrow handling).
-- **Real-Time Communication**: Built-in websocket-based chat to converse directly with workshops and assigned mechanics securely.
+- **Real-Time Communication**: Built-in WebSocket-based chat to converse directly with workshops and assigned mechanics securely.
 
 ### For Workshops
 - **Job Management Dashboard**: Filter, accept, or reject incoming nearby service requests based on bandwidth and capabilities.
@@ -19,8 +19,8 @@ MotoReach is a comprehensive, real-time web platform designed to seamlessly conn
 - **Team & Subscription Management**: Organize mechanic rosters and manage platform subscription status.
 
 ### For Mechanics
-- **Direct Job Tracking**: Dedicated mechanic dashboard strictly displaying assigned requests and active tickets.
-- **Centralized Live Notifications**: Live socket-powered bell notifications keeping them updated on message drops and service state changes.
+- **Direct Job Tracking**: Dedicated mechanic dashboard displaying assigned requests and active tickets.
+- **Centralized Live Notifications**: Live WebSocket-powered bell notifications keeping them updated on message drops and service state changes.
 - **Earning Visibility**: Built-in wallet displaying service shares, platform bonuses, and historical payout structures.
 
 ### For Platform Admins
@@ -31,114 +31,172 @@ MotoReach is a comprehensive, real-time web platform designed to seamlessly conn
 
 ## 🛠️ Technology Stack
 
-### Frontend Architecture
-- **React.js & Vite**: Delivering a lightning-fast Single Page Application (SPA).
-- **Redux & Hooks**: Deep state management tracking authentication, notifications, and dynamic UI conditions.
-- **Tailwind CSS**: Modern utility-first framework for an adaptable, gorgeous, responsive UI.
-- **Lucide React**: Clean vector icons emphasizing a consistent graphic style.
+### Frontend
+- **React.js & Vite** — Fast Single Page Application (SPA)
+- **Redux & Hooks** — State management for auth, notifications, and UI
+- **Tailwind CSS** — Utility-first responsive UI framework
+- **Leaflet / React-Leaflet** — Interactive map for geo-location based workshop discovery
+- **Lucide React** — Consistent vector icon library
 
-### Backend Architecture
-- **Django & Django REST Framework (DRF)**: Reliable, robust, MVC-structured backend controlling heavily validated RESTful APIs.
-- **Django Channels (WebSockets)**: Handling asynchronous protocols for the live chat instances, dynamic location polling, and global notification broadcasts.
-- **PostgreSQL**: Hardened relational database mapping Users, Workshop connections, Wallets, execution states, and more.
-- **Stripe API**: Secure payment gateways supporting user session payments, top-ups, and payout escrow pipelines.
+### Backend
+- **Django & Django REST Framework (DRF)** — Robust RESTful API backend
+- **Django Channels + Daphne** — Async WebSocket support for live chat, service-flow sync, and notifications
+- **PostgreSQL** — Relational database for users, workshops, wallets, service states, and more
+- **Redis** — Channel layer backend powering Django Channels WebSocket groups
+- **Stripe** — Secure payment gateway handling escrow, top-ups, and webhook-driven state transitions
+- **Cloudinary** — Media storage for profile pictures and assets
+- **JWT + Google OAuth** — Authentication and authorization
+
+### Infrastructure
+- **Docker & Docker Compose** — Containerized services (backend, PostgreSQL, Redis)
+- **AWS EC2 + Nginx** — Backend deployed on EC2 behind an Nginx reverse proxy with SSL
+- **Vercel** — Frontend deployed and served via Vercel
 
 ---
 
-## 🏗️ Local Setup Guide
+## 🚀 Local Setup (Docker)
 
-Follow these instructions to get the MotoReach ecosystem running locally on your environment.
+> **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) must be installed on your machine.
 
-### 1. Backend Setup
+### 1. Clone the Repository
 
-1. **Navigate to the Backend Directory:**
-   ```bash
-   cd backend
-   ```
+```bash
+git clone https://github.com/agnelVincent/_MotoReach.git
+cd _MotoReach
+```
 
-2. **Create and Activate a Virtual Environment:**
-   ```bash
-   python -m venv venv
-   # Windows
-   .\venv\Scripts\activate
-   # macOS/Linux
-   source venv/bin/activate
-   ```
+### 2. Configure Environment Variables
 
-3. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Sample `.env` Configuration**
-
-Create a `.env` file inside the backend root directory and configure the following variables:
+Create a `.env` file in the **project root** (alongside `docker-compose.yml`) with the following variables:
 
 ```env
-# Django Configuration
+# Django
 SECRET_KEY=your_django_secret_key
 DEBUG=True
 
-# Allowed Hosts
-ALLOWED_HOSTS=127.0.0.1,localhost
-
-# Database Configuration
-DB_NAME=your_database_name
-DB_USER=your_database_user
-DB_PASSWORD=your_database_password
-DB_HOST=localhost
+# Database (Docker service name as host)
+DB_NAME=motoreach_db
+DB_USER=postgres
+DB_PASSWORD=your_db_password
+DB_HOST=db
 DB_PORT=5432
 
-# Stripe Configuration
-STRIPE_SECRET_KEY=your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
-STRIPE_WEBHOOK_SECRET=your_webhook_secret
+# Redis (Docker service name as host)
+REDIS_HOST=redis
 
-# Frontend URL
-FRONTEND_URL=http://localhost:5173
-
-# Redis / Channels
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
-# Email Configuration
+# Email
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_HOST_USER=your_email@gmail.com
-EMAIL_HOST_PASSWORD=your_email_password
+EMAIL_HOST_PASSWORD=your_app_password
 EMAIL_USE_TLS=True
 DEFAULT_FROM_EMAIL=your_email@gmail.com
 
-5. **Run Migrations and Server:**
-   ```bash
-   python manage.py makemigrations
-   python manage.py migrate
-   python manage.py runserver
-   ```
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
 
-### 2. Frontend Setup
+# Cloudinary
+CLOUDINARY_URL=cloudinary://api_key:api_secret@cloud_name
 
-1. **Navigate to the Frontend Directory:**
-   ```bash
-   cd frontend
-   ```
+# Stripe
+STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+STRIPE_CURRENCY=inr
+STRIPE_PLATFORM_FEE_AMOUNT=200.00
 
-2. **Install Node Packages:**
-   ```bash
-   npm install
-   ```
+# Frontend URL (used in email links etc.)
+FRONTEND_URL=http://localhost:3000
+```
 
-3. **Start the Development Server:**
-   ```bash
-   npm run dev
-   ```
+> **Note:** `DB_HOST=db` and `REDIS_HOST=redis` refer to the Docker Compose service names — do **not** use `localhost` here.
 
-*Ensure that both servers (typically `http://localhost:8000` for API and `http://localhost:5173` for Web) are actively running to establish the websocket pipeline properly!*
+### 3. Configure the Frontend
+
+Create a `.env` file inside the `frontend/` directory:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_BASE=ws://localhost:8000
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+### 4. Start All Services
+
+From the project root, run:
+
+```bash
+docker compose up --build
+```
+
+This will spin up:
+| Service | Description | Port |
+|---------|-------------|------|
+| `db` | PostgreSQL 16 database | `5432` |
+| `redis` | Redis 7 (WebSocket channel layer) | `6379` |
+| `backend` | Django + Daphne ASGI server | `8000` |
+
+Migrations are applied automatically on startup.
+
+### 5. Run the Frontend (Dev Server)
+
+The frontend is **not** included in Docker Compose (it's deployed on Vercel in production). To run it locally:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server will start at `http://localhost:5173`.
+
+### 6. Access the App
+
+| Interface | URL |
+|-----------|-----|
+| Frontend | `http://localhost:5173` |
+| Backend API | `http://localhost:8000/api/` |
+| Django Admin | `http://localhost:8000/admin/` |
+
+### Stopping Services
+
+```bash
+docker compose down
+```
+
+To also remove volumes (wipes the database):
+
+```bash
+docker compose down -v
+```
 
 ---
 
-## 🤝 Contribution Guidelines
-This repository maintains a strict branching strategy. For feature implementations and bug fixes, please submit Pull Requests targeting testing branches first before converging to the `main` architecture. Code should pass standard linting tests, and backend endpoints must retain thorough exception handling policies.
+## 📁 Project Structure
+
+```
+MotoReach/
+├── backend/                  # Django application
+│   ├── accounts/             # Auth, roles, OTP, Google OAuth
+│   ├── service_request/      # Core service flow, WebSocket consumers
+│   ├── payments/             # Stripe, escrow, wallets
+│   ├── chat/                 # Real-time chat (WebSockets)
+│   ├── admin_panel/          # Super admin APIs
+│   ├── backend/              # Django settings, ASGI, URLs
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/                 # React + Vite SPA
+│   ├── src/
+│   └── package.json
+├── docker-compose.yml
+└── .env                      # Root-level env (used by Docker Compose)
+```
+
+---
+
+## 📝 Contribution Guidelines
+
+This repository maintains a strict branching strategy. For feature implementations and bug fixes, please submit Pull Requests targeting testing branches first before converging to the `main` branch. Code should pass standard linting checks, and backend endpoints must retain thorough exception handling.
 
 ### License
-Developed and maintained as a proprietary platform. All rights reserved. 
+Developed and maintained as a proprietary platform. All rights reserved.
