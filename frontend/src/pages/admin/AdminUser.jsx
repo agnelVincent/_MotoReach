@@ -15,14 +15,44 @@ const AdminUser = () => {
     dispatch(fetchUsers());
   }, [dispatch]);
 
-  const handleToggleStatus = async (userId) => {
-    try {
-      await dispatch(toggleBlockStatus(userId)).unwrap();
-      toast.success("User status updated");
-    } catch (error) {
-      toast.error("Failed to update status");
-    }
+  const handleToggleStatus = (userId, currentStatus) => {
+    const action = currentStatus === 'Active' ? 'block' : 'unblock';
+    toast.custom((t) => (
+      <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`} style={{ zIndex: 9999 }}>
+        <div className="flex-1 w-0 p-4">
+          <div className="flex items-start">
+            <div className="ml-3 flex-1">
+              <p className="text-sm font-medium text-gray-900">Confirm Action</p>
+              <p className="mt-1 text-sm text-gray-500">Are you sure you want to {action} this user?</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex border-l border-gray-200">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                await dispatch(toggleBlockStatus(userId)).unwrap();
+                toast.success("User status updated");
+              } catch (error) {
+                toast.error("Failed to update status");
+              }
+            }}
+            className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="w-full border border-transparent rounded-none p-4 flex items-center justify-center text-sm font-medium text-gray-600 hover:text-gray-500 focus:outline-none"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    ), { duration: 5000, position: 'top-center' });
   };
+
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -163,7 +193,7 @@ const AdminUser = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleToggleStatus(user.id)}
+                        onClick={() => handleToggleStatus(user.id, user.status)}
                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${user.status === 'Active'
                             ? 'bg-red-100 text-red-700 hover:bg-red-200'
                             : 'bg-green-100 text-green-700 hover:bg-green-200'

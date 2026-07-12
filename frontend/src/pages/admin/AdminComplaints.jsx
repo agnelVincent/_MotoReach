@@ -23,22 +23,51 @@ const AdminComplaints = () => {
         }
     };
 
-    const handleToggleBlock = async (userId) => {
-        try {
-            const response = await axiosInstance.patch(`/admin-panel/users/${userId}/toggle-block/`);
-            const status = response.data.isBlocked ? 'Blocked' : 'Unblocked';
-            toast.success(`User successfully ${status.toLowerCase()}`);
-
-            setComplaints(prev => prev.map(complaint => {
-                if (complaint.reported_user === userId) {
-                    return { ...complaint, is_blocked: response.data.isBlocked };
-                }
-                return complaint;
-            }));
-        } catch (error) {
-            console.error(error);
-            toast.error(error.response?.data?.error || 'Failed to update block status');
-        }
+    const handleToggleBlock = (userId, isBlocked) => {
+        const action = isBlocked ? 'unblock' : 'block';
+        toast.custom((t) => (
+            <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5`} style={{ zIndex: 9999 }}>
+                <div className="flex-1 w-0 p-4">
+                    <div className="flex items-start">
+                        <div className="ml-3 flex-1">
+                            <p className="text-sm font-medium text-gray-900">Confirm Action</p>
+                            <p className="mt-1 text-sm text-gray-500">Are you sure you want to {action} this user?</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex border-l border-gray-200">
+                    <button
+                        onClick={async () => {
+                            toast.dismiss(t.id);
+                            try {
+                                const response = await axiosInstance.patch(`/admin-panel/users/${userId}/toggle-block/`);
+                                const status = response.data.isBlocked ? 'Blocked' : 'Unblocked';
+                                toast.success(`User successfully ${status.toLowerCase()}`);
+                    
+                                setComplaints(prev => prev.map(complaint => {
+                                    if (complaint.reported_user === userId) {
+                                        return { ...complaint, is_blocked: response.data.isBlocked };
+                                    }
+                                    return complaint;
+                                }));
+                            } catch (error) {
+                                console.error(error);
+                                toast.error(error.response?.data?.error || 'Failed to update block status');
+                            }
+                        }}
+                        className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+                    >
+                        Confirm
+                    </button>
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="w-full border border-transparent rounded-none p-4 flex items-center justify-center text-sm font-medium text-gray-600 hover:text-gray-500 focus:outline-none"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        ), { duration: 5000, position: 'top-center' });
     };
 
     if (loading) {
@@ -108,7 +137,7 @@ const AdminComplaints = () => {
                                         <p className="text-sm text-gray-500 mt-1">{complaint.reported_user_email}</p>
 
                                         <button
-                                            onClick={() => handleToggleBlock(complaint.reported_user)}
+                                            onClick={() => handleToggleBlock(complaint.reported_user, complaint.is_blocked)}
                                             className={`mt-4 w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${complaint.is_blocked
                                                     ? 'bg-red-50 text-red-700 hover:bg-red-100'
                                                     : 'bg-red-600 text-white hover:bg-red-700 shadow-sm'
