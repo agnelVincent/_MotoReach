@@ -6,6 +6,7 @@ import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { Eye } from 'lucide-react';
+import Pagination from '../../components/Pagination';
 
 const AdminWorkshop = () => {
   const dispatch = useDispatch();
@@ -16,6 +17,12 @@ const AdminWorkshop = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [editingStatus, setEditingStatus] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   useEffect(() => {
     dispatch(fetchWorkshops());
@@ -84,6 +91,9 @@ const AdminWorkshop = () => {
     const matchesFilter = filterStatus === 'All' || workshop.verificationStatus === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const totalPages = Math.ceil(filteredWorkshops.length / itemsPerPage);
+  const currentWorkshops = filteredWorkshops.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = {
     total: workshops.length,
@@ -213,7 +223,7 @@ const AdminWorkshop = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredWorkshops.map((workshop) => {
+                {currentWorkshops.map((workshop) => {
                   // Normalize 'Requested Again' to 'Pending' for display
                   const normalizedVerificationStatus = workshop.verificationStatus === 'Requested Again' ? 'Pending' : workshop.verificationStatus;
                   const currentStatus = editingStatus[workshop.id] || normalizedVerificationStatus;
@@ -307,11 +317,13 @@ const AdminWorkshop = () => {
         </div>
 
         {/* Pagination */}
-        <div className="mt-6 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            Showing {filteredWorkshops.length} of {workshops.length} workshops
-          </p>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredWorkshops.length}
+          itemsPerPage={itemsPerPage}
+        />
       </div>
     </div>
   );

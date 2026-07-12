@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { User, Shield, ShieldOff, Search, Filter, Activity, Building2, CheckCircle, Clock } from 'lucide-react';
 import { fetchMechanics, toggleBlockStatus } from '../../redux/slices/userManagementSlice';
 import { toast } from 'react-hot-toast';
+import Pagination from '../../components/Pagination';
 
 const AdminMechanic = () => {
   const dispatch = useDispatch();
@@ -10,6 +11,12 @@ const AdminMechanic = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterAvailability, setFilterAvailability] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterAvailability]);
 
   useEffect(() => {
     dispatch(fetchMechanics());
@@ -61,6 +68,9 @@ const AdminMechanic = () => {
     const matchesFilter = filterAvailability === 'All' || mechanic.availability === filterAvailability;
     return matchesSearch && matchesFilter;
   });
+
+  const totalPages = Math.ceil(filteredMechanics.length / itemsPerPage);
+  const currentMechanics = filteredMechanics.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = {
     total: mechanics.length,
@@ -180,7 +190,7 @@ const AdminMechanic = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredMechanics.map((mechanic) => (
+                {currentMechanics.map((mechanic) => (
                   <tr key={mechanic.id} className="hover:bg-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -255,11 +265,13 @@ const AdminMechanic = () => {
         </div>
 
         {/* Pagination */}
-        <div className="mt-6 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            Showing {filteredMechanics.length} of {mechanics.length} mechanics
-          </p>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredMechanics.length}
+          itemsPerPage={itemsPerPage}
+        />
       </div>
     </div>
   );

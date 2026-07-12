@@ -13,6 +13,7 @@ import {
   AlertCircle, ZoomIn, ChevronDown
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import Pagination from '../../components/Pagination';
 
 /* ── Expiration countdown ── */
 const ExpirationTimer = ({ requestedAt }) => {
@@ -91,8 +92,14 @@ const WorkshopRequestList = () => {
   const [sortBy,          setSortBy]          = useState('newest');
   const [filterStatus,    setFilterStatus]    = useState('All');
   const [mounted,         setMounted]         = useState(false);
+  const [currentPage,     setCurrentPage]     = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => { setMounted(true); dispatch(fetchWorkshopRequests()); }, [dispatch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortBy, filterStatus]);
 
   const getDisplayStatus = (req) => {
     const conn = req.status;
@@ -136,6 +143,9 @@ const WorkshopRequestList = () => {
     if (sortBy === 'oldest') return new Date(a.requested_at) - new Date(b.requested_at);
     return getDisplayStatus(a).localeCompare(getDisplayStatus(b));
   });
+
+  const totalPages = Math.ceil(sorted.length / itemsPerPage);
+  const currentRequests = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = {
     total:     workshopRequests.length,
@@ -233,7 +243,7 @@ const WorkshopRequestList = () => {
 
           {/* ── REQUEST LIST ── */}
           <div className="rl-list">
-            {sorted.map((req, idx) => {
+            {currentRequests.map((req, idx) => {
               const status  = getDisplayStatus(req);
               const [bg, fg] = avatarColor(req.id);
               return (
@@ -274,6 +284,16 @@ const WorkshopRequestList = () => {
               );
             })}
           </div>
+
+          {sorted.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={sorted.length}
+              itemsPerPage={itemsPerPage}
+            />
+          )}
 
           {/* Empty state */}
           {sorted.length === 0 && !loading && (

@@ -6,6 +6,7 @@ import {
   Lock, Unlock, Activity, ChevronRight
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Pagination from '../../components/Pagination';
 
 const WorkshopPayment = () => {
   const [activeTab, setActiveTab] = useState('escrow');
@@ -13,6 +14,12 @@ const WorkshopPayment = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -56,6 +63,12 @@ const WorkshopPayment = () => {
     { id: 'escrow', label: 'Service Escrows', icon: ShieldCheck, count: escrows.length },
     { id: 'wallet', label: 'Wallet History',  icon: Wallet,     count: transactions.length },
   ];
+
+  const currentEscrows = escrows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalEscrowPages = Math.ceil(escrows.length / itemsPerPage);
+
+  const currentTransactions = transactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalTransactionPages = Math.ceil(transactions.length / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans">
@@ -243,7 +256,7 @@ const WorkshopPayment = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {escrows.map((payment) => (
+                      {currentEscrows.map((payment) => (
                         <tr key={payment.id} className="tbl-row border-b border-gray-50 last:border-0">
                           <td className="px-5 py-4">
                             <span className="font-body text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg">
@@ -305,6 +318,13 @@ const WorkshopPayment = () => {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalEscrowPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={escrows.length}
+                  itemsPerPage={itemsPerPage}
+                />
               </div>
             )}
           </div>
@@ -334,7 +354,7 @@ const WorkshopPayment = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {transactions.map((txn) => (
+                      {currentTransactions.map((txn) => (
                         <tr key={txn.id} className="tbl-row border-b border-gray-50 last:border-0">
                           <td className="px-5 py-4">
                             <span className="font-body text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-lg">#{txn.id}</span>
@@ -370,6 +390,13 @@ const WorkshopPayment = () => {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalTransactionPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={transactions.length}
+                  itemsPerPage={itemsPerPage}
+                />
               </div>
             )}
           </div>

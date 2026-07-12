@@ -11,6 +11,7 @@ import {
   FileText,
   ChevronRight,
 } from 'lucide-react';
+import Pagination from '../../components/Pagination';
 
 const statusConfig = (status) => {
   switch (status) {
@@ -38,6 +39,8 @@ const MechanicRequests = () => {
   const { mechanicAssignedRequests, loading, error } = useSelector(
     (state) => state.serviceRequest
   );
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     setMounted(true);
@@ -54,6 +57,9 @@ const MechanicRequests = () => {
       </div>
     );
   }
+
+  const totalPages = Math.ceil(mechanicAssignedRequests.length / itemsPerPage);
+  const currentRequests = mechanicAssignedRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans">
@@ -169,7 +175,7 @@ const MechanicRequests = () => {
             </div>
 
             <div className="space-y-4">
-              {mechanicAssignedRequests.map((request) => {
+              {currentRequests.map((request) => {
                 const { classes: badgeClasses, dot } = statusConfig(request.status);
                 const statusLabel = request.status === 'VERIFIED'
                   ? 'VERIFIED & COMPLETED'
@@ -247,6 +253,16 @@ const MechanicRequests = () => {
                 );
               })}
             </div>
+
+            {mechanicAssignedRequests.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={mechanicAssignedRequests.length}
+                itemsPerPage={itemsPerPage}
+              />
+            )}
           </>
         ) : (
           /* Empty state */

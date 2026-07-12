@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import { CreditCard, ArrowUpRight, ArrowDownRight, Search, Receipt, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Pagination from '../../components/Pagination';
 
 const UserPaymentHistory = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     setMounted(true);
@@ -40,6 +43,9 @@ const UserPaymentHistory = () => {
   const totalSpend = payments
     .filter(p => p.status === 'COMPLETED')
     .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+  const totalPages = Math.ceil(payments.length / itemsPerPage);
+  const currentPayments = payments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   if (loading) {
     return (
@@ -305,7 +311,7 @@ const UserPaymentHistory = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.map((payment) => {
+                    {currentPayments.map((payment) => {
                       const sc = getStatusConfig(payment.status);
                       return (
                         <tr key={payment.id}>
@@ -381,6 +387,13 @@ const UserPaymentHistory = () => {
                 </p>
               </div>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={payments.length}
+              itemsPerPage={itemsPerPage}
+            />
           </>
         )}
       </div>

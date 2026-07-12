@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import { Wallet, ArrowDownLeft, ArrowUpRight, Loader2, AlertCircle, Calendar, LineChart } from 'lucide-react';
+import Pagination from '../../components/Pagination';
 
 const AdminWallet = () => {
   const [data, setData] = useState({ transactions: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -38,6 +41,9 @@ const AdminWallet = () => {
       return acc;
     }, 0);
   };
+
+  const totalPages = Math.ceil((data.transactions?.length || 0) / itemsPerPage);
+  const currentTransactions = (data.transactions || []).slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
@@ -90,7 +96,7 @@ const AdminWallet = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.transactions.map((txn) => (
+                {currentTransactions.map((txn) => (
                   <tr key={txn.id} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4">
                       <span className="font-mono text-xs text-gray-500">#{txn.id}</span>
@@ -124,6 +130,14 @@ const AdminWallet = () => {
               </tbody>
             </table>
           </div>
+          
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={data.transactions.length}
+            itemsPerPage={itemsPerPage}
+          />
         </div>
       )}
     </div>

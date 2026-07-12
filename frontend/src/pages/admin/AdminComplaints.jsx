@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { AlertCircle, Ban, Mail, Phone, Clock, FileText, CheckCircle2 } from 'lucide-react';
+import Pagination from '../../components/Pagination';
 
 const AdminComplaints = () => {
     const [complaints, setComplaints] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     useEffect(() => {
         fetchComplaints();
@@ -78,6 +81,9 @@ const AdminComplaints = () => {
         );
     }
 
+    const totalPages = Math.ceil(complaints.length / itemsPerPage);
+    const currentComplaints = complaints.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
     return (
         <div className="space-y-6 animate-fadeIn">
             <div className="flex items-center justify-between">
@@ -100,7 +106,7 @@ const AdminComplaints = () => {
                 </div>
             ) : (
                 <div className="grid gap-6">
-                    {complaints.map((complaint) => (
+                    {currentComplaints.map((complaint) => (
                         <div key={complaint.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
                             <div className="border-b border-gray-100 bg-gray-50/50 p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div className="flex items-center gap-3">
@@ -198,6 +204,16 @@ const AdminComplaints = () => {
                         </div>
                     ))}
                 </div>
+            )}
+            
+            {complaints.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    totalItems={complaints.length}
+                    itemsPerPage={itemsPerPage}
+                />
             )}
         </div>
     );

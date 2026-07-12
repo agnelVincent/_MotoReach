@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Shield, ShieldOff, Search, Filter, Download } from 'lucide-react';
 import { fetchUsers, toggleBlockStatus } from '../../redux/slices/userManagementSlice';
 import { toast } from 'react-hot-toast';
+import Pagination from '../../components/Pagination';
 
 const AdminUser = () => {
   const dispatch = useDispatch();
@@ -10,6 +11,12 @@ const AdminUser = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus]);
 
   useEffect(() => {
     dispatch(fetchUsers());
@@ -60,6 +67,9 @@ const AdminUser = () => {
     const matchesFilter = filterStatus === 'All' || user.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const currentUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const stats = {
     total: users.length,
@@ -170,7 +180,7 @@ const AdminUser = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
+                {currentUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -226,11 +236,13 @@ const AdminUser = () => {
         </div>
 
         {/* Pagination */}
-        <div className="mt-6 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            Showing {filteredUsers.length} of {users.length} users
-          </p>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filteredUsers.length}
+          itemsPerPage={itemsPerPage}
+        />
       </div>
     </div>
   );
