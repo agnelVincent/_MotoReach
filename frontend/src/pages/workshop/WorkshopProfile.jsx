@@ -9,6 +9,7 @@ import {
   getProfile, updateProfile, changePassword, clearStatus
 } from '../../redux/slices/ProfileSlice';
 import ProfileInput from '../../components/ProfileInput';
+import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
 
 const WorkshopProfile = () => {
   const dispatch = useDispatch();
@@ -74,6 +75,12 @@ const WorkshopProfile = () => {
 
   const handleSaveProfile = () => {
     if (loading || !profile) return;
+    
+    const nameError = validateFullName(editedOwnerData.fullName);
+    if (nameError) return notify(nameError, 'error');
+
+    const phoneError = validatePhone(editedOwnerData.contactNumber);
+    if (phoneError) return notify(phoneError, 'error');
     const fd = new FormData();
     if (editedOwnerData.fullName !== profile.full_name) fd.append('full_name', editedOwnerData.fullName);
     if (editedOwnerData.contactNumber !== profile.role_details?.contact_number) fd.append('contact_number', editedOwnerData.contactNumber);
@@ -83,7 +90,18 @@ const WorkshopProfile = () => {
 
   const handlePasswordUpdate = () => {
     if (!isPasswordFormValid) return;
-    dispatch(changePassword({ old_password: passwordData.currentPassword, new_password: passwordData.newPassword }))
+
+    const passwordError = validatePassword(passwordData.newPassword);
+    if (passwordError) return notify(passwordError, 'error');
+
+    const matchError = validatePasswordMatch(passwordData.newPassword, passwordData.confirmPassword);
+    if (matchError) return notify(matchError, 'error');
+
+    dispatch(changePassword({
+      old_password: passwordData.currentPassword,
+      new_password: passwordData.newPassword,
+      confirm_new_password: passwordData.confirmPassword
+    }))
       .unwrap()
       .then(() => setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' }))
       .catch(err => {

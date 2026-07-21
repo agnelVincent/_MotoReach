@@ -19,6 +19,7 @@ import {
     BadgeCheck
 } from 'lucide-react';
 import { getProfile, updateProfile, changePassword, clearStatus } from '../../redux/slices/ProfileSlice';
+import { validateFullName, getPasswordRules } from '../../../utils/validationRules';
 
 const UserProfile = () => {
     const dispatch = useDispatch();
@@ -78,7 +79,11 @@ const UserProfile = () => {
     };
 
     const validateProfileData = () => {
-        if (editedData.fullName.trim().length < 3) { setProfileError('Full name must be at least 3 characters long.'); return false; }
+        const nameError = validateFullName(editedData.fullName);
+        if (nameError) {
+            setProfileError(nameError);
+            return false;
+        }
         setProfileError(null);
         return true;
     };
@@ -112,12 +117,7 @@ const UserProfile = () => {
 
     const handlePasswordChange = (field, value) => setPasswordData(prev => ({ ...prev, [field]: value }));
 
-    const passwordRules = {
-        length: passwordData.newPassword.length >= 8,
-        uppercase: /[A-Z]/.test(passwordData.newPassword),
-        number: /\d/.test(passwordData.newPassword),
-        special: /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword)
-    };
+    const passwordRules = getPasswordRules(passwordData.newPassword);
 
     const isPasswordValidNow = Object.values(passwordRules).every(Boolean);
     const passwordsMatch = passwordData.newPassword === passwordData.confirmPassword;

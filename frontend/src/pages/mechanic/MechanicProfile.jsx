@@ -15,6 +15,7 @@ import {
 } from '../../redux/slices/ProfileSlice';
 
 import ProfileInput from '../../components/ProfileInput';
+import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
 
 const MechanicProfile = () => {
   const dispatch = useDispatch();
@@ -104,7 +105,15 @@ const MechanicProfile = () => {
   };
 
   const handleSaveProfile = () => {
+
     if (!profile) return;
+
+    const nameError = validateFullName(editedMechanicData.fullName);
+    if (nameError) return showNotification(nameError, 'error');
+
+    const phoneError = validatePhone(editedMechanicData.phoneNumber);
+    if (phoneError) return showNotification(phoneError, 'error');
+
     const formData = new FormData();
     if (editedMechanicData.fullName !== profile.full_name) formData.append('full_name', editedMechanicData.fullName);
     if (editedMechanicData.phoneNumber !== profile.role_details?.contact_number) formData.append('contact_number', editedMechanicData.phoneNumber);
@@ -140,6 +149,19 @@ const MechanicProfile = () => {
       showNotification(passwordMatchError || 'Please fill in all password fields correctly.', 'error');
       return;
     }
+
+    const passwordError = validatePassword(passwordData.newPassword);
+    if (passwordError) {
+      showNotification(passwordError, 'error');
+      return;
+    }
+
+    const matchError = validatePasswordMatch(passwordData.newPassword, passwordData.confirmPassword);
+    if (matchError) {
+      showNotification(matchError, 'error');
+      return;
+    }
+
     dispatch(changePassword({
       old_password: passwordData.currentPassword,
       new_password: passwordData.newPassword,
