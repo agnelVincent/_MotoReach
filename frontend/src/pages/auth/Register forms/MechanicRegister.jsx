@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { User, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
 import InputField from '../../../components/InputField';
 import { registerMechanic, clearError } from '../../../redux/slices/authSlice';
+import { validateFullName, validateEmail, validatePassword, validatePasswordMatch, validatePhone } from '../../../utils/validationRules';
 
 const MechanicRegister = () => {
     const dispatch = useDispatch();
@@ -30,31 +31,21 @@ const MechanicRegister = () => {
     const validateForm = () => {
         setClientErrors({});
         let errors = {};
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+\-=[\]{}|;:'",.<>/?\\~`]{8,}$/;
-        const phoneRegex = /^\d{10}$/;
 
-        if (!formData.fullName) errors.fullName = "Full Name is required.";
-        if (!formData.email) errors.email = "Email Address is required.";
-        if (!formData.password) errors.password = "Password is required.";
-        if (!formData.confirmPassword) errors.confirmPassword = "Confirm Password is required.";
-        if (!formData.contactNumber) errors.contactNumber = "Contact Number is required.";
+        const nameError = validateFullName(formData.fullName);
+        if (nameError) errors.fullName = nameError;
 
-        if (formData.email && !emailRegex.test(formData.email)) {
-            errors.email = "Invalid email address format.";
-        }
+        const emailError = validateEmail(formData.email);
+        if (emailError) errors.email = emailError;
 
-        if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-            errors.confirmPassword = "Passwords do not match.";
-        }
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) errors.password = passwordError;
 
-        if (formData.password && !passwordStrengthRegex.test(formData.password)) {
-            errors.password = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
-        }
+        const matchError = validatePasswordMatch(formData.password, formData.confirmPassword);
+        if (matchError) errors.confirmPassword = matchError;
 
-        if (formData.contactNumber && !phoneRegex.test(formData.contactNumber)) {
-            errors.contactNumber = "Contact number must be exactly 10 digits.";
-        }
+        const phoneError = validatePhone(formData.contactNumber);
+        if (phoneError) errors.contactNumber = phoneError;
 
         if (Object.keys(errors).length > 0) {
             setClientErrors(errors);

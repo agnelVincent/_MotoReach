@@ -5,6 +5,7 @@ import InputField from '../../../components/InputField';
 import TextAreaField from '../../../components/TextAreaField';
 import LocationPicker from '../../../components/LocationPicker';
 import { registerWorkshop, clearError } from '../../../redux/slices/authSlice';
+import { validateFullName, validateEmail, validatePassword, validatePasswordMatch, validatePhone, validatePincode } from '../../../utils/validationRules';
 
 const WorkshopRegister = () => {
     const dispatch = useDispatch();
@@ -42,37 +43,32 @@ const WorkshopRegister = () => {
     const validateForm = () => {
         setClientErrors({});
         let errors = {};
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const passwordStrengthRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+\-=[\]{}|;:'",.<>/?\\~`]{8,}$/;
-        const phoneRegex = /^\d{10}$/;
 
-        if (!formData.fullName) errors.fullName = "Full Name is required.";
-        if (!formData.email) errors.email = "Email Address is required.";
-        if (!formData.password) errors.password = "Password is required.";
-        if (!formData.confirmPassword) errors.confirmPassword = "Confirm Password is required.";
+        const nameError = validateFullName(formData.fullName);
+        if (nameError) errors.fullName = nameError;
 
-        if (formData.email && !emailRegex.test(formData.email)) {
-            errors.email = "Invalid email address format.";
-        }
+        const emailError = validateEmail(formData.email);
+        if (emailError) errors.email = emailError;
 
-        if (formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword) {
-            errors.confirmPassword = "Passwords do not match.";
-        }
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) errors.password = passwordError;
 
-        if (formData.password && !passwordStrengthRegex.test(formData.password)) {
-            errors.password = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
-        }
+        const matchError = validatePasswordMatch(formData.password, formData.confirmPassword);
+        if (matchError) errors.confirmPassword = matchError;
 
-        // Workshop specific validation
+        const phoneError = validatePhone(formData.contactNumber);
+        if (phoneError) errors.contactNumber = phoneError;
+
+        const pincodeError = validatePincode(formData.pinCode);
+        if (pincodeError) errors.pinCode = pincodeError;
+
         const workshopFields = {
             workshopName: "Workshop Name",
             workshopAddress: "Workshop Address",
             licenseNumber: "License Number",
             state: "State",
             city: "City",
-            pinCode: "Pin Code",
             locality: "Locality",
-            contactNumber: "Contact Number",
         };
 
         if (!formData.latitude || !formData.longitude) {
@@ -84,15 +80,7 @@ const WorkshopRegister = () => {
                 errors[field] = `${workshopFields[field]} is required.`;
             }
         }
-
-        if (formData.pinCode && !/^\d{6}$/.test(formData.pinCode)) {
-            errors.pinCode = "Pin Code must be 6 digits.";
-        }
-
-        if (formData.contactNumber && !phoneRegex.test(formData.contactNumber)) {
-            errors.contactNumber = "Contact number must be exactly 10 digits.";
-        }
-
+        
         if (Object.keys(errors).length > 0) {
             setClientErrors(errors);
             return false;
