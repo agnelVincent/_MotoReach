@@ -44,6 +44,7 @@ def validate_password_strength(password):
         raise serializers.ValidationError("Password must contain at least one special character.")
     return password
 
+
 class BaseRegistrationSerializer(serializers.Serializer):
     full_name = serializers.CharField(
         max_length=100, 
@@ -61,9 +62,7 @@ class BaseRegistrationSerializer(serializers.Serializer):
         return value
     
     def validate_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError('Password must be at least 8 characters long.')
-        return value
+        return validate_password_strength(value)
     
     def validate(self, data):
         if data['password'] != data['confirm_password']:
@@ -124,10 +123,14 @@ class WorkshopRegistrationSerializer(BaseRegistrationSerializer):
     workshop_name = serializers.CharField(max_length=255, min_length=3, required=True, error_messages={'min_length': 'Workshop name must be at least 3 characters long.'})
     address_line = serializers.CharField(required = True)
     license_number = serializers.CharField(max_length = 255, required = True)
+    pincode = serializers.CharField(
+        max_length=6, 
+        required=True,
+        validators=[RegexValidator(regex=r'^\d{6}$', message='Pin Code must be exactly 6 digits')]
+    )
     state = serializers.CharField(max_length = 30, required = True)
     locality = serializers.CharField(max_length = 255, required = True)
     city = serializers.CharField(max_length = 50, required = True)
-    pincode = serializers.CharField(max_length = 6, required = True)
     workshop_type = serializers.CharField(max_length = 20, required = True)
     contact_number = serializers.CharField(required = True, validators = contact_validators)
     latitude = serializers.FloatField(required=True)
@@ -246,13 +249,7 @@ class ForgotPasswordResetSerializer(serializers.Serializer):
     new_password = serializers.CharField(min_length=8, required=True)
     
     def validate_new_password(self, value):
-        if len(value) < 8:
-            raise serializers.ValidationError("Password must be at least 8 characters long.")
-        if not any(char.isupper() for char in value):
-            raise serializers.ValidationError("Password must contain at least one uppercase letter.")
-        if not any(char.isdigit() for char in value):
-            raise serializers.ValidationError("Password must contain at least one digit.")
-        return value
+        return validate_password_strength(value)
 
 class ProfileUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(required=False, max_length=100)
@@ -261,14 +258,14 @@ class ProfileUpdateSerializer(serializers.Serializer):
     availability = serializers.CharField(required=False)
 
     def validate_full_name(self, value):
-        if len(value.strip()) < 3:
-            raise serializers.ValidationError("Full name must have at least 3 characters.")
-        return value
+        if not re.match(r'^[A-Za-z\s\-\']{3,100}$', value.strip()):
+            raise serializers.ValidationError("Full name must be at least 3 characters and contain only letters, spaces, hyphens, or apostrophes.")
+        return value.strip()
 
     def validate_contact_number(self, value):
-        if value and (not value.isdigit() or len(value) != 10):
-            raise serializers.ValidationError("Contact number must be digits and 10characters long.")
-        return value
+        if not value or not re.match(r'^\d{10}$', value.strip()):
+           raise serializers.ValidationError("Contact number must be exactly 10 digits.")
+        return value.strip()
     
     def validate_availability(self, value):
         allowed = ['AVAILABLE', 'BUSY']
@@ -315,8 +312,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return data
 
     def validate_new_password(self, value):
-        validate_password(value)
-        return value
+        return validate_password_strength(value)
 
 class WorkshopSearchSerializer(serializers.ModelSerializer):
     class Meta:
