@@ -109,7 +109,7 @@ class Mechanic(models.Model):
     joining_status = models.CharField(max_length=20, choices=JOINING_STATUS_CHOICES, default='PENDING')
     rating_avg = models.DecimalField(max_digits=3, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
-    contact_number = models.CharField(max_length=15, blank=True, null=True)
+    contact_number = models.CharField(max_length=10, blank=True, null=True)
 
     def __str__(self):
         if self.workshop:
@@ -132,7 +132,7 @@ class PendingUser(models.Model):
     type = models.CharField(max_length=20,blank=True,null = True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    contact_number = models.CharField(null = True, blank=True)
+    contact_number = models.CharField(max_length = 10, null = True, blank=True)
 
     
 
