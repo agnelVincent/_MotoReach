@@ -11,6 +11,7 @@ from django.conf import settings
 from rest_framework_simplejwt.exceptions import TokenError
 from django.contrib.auth.hashers import make_password
 import logging
+import re 
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +26,23 @@ contact_validators = [
 
 name_validators = [
     RegexValidator(
-        regex=r'^[A-Za-z\s]+$',
-        message='Name can only contain letters and spaces.'
+        regex=r'^[A-Za-z\s\-\']+$',
+        message='Name can only contain letters, spaces, hyphens, and apostrophes.'
     )
 ]
+
+def validate_password_strength(password):
+    if len(password) < 8:
+        raise serializers.ValidationError('Password must be at least 8 characters long')
+    if not re.search(r'[A-Z]',password):
+        raise serializers.ValidationError("Password must contain at least one uppercase letter.")
+    if not re.search(r'[a-z]', password):
+        raise serializers.ValidationError("Password must contain at least one lowercase letter.")
+    if not re.search(r'\d', password):
+        raise serializers.ValidationError("Password must contain at least one digit.")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        raise serializers.ValidationError("Password must contain at least one special character.")
+    return password
 
 class BaseRegistrationSerializer(serializers.Serializer):
     full_name = serializers.CharField(
