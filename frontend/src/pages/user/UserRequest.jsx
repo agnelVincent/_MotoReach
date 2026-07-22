@@ -18,6 +18,7 @@ import { useDispatch } from 'react-redux';
 import { createServiceRequest } from '../../redux/slices/serviceRequestSlice';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { formatBackendError } from '../../utils/errorHandler';
 
 const UserRequest = () => {
   const [formData, setFormData] = useState({
@@ -89,9 +90,9 @@ const UserRequest = () => {
     if (createServiceRequest.fulfilled.match(resultAction)) {
       const newRequestId = resultAction.payload.request.id;
       navigate(`/user/workshops-nearby/${newRequestId}`);
-    } else {
-      const errorMsg = resultAction.payload ? JSON.stringify(resultAction.payload) : "Failed to create request. Please try again.";
-      toast.error(`Error: ${errorMsg}`);
+      } else {
+      const errorMsg = formatBackendError(resultAction.payload, "Failed to create request. Please try again.");
+      toast.error(errorMsg);
       console.error("Creation failed:", resultAction.payload);
     }
   };

@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { getProfile, updateProfile, changePassword, clearStatus } from '../../redux/slices/ProfileSlice';
 import { validateFullName, getPasswordRules } from '../../../utils/validationRules';
+import { formatBackendError } from '../../../utils/errorHandler';
 
 const UserProfile = () => {
     const dispatch = useDispatch();
@@ -95,11 +96,8 @@ const UserProfile = () => {
         if (editedData.profilePictureFile) formData.append('profile_picture', editedData.profilePictureFile);
         dispatch(updateProfile(formData)).unwrap()
             .then(() => { setIsEditMode(false); objectUrlRef.current = null; })
-            .catch(backendError => {
-                if (typeof backendError === 'object' && backendError !== null) {
-                    const errorKeys = Object.keys(backendError);
-                    setProfileError(errorKeys.length > 0 ? `Update failed: ${backendError[errorKeys[0]][0]}` : 'Profile update failed. Please try again.');
-                } else setProfileError(backendError);
+                .catch(backendError => {
+                setProfileError(formatBackendError(backendError, 'Profile update failed. Please try again.'));
             });
     };
 
@@ -297,7 +295,7 @@ const UserProfile = () => {
                         <div className="w-7 h-7 bg-rose-50 rounded-xl flex items-center justify-center">
                             <AlertTriangle className="w-4 h-4 text-rose-500" />
                         </div>
-                        <span className="font-display font-semibold text-sm">{error?.detail || (typeof error === 'object' ? JSON.stringify(error) : error)}</span>
+                        <span className="font-display font-semibold text-sm">{formatBackendError(error)}</span>
                     </div>
                 </div>
             )}
