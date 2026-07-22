@@ -4,7 +4,7 @@ import { User, Mail, Lock, AlertCircle } from 'lucide-react';
 import InputField from '../../../components/InputField';
 import { registerUser, clearError } from '../../../redux/slices/authSlice';
 import { validateFullName, validateEmail, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
-
+import { formatBackendError } from '../../../utils/errorHandler';
 
 const UserRegister = () => {
     const dispatch = useDispatch();
@@ -74,15 +74,7 @@ const UserRegister = () => {
 
     const allErrors = { ...clientErrors, ...(error?.details || {}), ...fieldErrors };
 
-    const displayError = (() => {
-        if (!error) return null;
-        if (typeof error === 'string') return error;
-        if (error.detail) return typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
-        if (error.message) return error.message;
-        if (error.error) return typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
-        if (error.non_field_errors) return Array.isArray(error.non_field_errors) ? error.non_field_errors[0] : error.non_field_errors;
-        return 'Registration failed. Please try again.';
-    })();
+    const displayError = formatBackendError(error, 'Registration failed. Please try again.');
 
     const getError = (camelCaseKey, snakeCaseKey) => {
         if (allErrors[camelCaseKey]) return allErrors[camelCaseKey];
