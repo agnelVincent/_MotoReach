@@ -37,7 +37,7 @@ const WorkshopMechanicDetail = () => {
             closeBonusModal();
             dispatch(fetchMechanicDetails(mechanicId));
         } catch (error) {
-            toast.error(error || 'Failed to pay bonus');
+            toast.error(formatBackendError(error, 'Failed to pay bonus'));
         }
     };
 

@@ -17,7 +17,7 @@ const WorkshopRejectedPage = () => {
             const resultAction = await dispatch(reApplyWorkshop()).unwrap();
             toast.success(resultAction.message || 'Re-application submitted successfully');
         } catch (error) {
-            toast.error(error.error || 'Failed to re-apply');
+            toast.error(formatBackendError(error, 'Failed to re-apply'));
         }
     };
 

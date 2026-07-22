@@ -93,7 +93,7 @@ const UserServiceFlow = () => {
       }
     } catch (error) {
       console.error(error);
-      toast.error(typeof error === 'string' ? error : "Failed to cancel connection");
+      toast.error(formatBackendError(error, "Failed to cancel connection"));
     }
   };
 
@@ -153,7 +153,7 @@ const UserServiceFlow = () => {
       toast.success('Estimate approved. Please pay to proceed.');
       if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
-      toast.error(e?.error || 'Failed to approve estimate');
+      toast.error(formatBackendError(e, 'Failed to approve estimate'));
     }
   };
 
@@ -163,7 +163,7 @@ const UserServiceFlow = () => {
       toast.success('Estimate rejected. Workshop can send a new one.');
       if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
-      toast.error(e?.error || 'Failed to reject estimate');
+      toast.error(formatBackendError(e, 'Failed to reject estimate'));
     }
   };
 
@@ -171,7 +171,7 @@ const UserServiceFlow = () => {
     try {
       await dispatch(createEscrowCheckout({ estimateId })).unwrap();
     } catch (e) {
-      toast.error(typeof e === 'string' ? e : e?.error || 'Failed to start payment');
+      toast.error(formatBackendError(e, 'Failed to start payment'));
     }
   };
 
@@ -186,7 +186,7 @@ const UserServiceFlow = () => {
       toast.success('Service verified. Payment has been released to the workshop.');
       setOtpValues(['', '', '', '', '', '']);
     } catch (e) {
-      toast.error(e?.error || 'Invalid OTP');
+      toast.error(formatBackendError(e, 'Invalid OTP'));
     } finally {
       setVerifyingOtp(false);
     }
@@ -219,7 +219,7 @@ const UserServiceFlow = () => {
       toast.success("Ratings submitted successfully! Thank you for your feedback.");
       setRatingSubmitted(true);
     } catch(e) {
-      toast.error(e?.error || "Failed to submit ratings.");
+      toast.error(formatBackendError(e, "Failed to submit ratings."));
     } finally {
       setSubmittingRating(false);
     }

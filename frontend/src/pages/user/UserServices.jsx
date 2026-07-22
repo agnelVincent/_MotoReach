@@ -44,7 +44,7 @@ const UserServices = () => {
             toast.success("Service request deleted successfully");
             setShowDeleteModal(false);
         } catch (error) {
-            toast.error(error.error || "Failed to delete request");
+            toast.error(formatBackendError(error, "Failed to delete request"));
         } finally {
             setIsProcessing(false);
         }

@@ -76,7 +76,7 @@ const UserWallet = () => {
                 const data = resultAction.payload;
                 if (data.url) window.location.href = data.url;
             } else {
-                toast.error(resultAction.payload?.error || 'Failed to initiate payment');
+                toast.error(formatBackendError(resultAction.payload, 'Failed to initiate payment'));
                 setIsProcessing(false);
             }
         } catch (error) {

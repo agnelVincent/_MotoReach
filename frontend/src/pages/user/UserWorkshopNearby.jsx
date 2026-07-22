@@ -102,7 +102,7 @@ const UserWorkshopNearby = () => {
           await dispatch(fetchWallet());
           setShowPaymentModal(false);
         } else {
-          toast.error(resultAction.payload || "Wallet payment failed.");
+          toast.error(formatBackendError(resultAction.payload, "Wallet payment failed."));
         }
       } else {
         const resultAction = await dispatch(initiatePlatformFeePayment({
@@ -119,7 +119,7 @@ const UserWorkshopNearby = () => {
             window.location.href = data.url;
           }
         } else {
-          toast.error(resultAction.payload || "Failed to initiate payment.");
+          toast.error(formatBackendError(resultAction.payload, "Failed to initiate payment."));
           setShowPaymentModal(false);
         }
       }

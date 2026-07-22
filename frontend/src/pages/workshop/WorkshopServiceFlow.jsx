@@ -75,7 +75,7 @@ const WorkshopServiceFlow = () => {
       await dispatch(generateServiceOTP(executionId)).unwrap();
       toast.success('OTP generated and sent to the customer via email.');
     } catch (e) {
-      toast.error(e?.error || e?.message || 'Failed to generate OTP');
+      toast.error(formatBackendError(e, 'Failed to generate OTP'));
     }
   };
 
@@ -85,7 +85,7 @@ const WorkshopServiceFlow = () => {
       toast.success('Mechanic assigned successfully');
       setShowAssignModal(false);
     } catch (error) {
-      toast.error(error.message || 'Failed to assign');
+      toast.error(formatBackendError(error, 'Failed to assign'));
     }
   };
 
@@ -104,7 +104,7 @@ const WorkshopServiceFlow = () => {
               await dispatch(removeMechanic({ serviceRequestId: requestId, mechanicId })).unwrap();
               toast.success('Mechanic removed');
             } catch (error) {
-              toast.error(error.message || 'Failed to remove');
+              toast.error(formatBackendError(error, 'Failed to remove'));
             }
           }} className="flex-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">
             Remove
@@ -383,7 +383,7 @@ const WorkshopServiceFlow = () => {
                           try {
                             await dispatch(startService(requestId)).unwrap();
                             toast.success('Service started successfully!');
-                          } catch (e) { toast.error(e || 'Failed to start service'); }
+                          } catch (e) { toast.error(formatBackendError(e, 'Failed to start service')); }
                         }}
                         disabled={loading}
                         className="action-btn w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
@@ -405,7 +405,7 @@ const WorkshopServiceFlow = () => {
                                     await dispatch(endService(requestId)).unwrap();
                                     dispatch(fetchServiceRequestDetails(requestId));
                                     toast.success('Service marked as completed!');
-                                  } catch (e) { toast.error(e || 'Failed to finish service'); }
+                                  } catch (e) { toast.error(formatBackendError(e, 'Failed to finish service')); }
                                 }} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
                               </div>
                             </div>
@@ -437,7 +437,7 @@ const WorkshopServiceFlow = () => {
                         await dispatch(cancelRequestWorkshop(activeConnection.id)).unwrap();
                         toast.success('Connection cancelled');
                         if (requestId) dispatch(fetchServiceRequestDetails(requestId));
-                      } catch (e) { toast.error(e?.error || 'Failed to cancel'); }
+                      } catch (e) { toast.error(formatBackendError(e, 'Failed to cancel')); }
                     }}
                     className="action-btn w-full py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl flex items-center justify-center gap-2 font-display font-bold text-xs hover:bg-red-100"
                   >

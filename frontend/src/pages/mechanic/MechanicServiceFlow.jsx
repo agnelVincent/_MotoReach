@@ -70,7 +70,7 @@ const MechanicServiceFlow = () => {
       await dispatch(generateServiceOTP(executionId)).unwrap();
       toast.success('OTP generated and sent to the customer via email.');
     } catch (e) {
-      toast.error(typeof e === 'string' ? e : e?.error || 'Failed to generate OTP');
+      toast.error(formatBackendError(e, 'Failed to generate OTP'));
     }
   };
 
@@ -569,7 +569,7 @@ const MechanicServiceFlow = () => {
                           try {
                             await dispatch(startService(requestId)).unwrap();
                             toast.success('Service started successfully!');
-                          } catch (e) { toast.error(e || 'Failed to start service'); }
+                          } catch (e) { toast.error(formatBackendError(e, 'Failed to start service')); }
                         }}
                         disabled={loading}
                         className="action-btn w-full py-2.5 text-white rounded-xl font-display font-bold text-xs flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
@@ -598,7 +598,7 @@ const MechanicServiceFlow = () => {
                                       await dispatch(endService(requestId)).unwrap();
                                       dispatch(fetchServiceRequestDetails(requestId));
                                       toast.success('Service marked as completed!');
-                                    } catch (e) { toast.error(e || 'Failed to finish service'); }
+                                    } catch (e) { toast.error(formatBackendError(e, 'Failed to finish service')); }
                                   }}
                                   className="flex-1 px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold"
                                 >

@@ -36,7 +36,7 @@ const WorkshopMechanicManager = () => {
       dispatch(fetchMyMechanics());
     }
     if (error) {
-      toast.error(error);
+      toast.error(formatBackendError(error));
       dispatch(clearMessages());
     }
   }, [successMessage, error, dispatch]);

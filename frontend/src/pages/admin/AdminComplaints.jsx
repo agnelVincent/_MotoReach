@@ -55,7 +55,7 @@ const AdminComplaints = () => {
                                 }));
                             } catch (error) {
                                 console.error(error);
-                                toast.error(error.response?.data?.error || 'Failed to update block status');
+                                toast.error(formatBackendError(error.response?.data, 'Failed to update block status'));
                             }
                         }}
                         className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
