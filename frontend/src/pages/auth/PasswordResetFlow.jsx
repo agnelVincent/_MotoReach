@@ -19,25 +19,10 @@ import {
   Shield,
   AlertCircle
 } from 'lucide-react';
-
+import { formatBackendError } from '../../utils/errorHandler';
 
 const getErrorMessage = (errorPayload) => {
-  if (errorPayload && errorPayload.error) {
-    if (typeof errorPayload.error === 'string') {
-      return errorPayload.error;
-    }
-    if (Array.isArray(errorPayload.error.non_field_errors)) {
-      return errorPayload.error.non_field_errors.join(', ');
-    }
-    if (typeof errorPayload.error === 'object') {
-        const firstKey = Object.keys(errorPayload.error)[0];
-        if (firstKey) {
-            return `${firstKey}: ${Array.isArray(errorPayload.error[firstKey]) ? errorPayload.error[firstKey].join(', ') : errorPayload.error[firstKey]}`;
-        }
-    }
-  }
-  
-  return errorPayload?.message || 'An unknown error occurred.';
+    return formatBackendError(errorPayload, 'An unknown error occurred.');
 };
 
 

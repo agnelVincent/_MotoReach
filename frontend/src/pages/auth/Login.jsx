@@ -6,6 +6,7 @@ import { loginUser, clearError, googleLogin } from '../../redux/slices/authSlice
 import { getRolePath } from "../../routes/AuthRedirect";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
+import { formatBackendError } from '../../utils/errorHandler';
 
 
 const Login = () => {
@@ -283,9 +284,7 @@ const Login = () => {
               <div className={`mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 opacity-0 ${mounted ? 'animate-fade-up' : ''}`}>
                 <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                 <p className="font-body text-sm text-red-700">
-                  {typeof displayError === 'object' && 'detail' in displayError ? displayError.detail :
-                   typeof displayError === 'object' && 'error'  in displayError ? displayError.error  :
-                   displayError}
+                  {formatBackendError(displayError)}
                 </p>
               </div>
             )}

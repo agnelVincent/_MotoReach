@@ -16,6 +16,7 @@ import {
 
 import ProfileInput from '../../components/ProfileInput';
 import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
+import { formatBackendError } from '../../../utils/errorHandler';
 
 const MechanicProfile = () => {
   const dispatch = useDispatch();
@@ -62,12 +63,8 @@ const MechanicProfile = () => {
 
   useEffect(() => {
     if (success) showNotification(success, 'success');
-    if (error) {
-      if (typeof error === 'string' && !error.includes('password')) {
-        showNotification(error, 'error');
-      } else if (error && error.detail) {
-        showNotification(error.detail, 'error');
-      }
+    if (error && (!typeof error === 'string' || !error.includes('password'))) {
+        showNotification(formatBackendError(error), 'error');
     }
     const timer = setTimeout(() => dispatch(clearStatus()), 50);
     return () => clearTimeout(timer);
@@ -194,7 +191,7 @@ const MechanicProfile = () => {
           <AlertTriangle className="w-7 h-7 text-red-500" />
         </div>
         <h2 className="font-display font-bold text-gray-900 text-xl mb-2">Error Loading Profile</h2>
-        <p className="font-body text-gray-500 text-sm text-center mb-6">{error.detail || String(error)}</p>
+        <p className="font-body text-gray-500 text-sm text-center mb-6">{formatBackendError(error)}</p>
         <button
           onClick={() => dispatch(getProfile())}
           className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-display font-bold text-sm rounded-2xl"

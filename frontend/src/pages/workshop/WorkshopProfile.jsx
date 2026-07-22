@@ -10,6 +10,7 @@ import {
 } from '../../redux/slices/ProfileSlice';
 import ProfileInput from '../../components/ProfileInput';
 import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
+import { formatBackendError } from '../../../utils/errorHandler';
 
 const WorkshopProfile = () => {
   const dispatch = useDispatch();
@@ -42,7 +43,7 @@ const WorkshopProfile = () => {
 
   useEffect(() => {
     if (success) notify(success, 'success');
-    if (error) notify(typeof error === 'string' ? error : error.detail || 'An unknown error occurred.', 'error');
+    if (error) notify(formatBackendError(error, 'An unknown error occurred.'), 'error');
     const t = setTimeout(() => dispatch(clearStatus()), 50);
     return () => clearTimeout(t);
   }, [success, error, dispatch]);
@@ -149,7 +150,7 @@ const WorkshopProfile = () => {
       <div className="wp-error-screen">
         <div className="wp-error-icon"><AlertTriangle size={26} color="#EF4444" /></div>
         <h2 className="wp-error-title">Couldn't Load Profile</h2>
-        <p className="wp-error-sub">{typeof error === 'string' ? error : error.detail || 'Failed to load profile data.'}</p>
+        <p className="wp-error-sub">{formatBackendError(error, 'Failed to load profile data.')}</p>
         <button className="wp-btn-primary" onClick={() => dispatch(getProfile())}>Try Again</button>
       </div>
     </>
