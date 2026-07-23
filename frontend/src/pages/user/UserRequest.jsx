@@ -56,15 +56,15 @@ const UserRequest = () => {
     }
   };
 
-  const handleLocationSelect = (location) => {
-    setFormData((prev) => ({
-      ...prev,
-      latitude: location.lat,
-      longitude: location.lng,
-    }));
-    if (formErrors.location) {
-      setFormErrors((prev) => ({ ...prev, location: null }));
-    }
+  const handleLocationSelect = (lat, lng) => {
+      setFormData((prev) => ({
+        ...prev,
+        latitude: lat,
+        longitude: lng,
+      }));
+      if (formErrors.location) {
+        setFormErrors((prev) => ({ ...prev, location: null }));
+      }
   };
 
   const handleImageUpload = (e) => {
