@@ -3,7 +3,6 @@ import {
   Car,
   Wrench,
   FileText,
-  Image as ImageIcon,
   X,
   Plus,
   ArrowRight,
@@ -21,66 +20,138 @@ import { toast } from 'react-hot-toast';
 import { formatBackendError } from '../../utils/errorHandler';
 
 const UserRequest = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     vehicleType: '',
     vehicleModel: '',
     issueCategory: '',
     description: '',
-    latitude: null,
-    longitude: null,
+    latitude: 0,
+    longitude: 0,
   });
-
+  
   const [images, setImages] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
 
   const issueCategories = [
-    "Engine & Transmission",
-    "Brakes & Suspension",
-    "Electrical & Battery",
-    "Body Work & Paint",
-    "Oil & General Service",
-    "Tires & Alignment",
-    "Other"
+    'Engine & Transmission',
+    'Brakes & Suspension',
+    'Electrical & Battery',
+    'Tires & Wheels',
+    'AC & Heating',
+    'General Maintenance / Towing',
   ];
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const MAX_IMAGE_SIZE_MB = 5;
+  const MAX_IMAGE_COUNT = 5;
 
-  const handleLocationSelect = (lat, lng) => {
-    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: null }));
+    }
+  };
+
+  const handleLocationSelect = (location) => {
+    setFormData((prev) => ({
+      ...prev,
+      latitude: location.lat,
+      longitude: location.lng,
+    }));
+    if (formErrors.location) {
+      setFormErrors((prev) => ({ ...prev, location: null }));
+    }
   };
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    const newImages = files.map(file => ({
-      file: file,
-      preview: URL.createObjectURL(file)
+    const availableSlots = MAX_IMAGE_COUNT - images.length;
+
+    if (files.length > availableSlots) {
+      toast.error(`You can only add ${availableSlots} more image(s).`);
+    }
+
+    const validFiles = files.slice(0, availableSlots).filter((file) => {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        toast.error(`"${file.name}" is not supported.`);
+        return false;
+      }
+      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds ${MAX_IMAGE_SIZE_MB}MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    const newEntries = validFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
     }));
-    setImages(prev => [...prev, ...newImages]);
+
+    setImages((prev) => [...prev, ...newEntries]);
+    e.target.value = '';
   };
 
-  const removeImage = (index) => {
-    setImages(prev => {
-      const updated = [...prev];
-      URL.revokeObjectURL(updated[index].preview);
-      updated.splice(index, 1);
-      return updated;
+  const removeImage = (indexToRemove) => {
+    setImages((prev) => {
+      const target = prev[indexToRemove];
+      if (target?.preview) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((_, index) => index !== indexToRemove);
     });
+  };
+
+  const validateForm = () => {
+    const errors = {};
+
+    const vType = formData.vehicleType.trim();
+    if (!vType) errors.vehicleType = 'Vehicle type is required.';
+    else if (vType.length < 2) errors.vehicleType = 'Vehicle type must be at least 2 characters.';
+    else if (vType.length > 50) errors.vehicleType = 'Vehicle type must not exceed 50 characters.';
+
+    const vModel = formData.vehicleModel.trim();
+    if (!vModel) errors.vehicleModel = 'Vehicle model is required.';
+    else if (vModel.length < 2) errors.vehicleModel = 'Vehicle model must be at least 2 characters.';
+    else if (vModel.length > 80) errors.vehicleModel = 'Vehicle model must not exceed 80 characters.';
+
+    if (!formData.issueCategory) errors.issueCategory = 'Please select an issue category.';
+
+    const desc = formData.description.trim();
+    if (!desc) errors.description = 'Description is required.';
+    else if (desc.length < 20) errors.description = 'Please describe the issue in at least 20 characters.';
+    else if (desc.length > 1000) errors.description = 'Description must not exceed 1000 characters.';
+
+    if (!formData.latitude || !formData.longitude || (formData.latitude === 0 && formData.longitude === 0)) {
+      errors.location = 'Please pin your location on the map.';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) {
+      toast.error('Please fix the errors in the form before submitting.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const data = new FormData();
-    data.append('vehicle_type', formData.vehicleType);
-    data.append('vehicle_model', formData.vehicleModel);
+    data.append('vehicle_type', formData.vehicleType.trim());
+    data.append('vehicle_model', formData.vehicleModel.trim());
     data.append('issue_category', formData.issueCategory);
-    data.append('description', formData.description);
+    data.append('description', formData.description.trim());
     data.append('user_latitude', formData.latitude);
     data.append('user_longitude', formData.longitude);
 
-    images.forEach(image => {
+    images.forEach((image) => {
       data.append('images', image.file);
     });
 
@@ -90,10 +161,10 @@ const UserRequest = () => {
     if (createServiceRequest.fulfilled.match(resultAction)) {
       const newRequestId = resultAction.payload.request.id;
       navigate(`/user/workshops-nearby/${newRequestId}`);
-      } else {
-      const errorMsg = formatBackendError(resultAction.payload, "Failed to create request. Please try again.");
+    } else {
+      const errorMsg = formatBackendError(resultAction.payload, 'Failed to create request. Please try again.');
       toast.error(errorMsg);
-      console.error("Creation failed:", resultAction.payload);
+      console.error('Creation failed:', resultAction.payload);
     }
   };
 
@@ -108,12 +179,11 @@ const UserRequest = () => {
         @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-10px); } }
       `}</style>
 
-      {/* ── HERO SECTION ── */}
+      {/* HERO SECTION */}
       <section className="hero-gradient hero-noise relative overflow-hidden pb-20 pt-16 md:pb-28 md:pt-24">
         <div className="absolute -left-10 -top-10 h-80 w-80 rounded-full bg-indigo-500 opacity-20 blur-[100px] pointer-events-none" />
         <div className="absolute right-10 top-10 h-64 w-64 rounded-full bg-violet-400 opacity-15 blur-[80px] pointer-events-none" />
-        
-        {/* Decorative Ring */}
+
         <div className="absolute right-12 top-16 hidden h-40 w-40 rounded-full border border-white/10 md:flex items-center justify-center pointer-events-none" style={{ animation: 'float 6s ease-in-out infinite' }}>
           <div className="h-32 w-32 rounded-full border border-white/5 flex items-center justify-center">
             <Car className="h-8 w-8 text-white/20" />
@@ -134,11 +204,10 @@ const UserRequest = () => {
           </p>
         </div>
 
-        {/* Clean Modern Wave Curve Transition */}
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-slate-50" style={{ clipPath: 'ellipse(60% 100% at 50% 100%)' }} />
       </section>
 
-      {/* ── FORM CONTENT ── */}
+      {/* FORM CONTENT */}
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pb-24 -mt-6 relative z-20">
         <form onSubmit={handleSubmit} className="space-y-8">
 
@@ -160,22 +229,32 @@ const UserRequest = () => {
                   <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Vehicle Type <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
+                    value={formData.vehicleType}
                     placeholder="e.g., Sedan, SUV, Motorcycle"
                     className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                    onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                    required
+                    onChange={(e) => handleInputChange('vehicleType', e.target.value)}
                   />
+                  {formErrors.vehicleType && (
+                    <p className="font-body text-xs text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />{formErrors.vehicleType}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Vehicle Model <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
+                    value={formData.vehicleModel}
                     placeholder="e.g., Toyota Camry 2022"
                     className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10"
-                    onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
-                    required
+                    onChange={(e) => handleInputChange('vehicleModel', e.target.value)}
                   />
+                  {formErrors.vehicleModel && (
+                    <p className="font-body text-xs text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />{formErrors.vehicleModel}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -183,18 +262,26 @@ const UserRequest = () => {
                 <label className="font-display text-xs font-bold tracking-wide text-slate-700 uppercase block">Issue Category <span className="text-rose-500">*</span></label>
                 <div className="relative">
                   <select
+                    value={formData.issueCategory}
                     className="font-body w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 py-3 text-sm text-slate-900 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 cursor-pointer"
-                    onChange={(e) => setFormData({ ...formData, issueCategory: e.target.value })}
-                    required
-                    defaultValue=""
+                    onChange={(e) => handleInputChange('issueCategory', e.target.value)}
                   >
                     <option value="" disabled>Select the most relevant category</option>
-                    {issueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    {issueCategories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                   <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
                 </div>
+                {formErrors.issueCategory && (
+                  <p className="font-body text-xs text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />{formErrors.issueCategory}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -204,11 +291,16 @@ const UserRequest = () => {
                 </label>
                 <textarea
                   rows={4}
+                  value={formData.description}
                   placeholder="Please describe the issue in detail. The more info you share, the faster workshops can diagnose..."
                   className="font-body w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-all duration-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-none"
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  required
+                  onChange={(e) => handleInputChange('description', e.target.value)}
                 />
+                {formErrors.description && (
+                  <p className="font-body text-xs text-rose-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />{formErrors.description}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -237,6 +329,11 @@ const UserRequest = () => {
                   <span className="font-body text-sm font-medium">Map interaction required to dispatch nearby dynamic aid</span>
                 </div>
               )}
+              {formErrors.location && (
+                <p className="font-body text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />{formErrors.location}
+                </p>
+              )}
               <div className="rounded-xl overflow-hidden border border-slate-200">
                 <LocationPicker onLocationSelect={handleLocationSelect} />
               </div>
@@ -250,7 +347,9 @@ const UserRequest = () => {
                 <Camera className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="font-display font-bold text-slate-900 text-lg">Add Photos <span className="text-xs font-normal text-slate-400 ml-1">(Optional)</span></h2>
+                <h2 className="font-display font-bold text-slate-900 text-lg">
+                  Add Photos <span className="text-xs font-normal text-slate-400 ml-1">(Optional)</span>
+                </h2>
                 <p className="font-body text-xs text-slate-500 mt-0.5">Visual details help mechanics estimate costs more accurately</p>
               </div>
             </div>
@@ -271,14 +370,18 @@ const UserRequest = () => {
                   </div>
                 ))}
                 
-                <label className="flex flex-col items-center justify-center aspect-square rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/30 hover:border-indigo-400 cursor-pointer transition-all duration-200 group">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 group-hover:bg-indigo-100 text-slate-500 group-hover:text-indigo-600 transition-colors duration-200">
-                    <Plus className="h-5 w-5" />
-                  </div>
-                  <span className="font-display text-xs font-bold text-slate-700 mt-3">Upload Media</span>
-                  <span className="font-body text-[10px] text-slate-400 mt-1">Max 10MB each</span>
-                  <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
-                </label>
+                {images.length < MAX_IMAGE_COUNT && (
+                  <label className="flex flex-col items-center justify-center aspect-square rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/30 hover:border-indigo-400 cursor-pointer transition-all duration-200 group">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 group-hover:bg-indigo-100 text-slate-500 group-hover:text-indigo-600 transition-colors duration-200">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                    <span className="font-display text-xs font-bold text-slate-700 mt-3">Upload Media</span>
+                    <span className="font-body text-[10px] text-slate-400 mt-1">
+                      {images.length}/{MAX_IMAGE_COUNT} · Max {MAX_IMAGE_SIZE_MB}MB each
+                    </span>
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                )}
               </div>
             </div>
           </div>
@@ -314,14 +417,12 @@ const UserRequest = () => {
               </div>
             </div>
 
-            {/* Validation warning directly inside the action banner context */}
             {!formData.latitude && (
               <p className="font-body text-amber-400 text-xs mt-4 flex items-center gap-1.5 border-t border-white/5 pt-4">
                 <MapPin className="h-3.5 w-3.5" /> Please set your location in Section 2 above to activate search dispatch.
               </p>
             )}
 
-            {/* Trust Assurances */}
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-white/5 pt-5 text-xs text-slate-400">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
