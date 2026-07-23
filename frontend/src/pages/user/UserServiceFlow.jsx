@@ -11,6 +11,7 @@ import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import ReportComplaintModal from '../../components/ReportComplaintModal';
+import { formatBackendError } from '../../utils/errorUtils';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
