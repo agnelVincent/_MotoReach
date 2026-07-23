@@ -19,8 +19,8 @@ import {
     BadgeCheck
 } from 'lucide-react';
 import { getProfile, updateProfile, changePassword, clearStatus } from '../../redux/slices/ProfileSlice';
-import { validateFullName, getPasswordRules } from '../../../utils/validationRules';
-import { formatBackendError } from '../../../utils/errorHandler';
+import { validateFullName, getPasswordRules } from '../../utils/validationRules';
+import { formatBackendError } from '../../utils/errorHandler';
 
 const UserProfile = () => {
     const dispatch = useDispatch();

@@ -15,8 +15,8 @@ import {
 } from '../../redux/slices/ProfileSlice';
 
 import ProfileInput from '../../components/ProfileInput';
-import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
-import { formatBackendError } from '../../../utils/errorHandler';
+import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../utils/validationRules';
+import { formatBackendError } from '../../utils/errorHandler';
 
 const MechanicProfile = () => {
   const dispatch = useDispatch();

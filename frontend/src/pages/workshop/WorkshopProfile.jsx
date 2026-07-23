@@ -9,8 +9,8 @@ import {
   getProfile, updateProfile, changePassword, clearStatus
 } from '../../redux/slices/ProfileSlice';
 import ProfileInput from '../../components/ProfileInput';
-import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../../utils/validationRules';
-import { formatBackendError } from '../../../utils/errorHandler';
+import { validateFullName, validatePhone, validatePassword, validatePasswordMatch } from '../../utils/validationRules';
+import { formatBackendError } from '../../utils/errorHandler';
 
 const WorkshopProfile = () => {
   const dispatch = useDispatch();
