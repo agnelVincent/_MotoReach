@@ -64,9 +64,9 @@ const UserWallet = () => {
     }, [addMoneySuccess, addMoneyCanceled, dispatch, navigate]);
 
     const handleAddMoney = async () => {
-        const numAmount = parseFloat(amount);
+        const numAmount = Math.round(parseFloat(amount) * 100) / 100;
         if (!amount || isNaN(numAmount)) { toast.error('Please enter a valid amount'); return; }
-        if (numAmount <= 0) { toast.error('Amount must be greater than 0'); return; }
+        if (numAmount < 50) { toast.error('Minimum top-up amount is ₹50'); return; }
         if (numAmount > 100000) { toast.error('Amount cannot exceed ₹1,00,000'); return; }
 
         setIsProcessing(true);
@@ -85,7 +85,7 @@ const UserWallet = () => {
         }
     };
 
-    const quickAmounts = [10, 25, 50, 100, 250, 500];
+    const quickAmounts = [50, 100, 250, 500, 1000, 2000];
 
     const getTransactionIcon = (type) => {
         return type === 'CREDIT' ? (
@@ -325,11 +325,11 @@ const UserWallet = () => {
                                     placeholder="0.00"
                                     className="modal-input"
                                     step="0.01"
-                                    min="0"
+                                    min="50"
                                     max="100000"
                                 />
                             </div>
-                            <p className="font-body text-xs text-gray-400 mt-2">Maximum: ₹1,00,000 per transaction</p>
+                            <p className="font-body text-xs text-gray-400 mt-2">Minimum: ₹50 · Maximum: ₹1,00,000 per transaction</p>
                         </div>
 
                         {/* Quick Amounts */}
