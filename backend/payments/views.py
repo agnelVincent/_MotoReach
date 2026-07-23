@@ -364,14 +364,13 @@ class CreateServiceEscrowCheckoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if amount <= 0:
+        if amount < 50:
             logger.warning(
-                "Non-positive escrow amount. estimate_id=%s amount=%s",
-                estimate_id,
-                amount
+                "Wallet topup amount below minimum. user_id=%s amount=%s",
+                request.user.id, amount
             )
             return Response(
-                {'error': 'Invalid amount'},
+                {'error': 'Minimum top-up amount is ₹50.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
