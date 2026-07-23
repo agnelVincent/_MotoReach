@@ -70,6 +70,29 @@ def check_expired_connections(queryset):
 
     return updated_count
 
+
+class IsServiceRequestParticipant(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+        sr = obj
+
+        is_owner = sr.user == user
+
+        is_workshop = (
+            user.role == 'workshop_admin'
+            and hasattr(user, 'workshop')
+            and sr.active_connection
+            and sr.active_connection.workshop == user.workshop
+        )
+
+        is_mechanic = (
+            user.role == 'mechanic'
+            and hasattr(sr,'execution')
+            and sr.execution.mechanics.filter(user = user).exists()
+        )
+
+        return is_owner or is_mechanic or is_workshop
+
 class CreateServiceRequestView(generics.CreateAPIView):
     serializer_class = ServiceRequestSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -128,15 +151,13 @@ class ServiceRequestDetailView(generics.RetrieveAPIView):
 
 
 class ServiceFlowDetailView(generics.RetrieveAPIView):
-    #used for socket api call
     serializer_class = ServiceRequestSerializer
     queryset = ServiceRequest.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsServiceRequestParticipant]
 
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
-
             check_request_expiration(instance)
             instance.refresh_from_db()
 
