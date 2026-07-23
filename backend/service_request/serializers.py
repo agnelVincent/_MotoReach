@@ -95,6 +95,50 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             }
         return None
 
+    def validate_vehicle_type(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("Vehicle type must be at least 2 characters.")
+        if len(value) > 50:
+            raise serializers.ValidationError("Vehicle type must not exceed 50 characters.")
+        return value
+
+    def validate_vehicle_model(self, value):
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError("Vehicle model must be at least 2 characters.")
+        if len(value) > 80:
+            raise serializers.ValidationError("Vehicle model must not exceed 80 characters.")
+        return value
+
+    def validate_description(self, value):
+        value = value.strip()
+        if len(value) < 20:
+            raise serializers.ValidationError("Please describe the issue in at least 20 characters.")
+        if len(value) > 1000:
+            raise serializers.ValidationError("Description must not exceed 1000 characters.")
+        return value
+
+    def validate_images(self, value):
+        MAX_COUNT = 5
+        MAX_SIZE = 5 * 1024 * 1024  # 5 MB
+        ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+        if len(value) > MAX_COUNT:
+            raise serializers.ValidationError(f"You can upload a maximum of {MAX_COUNT} images.")
+        
+        for image in value:
+            if hasattr(image, 'content_type') and image.content_type not in ALLOWED_TYPES:
+                raise serializers.ValidationError(
+                    f"Unsupported file type '{image.content_type}'. Use JPEG, PNG, WebP, or GIF."
+                )
+            if image.size > MAX_SIZE:
+                raise serializers.ValidationError(
+                    f"Each image must not exceed 5MB. '{image.name}' is too large."
+                )
+            
+        return value
+
     def create(self, validated_data):
         images_data = validated_data.pop('images', [])
         image_urls = validated_data.get('image_urls', [])
