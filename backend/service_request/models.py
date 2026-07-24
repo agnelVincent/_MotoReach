@@ -203,16 +203,15 @@ class ServiceExecution(models.Model):
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_services')
     mechanics = models.ManyToManyField('accounts.Mechanic', blank=True, related_name='assigned_executions')
 
-    # Link to Estimate (new field)
     estimate = models.OneToOneField(Estimate, on_delete=models.SET_NULL, null=True, blank=True, related_name='execution')
     
-    # Keep estimate_amount for backward compatibility - will sync with estimate.total_amount when estimate is approved
     estimate_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     escrow_paid = models.BooleanField(default=False)
     escrow_txn_id = models.CharField(max_length=100, null=True, blank=True)
 
     otp_code = models.CharField(max_length=6, null=True, blank=True)
+    last_otp_sent = models.DateTimeField(null=True, blank=True)
 
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
