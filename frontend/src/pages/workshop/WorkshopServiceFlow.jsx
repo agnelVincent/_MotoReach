@@ -44,9 +44,6 @@ const WorkshopServiceFlow = () => {
     if (requestId) {
       dispatch(fetchServiceRequestDetails(requestId));
       const connectionId = currentRequest?.active_connection?.id;
-      if (connectionId) {
-        setTimeout(() => { dispatch(fetchEstimates(connectionId)); }, 300);
-      }
     }
   }, 'workshop');
 
