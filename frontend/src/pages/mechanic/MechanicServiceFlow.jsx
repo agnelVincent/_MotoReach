@@ -596,7 +596,6 @@ const MechanicServiceFlow = () => {
                                     toast.dismiss(t.id);
                                     try {
                                       await dispatch(endService(requestId)).unwrap();
-                                      dispatch(fetchServiceRequestDetails(requestId));
                                       toast.success('Service marked as completed!');
                                     } catch (e) { toast.error(formatBackendError(e, 'Failed to finish service')); }
                                   }}

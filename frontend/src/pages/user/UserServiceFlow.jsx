@@ -151,7 +151,6 @@ const UserServiceFlow = () => {
     try {
       await dispatch(approveEstimate({ estimateId })).unwrap();
       toast.success('Estimate approved. Please pay to proceed.');
-      if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
       toast.error(formatBackendError(e, 'Failed to approve estimate'));
     }
@@ -161,7 +160,6 @@ const UserServiceFlow = () => {
     try {
       await dispatch(rejectEstimate({ estimateId })).unwrap();
       toast.success('Estimate rejected. Workshop can send a new one.');
-      if (currentRequest?.active_connection?.id) dispatch(fetchEstimates(currentRequest.active_connection.id));
     } catch (e) {
       toast.error(formatBackendError(e, 'Failed to reject estimate'));
     }

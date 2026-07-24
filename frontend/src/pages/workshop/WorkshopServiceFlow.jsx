@@ -401,7 +401,6 @@ const WorkshopServiceFlow = () => {
                                   toast.dismiss(t.id);
                                   try {
                                     await dispatch(endService(requestId)).unwrap();
-                                    dispatch(fetchServiceRequestDetails(requestId));
                                     toast.success('Service marked as completed!');
                                   } catch (e) { toast.error(formatBackendError(e, 'Failed to finish service')); }
                                 }} className="flex-1 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">Confirm</button>
