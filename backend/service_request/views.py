@@ -1596,8 +1596,9 @@ class EndServiceView(APIView):
             )
 
 
+OTP_COOLDOWN_SECONDS = 60
+
 def _can_generate_service_otp(user, execution):
-    """True if user is workshop admin or assigned mechanic."""
 
     if not user or not execution:
         return False
@@ -1660,11 +1661,22 @@ class GenerateServiceOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        now = timezone.now()
+
+        if execution.last_otp_sent:
+            cooldown_time = execution.last_otp_sent + timedelta(seconds=OTP_COOLDOWN_SECONDS)
+            if now < cooldown_time:
+                remaining_seconds = int((cooldown_time - now).total_seconds())
+                return Response({
+                    'error' : f'Please wait {remaining_seconds} seconds before requesting a new OTP.'
+                }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
         try:
 
             otp = generate_otp_code(length=6)
             execution.otp_code = otp
-            execution.save()
+            execution.last_otp_sent = now
+            execution.save(update_fields=["otp_code", "last_otp_sent"])
 
             notify_service_flow_update(
                 execution.service_request_id,
@@ -1712,6 +1724,7 @@ class GenerateServiceOTPView(APIView):
             )
 
             execution.otp_code = None
+            execution.last_otp_sent = None
             execution.save(update_fields=["otp_code"])
 
             return Response(
