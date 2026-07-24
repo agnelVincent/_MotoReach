@@ -36,7 +36,6 @@ const MechanicServiceFlow = () => {
   useServiceFlowSocket(requestId, () => {
     if (requestId) dispatch(fetchServiceRequestDetails(requestId));
     const connectionId = currentRequestRef.current?.active_connection?.id;
-    if (connectionId) dispatch(fetchEstimates(connectionId));
   }, 'mechanic');
 
   useEffect(() => {
