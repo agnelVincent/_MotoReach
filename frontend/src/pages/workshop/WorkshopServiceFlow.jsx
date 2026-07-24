@@ -22,7 +22,7 @@ import Chat from '../../components/Chat';
 import EstimateManager from '../../components/EstimateManager';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import ReportComplaintModal from '../../components/ReportComplaintModal';
-import { formatBackendError } from '../../utils/errorUtils';
+import { formatBackendError } from '../../utils/errorHandler';
 
 const WorkshopServiceFlow = () => {
   const { requestId } = useParams();

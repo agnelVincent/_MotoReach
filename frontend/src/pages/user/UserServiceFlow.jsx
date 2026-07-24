@@ -11,7 +11,7 @@ import Chat from '../../components/Chat';
 import toast from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import ReportComplaintModal from '../../components/ReportComplaintModal';
-import { formatBackendError } from '../../utils/errorUtils';
+import { formatBackendError } from '../../utils/errorHandler';
 import { formatDate } from '../../utils/dateUtils';
 
 const UserServiceFlow = () => {

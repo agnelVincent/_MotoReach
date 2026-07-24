@@ -15,7 +15,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import Chat from '../../components/Chat';
-import { formatBackendError } from '../../utils/errorUtils';
+import { formatBackendError } from '../../utils/errorHandler';
 import { formatDateTime } from '../../utils/dateUtils';
 
 const MechanicServiceFlow = () => {
