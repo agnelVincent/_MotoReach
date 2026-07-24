@@ -4,6 +4,7 @@ import { Send, ImageIcon, X, Loader2 } from 'lucide-react';
 import axiosInstance from '../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { getWebSocketBase } from '../config/ws';
+import { formatDateTime } from '../utils/dateUtils';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const PAGE_SIZE = 50;
@@ -164,7 +165,7 @@ const Chat = ({
   const renderMessage = (msg) => {
     const own = isOwn(msg.sender_id);
     const isImage = msg.message_type === 'image' && msg.image_url;
-    const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = formatDateTime(msg.created_at);
 
     // Avatar letter
     const senderLetter = (msg.sender_name || '?').charAt(0).toUpperCase();

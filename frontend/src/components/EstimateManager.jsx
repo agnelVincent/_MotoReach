@@ -13,6 +13,7 @@ import {
   resendEstimate,
 } from '../redux/slices/serviceRequestSlice';
 import { toast } from 'react-hot-toast';
+import { formatDate } from '../utils/dateUtils';
 
 const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) => {
   const dispatch = useDispatch();
@@ -462,7 +463,7 @@ const EstimateManager = ({ connectionId, requestId, onEstimateSent, onResend }) 
             {activeEstimate.expires_at && (
               <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Valid Until: {new Date(activeEstimate.expires_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                <span>Valid Until: {formatDate(activeEstimate.expires_at)}</span>
               </div>
             )}
 

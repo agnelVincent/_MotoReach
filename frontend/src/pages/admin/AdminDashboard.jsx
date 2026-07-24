@@ -18,6 +18,7 @@ import {useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchAdminStats } from '../../redux/slices/adminSlice';
 import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
+import { formatDate, formatFullDate, formatDateTime } from '../../utils/dateUtils';
 
 
 const AdminDashboard = () => {
@@ -75,8 +76,7 @@ const AdminDashboard = () => {
   const maxRevenue = Math.max(...monthlyData.map(d => d.revenue),1);
 
 const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(); 
+    return formatDateTime(dateString); 
   };
 
 
@@ -142,7 +142,7 @@ const getTypeColor = (type) => {
             </h1>
             <p className="text-gray-600 flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {formatFullDate()}
             </p>
           </div>
 

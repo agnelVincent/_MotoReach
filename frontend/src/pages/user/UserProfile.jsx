@@ -21,6 +21,7 @@ import {
 import { getProfile, updateProfile, changePassword, clearStatus } from '../../redux/slices/ProfileSlice';
 import { validateFullName, getPasswordRules } from '../../utils/validationRules';
 import { formatBackendError } from '../../utils/errorHandler';
+import { formatDate } from '../../utils/dateUtils';
 
 const UserProfile = () => {
     const dispatch = useDispatch();
@@ -154,7 +155,7 @@ const UserProfile = () => {
         );
     }
 
-    const memberSinceFormatted = new Date(profile.memberSince).toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    const memberSinceFormatted = formatDate(profile.memberSince);
     const initials = profile.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
 
     return (

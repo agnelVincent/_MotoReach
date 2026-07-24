@@ -5,6 +5,7 @@ import { Building2, Mail, Phone, MapPin, FileText, Calendar, CheckCircle, Clock,
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 import { useWorkshopVerification } from '../../hooks/useWorkshopVerification';
+import { formatDate } from '../../utils/dateUtils';
 
 const AdminWorkshopDetail = () => {
     const { id } = useParams();
@@ -175,11 +176,7 @@ const AdminWorkshopDetail = () => {
                                     <div>
                                         <p className="text-sm text-gray-500 mb-1">Applied On</p>
                                         <p className="font-medium text-gray-900">
-                                            {new Date(createdAt).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}
+                                            {formatDate(createdAt)}
                                         </p>
                                     </div>
                                 </div>

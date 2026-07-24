@@ -3,6 +3,7 @@ import axiosInstance from '../../api/axiosInstance';
 import toast from 'react-hot-toast';
 import { AlertCircle, Ban, Mail, Phone, Clock, FileText, CheckCircle2 } from 'lucide-react';
 import Pagination from '../../components/Pagination';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const AdminComplaints = () => {
     const [complaints, setComplaints] = useState([]);
@@ -125,7 +126,7 @@ const AdminComplaints = () => {
                                 </div>
                                 <div className="text-sm text-gray-500 flex items-center gap-1.5">
                                     <Clock className="w-4 h-4" />
-                                    {new Date(complaint.created_at).toLocaleString()}
+                                    {formatDateTime(complaint.created_at)}
                                 </div>
                             </div>
 

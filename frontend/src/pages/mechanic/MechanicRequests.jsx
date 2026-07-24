@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import Pagination from '../../components/Pagination';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const statusConfig = (status) => {
   switch (status) {
@@ -207,7 +208,7 @@ const MechanicRequests = () => {
                           <span className="text-gray-200">·</span>
                           <span className="font-body text-xs text-gray-400 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(request.created_at).toLocaleString()}
+                            {formatDateTime(request.created_at)}
                           </span>
                         </div>
                       </div>

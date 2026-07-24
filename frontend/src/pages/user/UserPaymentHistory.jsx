@@ -3,6 +3,7 @@ import axiosInstance from '../../api/axiosInstance';
 import { CreditCard, ArrowUpRight, ArrowDownRight, Search, Receipt, Calendar, Loader2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Pagination from '../../components/Pagination';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const UserPaymentHistory = () => {
   const [payments, setPayments] = useState([]);
@@ -324,10 +325,7 @@ const UserPaymentHistory = () => {
                           <td>
                             <div className="flex items-center gap-1.5 text-gray-500 text-xs">
                               <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                              {new Date(payment.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric', month: 'short', day: 'numeric',
-                                hour: '2-digit', minute: '2-digit'
-                              })}
+                              {formatDateTime(payment.created_at)}
                             </div>
                           </td>
 

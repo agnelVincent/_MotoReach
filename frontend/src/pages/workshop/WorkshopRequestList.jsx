@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import Pagination from '../../components/Pagination';
+import { formatDate, formatDateTime } from '../../utils/dateUtils';
 
 /* ── Expiration countdown ── */
 const ExpirationTimer = ({ requestedAt }) => {
@@ -75,11 +76,7 @@ const AVATAR_COLORS = [
 ];
 const avatarColor = (id) => AVATAR_COLORS[(id || 0) % AVATAR_COLORS.length];
 
-const formatDate = (d) =>
-  new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-const formatDateTime = (d) =>
-  new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 /* ════════════════════════════════════════════════ */
 const WorkshopRequestList = () => {

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import ExpirationTimer from '../../components/ExpirationTimer';
+import { formatDate } from '../../utils/dateUtils';
 
 const UserServices = () => {
     const dispatch = useDispatch();
@@ -367,7 +368,7 @@ const UserServices = () => {
                                             </h3>
                                             <p className="font-body text-gray-400 text-xs flex items-center gap-1.5">
                                                 <Clock className="w-3 h-3" />
-                                                {new Date(request.created_at).toLocaleDateString()}
+                                                {formatDate(request.created_at)}
                                             </p>
                                         </div>
 

@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import ReportComplaintModal from '../../components/ReportComplaintModal';
 import { formatBackendError } from '../../utils/errorUtils';
+import { formatDate } from '../../utils/dateUtils';
 
 const UserServiceFlow = () => {
   const { requestId } = useParams();
@@ -368,7 +369,7 @@ const UserServiceFlow = () => {
               </span>
               {currentRequest?.created_at && (
                 <span className="section-label text-white/40 text-[0.62rem]">
-                  {new Date(currentRequest.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {formatDate(currentRequest.created_at)}
                 </span>
               )}
             </div>

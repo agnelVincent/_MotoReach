@@ -19,6 +19,7 @@ import {
     Sparkles,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const UserWallet = () => {
     const dispatch = useDispatch();
@@ -99,13 +100,7 @@ const UserWallet = () => {
         );
     };
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
+
 
     const displayTransactions = viewAllTransactions ? allTransactions : recentTransactions;
 
@@ -502,7 +497,7 @@ const UserWallet = () => {
                                             <p className="font-display font-bold text-gray-900 text-sm truncate">{transaction.description}</p>
                                             <div className="flex items-center gap-1.5 mt-0.5">
                                                 <Calendar className="w-3 h-3 text-gray-300 flex-shrink-0" />
-                                                <p className="font-body text-xs text-gray-400">{formatDate(transaction.created_at)}</p>
+                                                <p className="font-body text-xs text-gray-400">{formatDateTime(transaction.created_at)}</p>
                                             </div>
                                         </div>
                                     </div>

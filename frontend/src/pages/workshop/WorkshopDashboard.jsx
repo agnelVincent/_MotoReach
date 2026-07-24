@@ -14,6 +14,7 @@ import {
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchWorkshopStats } from '../../redux/slices/workshopMechanicSlice';
+import { formatFullDate } from '../../utils/dateUtils';
 
 const WorkshopDashboard = () => {
   const { stats } = useSelector((state) => state.workshopMechanic);
@@ -81,9 +82,7 @@ const WorkshopDashboard = () => {
     return 'bg-orange-200 text-orange-700';
   };
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  const today = formatFullDate();
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] font-sans">

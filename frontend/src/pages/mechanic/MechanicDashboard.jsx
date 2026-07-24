@@ -6,6 +6,7 @@ import {
 import MechanicNavbar from '../../components/navbars/MechanicNavbar';
 import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
+import { formatFullDate } from '../../utils/dateUtils';
 
 const MechanicDashboard = () => {
   const navigate = useNavigate();
@@ -193,7 +194,7 @@ const MechanicDashboard = () => {
               </h1>
               <p className="font-body text-white/50 text-sm flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" />
-                {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                {formatFullDate()}
               </p>
             </div>
 

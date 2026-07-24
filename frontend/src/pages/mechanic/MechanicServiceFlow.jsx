@@ -16,6 +16,7 @@ import { toast } from 'react-hot-toast';
 import { useServiceFlowSocket } from '../../hooks/useServiceFlowSocket';
 import Chat from '../../components/Chat';
 import { formatBackendError } from '../../utils/errorUtils';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const MechanicServiceFlow = () => {
   const { requestId } = useParams();
@@ -412,13 +413,13 @@ const MechanicServiceFlow = () => {
                         <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
                           <span className="section-label text-gray-400 text-[0.6rem]">Started At</span>
                           <span className="font-body text-xs font-semibold text-gray-700">
-                            {execution.started_at ? new Date(execution.started_at).toLocaleString() : '—'}
+                            {execution.started_at ? formatDateTime(execution.started_at) : '—'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
                           <span className="section-label text-gray-400 text-[0.6rem]">Completed At</span>
                           <span className="font-body text-xs font-semibold text-gray-700">
-                            {execution.completed_at ? new Date(execution.completed_at).toLocaleString() : '—'}
+                            {execution.completed_at ? formatDateTime(execution.completed_at) : '—'}
                           </span>
                         </div>
                       </div>

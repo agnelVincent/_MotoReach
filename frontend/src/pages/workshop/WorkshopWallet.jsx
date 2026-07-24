@@ -13,6 +13,7 @@ import {
     Activity,
     Banknote
 } from 'lucide-react';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const WorkshopWallet = () => {
     const dispatch = useDispatch();
@@ -41,13 +42,7 @@ const WorkshopWallet = () => {
         </div>
     );
 
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    };
+
 
     const displayTransactions = viewAllTransactions ? allTransactions : recentTransactions;
 
@@ -250,7 +245,7 @@ const WorkshopWallet = () => {
                                                 <p className="font-display font-semibold text-gray-800 text-sm truncate">{transaction.description}</p>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                     <Calendar className="w-3 h-3 text-gray-300 flex-shrink-0" />
-                                                    <p className="font-body text-xs text-gray-400">{formatDate(transaction.created_at)}</p>
+                                                    <p className="font-body text-xs text-gray-400">{formatDateTime(transaction.created_at)}</p>
                                                 </div>
                                             </div>
                                         </div>

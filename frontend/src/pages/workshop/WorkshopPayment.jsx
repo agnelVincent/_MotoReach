@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Pagination from '../../components/Pagination';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const WorkshopPayment = () => {
   const [activeTab, setActiveTab] = useState('escrow');
@@ -267,7 +268,7 @@ const WorkshopPayment = () => {
                             <div className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-gray-300" />
                               <span className="font-body text-gray-500 text-sm">
-                                {new Date(payment.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {formatDateTime(payment.created_at)}
                               </span>
                             </div>
                           </td>
@@ -361,7 +362,7 @@ const WorkshopPayment = () => {
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap">
                             <span className="font-body text-gray-500 text-sm">
-                              {new Date(txn.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              {formatDateTime(txn.created_at)}
                             </span>
                           </td>
                           <td className="px-5 py-4">

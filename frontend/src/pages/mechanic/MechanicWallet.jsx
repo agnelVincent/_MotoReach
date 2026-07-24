@@ -17,14 +17,9 @@ import {
 } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+import { formatDateTime } from '../../utils/dateUtils';
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
-
-const formatDate = (iso) =>
-  new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
-const formatTime = (iso) =>
-  new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
 const FILTER_OPTIONS = [
   { label: 'All Transactions', value: 'ALL' },
@@ -378,7 +373,7 @@ const MechanicWallet = () => {
                       <div className="flex flex-wrap items-center gap-3 mt-1.5">
                         <span className="font-body text-xs text-gray-400 flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          {formatDate(earning.created_at)} · {formatTime(earning.created_at)}
+                          {formatDateTime(earning.created_at)}
                         </span>
                         {!isBonus && earning.service_execution?.mechanic_count && (
                           <span className="font-body text-xs text-gray-400 flex items-center gap-1">

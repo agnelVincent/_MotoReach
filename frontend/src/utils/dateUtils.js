@@ -5,13 +5,13 @@ export const formatDate = (dateString, options = {}) => {
   if (isNaN(date.getTime())) return '—';
 
   const defaultOptions = {
-    day: 'numeric',
-    month: 'short',
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
     ...options
   };
 
-  return date.toLocaleDateString('en-IN', defaultOptions);
+  return date.toLocaleDateString('en-GB', defaultOptions);
 };
 
 export const formatDateTime = (dateString, options = {}) => {
@@ -20,8 +20,8 @@ export const formatDateTime = (dateString, options = {}) => {
   if (isNaN(date.getTime())) return '—';
 
   const defaultOptions = {
-    day: 'numeric',
-    month: 'short',
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
@@ -29,17 +29,17 @@ export const formatDateTime = (dateString, options = {}) => {
     ...options
   };
 
-  return date.toLocaleString('en-IN', defaultOptions);
+  return date.toLocaleString('en-GB', defaultOptions);
 };
 
 export const formatFullDate = (dateString = new Date()) => {
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return '—';
 
-  return date.toLocaleDateString('en-IN', {
+  return date.toLocaleDateString('en-GB', {
     weekday: 'long',
-    day: 'numeric',
-    month: 'long',
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric'
   });
 };

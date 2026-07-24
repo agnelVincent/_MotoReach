@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axiosInstance from '../../api/axiosInstance';
 import { Wallet, ArrowDownLeft, ArrowUpRight, Loader2, AlertCircle, Calendar, LineChart } from 'lucide-react';
 import Pagination from '../../components/Pagination';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const AdminWallet = () => {
   const [data, setData] = useState({ transactions: [] });
@@ -103,9 +104,7 @@ const AdminWallet = () => {
                     </td>
                     <td className="p-4 text-gray-600 text-sm whitespace-nowrap flex items-center gap-2">
                        <Calendar className="w-4 h-4 text-gray-400" />
-                      {new Date(txn.created_at).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                      })}
+                      {formatDateTime(txn.created_at)}
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold ${

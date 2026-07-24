@@ -10,6 +10,7 @@ import {
   respondToRequest, clearMessages, removeMechanic
 } from '../../redux/slices/workshopMechanicSlice';
 import { toast } from 'react-hot-toast';
+import { formatDate } from '../../utils/dateUtils';
 
 const WorkshopMechanicManager = () => {
   const dispatch = useDispatch();
@@ -101,10 +102,7 @@ const WorkshopMechanicManager = () => {
     dispatch(respondToRequest({ mechanicId, action: 'REJECT' }));
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
+
 
   const getInitials = (name) => name ? name.charAt(0).toUpperCase() : '?';
 
