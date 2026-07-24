@@ -89,7 +89,6 @@ const UserServiceFlow = () => {
       const result = await dispatch(userCancelConnection(requestId)).unwrap();
       if (result) {
         toast.success("Connection cancelled successfully");
-        dispatch(fetchNearbyWorkshops(requestId));
       }
     } catch (error) {
       console.error(error);
