@@ -212,6 +212,7 @@ class ServiceExecution(models.Model):
 
     otp_code = models.CharField(max_length=6, null=True, blank=True)
     last_otp_sent = models.DateTimeField(null=True, blank=True)
+    otp_attempts = models.IntegerField(default=0)
 
     cancelled_at = models.DateTimeField(null=True, blank=True)
 
