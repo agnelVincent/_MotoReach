@@ -1676,7 +1676,8 @@ class GenerateServiceOTPView(APIView):
             otp = generate_otp_code(length=6)
             execution.otp_code = otp
             execution.last_otp_sent = now
-            execution.save(update_fields=["otp_code", "last_otp_sent"])
+            execution.otp_attempts = 0
+            execution.save(update_fields=["otp_code", "last_otp_sent", "otp_attempts"])
 
             notify_service_flow_update(
                 execution.service_request_id,
@@ -1733,6 +1734,8 @@ class GenerateServiceOTPView(APIView):
             )
 
 
+MAX_OTP_ATTEMPTS = 5
+
 class VerifyServiceOTPView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1751,8 +1754,42 @@ class VerifyServiceOTPView(APIView):
         if execution.service_request.user != request.user:
             return Response({"error": "Only the service request owner can verify OTP"}, status=status.HTTP_403_FORBIDDEN)
 
+        if not execution.otp_code:
+            return Response(
+                {'error' : 'No active OTP found. Please request a new OTP'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if execution.otp_attempts >= MAX_OTP_ATTEMPTS:
+            execution.otp_code = None
+            execution.otp_attempts = 0
+            execution.save(update_fields=["otp_code", "otp_attempts"])
+
+            return Response(
+                {"error": "Too many failed attempts. This OTP has been invalidated. Please generate a new OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+
         if execution.otp_code != otp:
-            return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+            execution.otp_attempts += 1
+            if execution.otp_attempts >= MAX_OTP_ATTEMPTS:
+                execution.otp_code = None
+                execution.otp_attempts = 0
+                execution.save(update_fields=["otp_code", "otp_attempts"])
+
+                return Response(
+                    {"error": "Too many failed attempts. This OTP has been invalidated. Please generate a new OTP."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+            execution.save(update_fields=["otp_attempts"])
+            remaining_attempts = MAX_OTP_ATTEMPTS - execution.otp_attempts
+
+
+            return Response(
+                {"error": f"Invalid OTP. {remaining_attempts} attempt(s) remaining."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
         try:
