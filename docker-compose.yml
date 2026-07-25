@@ -39,9 +39,5 @@ services:
       sh -c "python manage.py migrate &&
              daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
 
-  # Frontend is deployed on Vercel — not needed here.
-  # The frontend/Dockerfile and frontend/nginx.conf are kept for local testing only.
-  # To test frontend locally with Docker: docker compose -f docker-compose.dev.yml up
-
 volumes:
-  postgres_data:
+  postgres_data:

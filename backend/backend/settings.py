@@ -110,9 +110,9 @@ SIMPLE_JWT = {
 
     'AUTH_COOKIE' : 'refreshtoken',
     'AUTH_COOKIE_DOMAIN' : None,
-    'AUTH_COOKIE_SECURE' : os.environ.get('AUTH_COOKIE_SECURE', 'False') == 'True',  # True in prod (HTTPS)
+    'AUTH_COOKIE_SECURE' : os.environ.get('AUTH_COOKIE_SECURE', 'False') == 'True',  
     'AUTH_COOKIE_HTTP_ONLY' : True,
-    'AUTH_COOKIE_SAMESITE' : os.environ.get('AUTH_COOKIE_SAMESITE', 'Lax'),  # 'None' in prod (cross-domain)
+    'AUTH_COOKIE_SAMESITE' : os.environ.get('AUTH_COOKIE_SAMESITE', 'Lax'), 
     
     # Additional security settings
     'ROTATE_REFRESH_TOKENS': False,
@@ -221,10 +221,6 @@ STRIPE_PLATFORM_FEE_AMOUNT = float(os.environ.get("STRIPE_PLATFORM_FEE_AMOUNT", 
 PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS = int(os.environ.get("PLATFORM_FEE_MIN_WORKSHOP_ATTEMPTS", "3")) 
 INR_TO_USD_RATE = float(os.environ.get("INR_TO_USD_RATE", "0.012"))
 
-# Frontend URL — change per environment via .env, never hardcode
-# Local dev  : http://localhost:5173
-# Docker     : http://localhost:3000
-# Production : https://your-vercel-app.vercel.app
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 stripe.api_key = STRIPE_SECRET_KEY
