@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "http://13.232.152.186:8000/api/$1"
+      "destination": "https://motoreach.duckdns.org/api/$1"
     },
     {
       "source": "/(.*)",

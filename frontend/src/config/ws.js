@@ -2,9 +2,9 @@ export const getWebSocketBase = () => {
   const envBase = import.meta.env.VITE_WS_BASE;
   if (envBase) return envBase;
 
-  if (window.location.hostname === 'moto-reach.vercel.app') {
-    return 'wss://motoreach.duckdns.org';
+  if (window.location.protocol === 'https:') {
+    return `wss://${window.location.host}`;
   }
 
-  return 'ws://localhost:8000';
+  return `ws://${window.location.host}`;
 };

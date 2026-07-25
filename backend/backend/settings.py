@@ -25,14 +25,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'backend',
-    '13.232.152.186',           # AWS EC2 public IP (direct access)
-    'motoreach.duckdns.org',    # EC2 via Nginx + SSL
-    'moto-reach.vercel.app',    # Vercel frontend
-]
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend').split(',')
 
 # Django Channels / WebSocket configuration
 ASGI_APPLICATION = "backend.asgi.application"
@@ -127,20 +120,10 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",        # Vite dev server (local dev)
-    "http://127.0.0.1:5173",       # Vite dev server (local dev)
-    "http://localhost:3000",        # Docker / Nginx frontend
-    "http://127.0.0.1:3000",       # Docker / Nginx frontend
-    "https://moto-reach.vercel.app", # Production Vercel frontend
-    "https://motoreach.duckdns.org"
-]
+CORS_ALLOWED_ORIGINS = [origin for origin in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000').split(',') if origin]
 
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://motoreach.duckdns.org",  
-    "https://moto-reach.vercel.app",
-]
+CSRF_TRUSTED_ORIGINS = [origin for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if origin]
 
 CORS_ALLOW_CREDENTIALS = True
 
