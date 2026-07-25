@@ -81,8 +81,7 @@ class IsServiceRequestParticipant(permissions.BasePermission):
         is_workshop = (
             user.role == 'workshop_admin'
             and hasattr(user, 'workshop')
-            and sr.active_connection
-            and sr.active_connection.workshop == user.workshop
+            and sr.connections.filter(workshop=user.workshop).exclude(status__in=['REJECTED', 'AUTO_REJECTED', 'CANCELLED', 'WITHDRAWN']).exists()
         )
 
         is_mechanic = (
